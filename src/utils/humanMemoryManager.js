@@ -1,7 +1,47 @@
-// 🌟 人間主語の思い出システム
-const { EmbedBuilder } = require('discord.js'); // 🔧 追加
+// 🌟 人間主語の思い出システム（確率システム実装版）
+const { EmbedBuilder } = require('discord.js');
 
-// 思い出の種類とパターン
+// 🎲 思い出の希少度別確率設定
+const MEMORY_RARITY = {
+    guaranteed: {
+        probability: 1.0,    // 100% (重要なマイルストーン)
+        color: 0xFF1493,     // ピンク
+        name: '特別な思い出',
+        emoji: '⭐'
+    },
+    legendary: {
+        probability: 0.02,   // 2% (奇跡的な瞬間)
+        color: 0xFFD700,     // 金
+        name: '伝説的な思い出',
+        emoji: '🟡'
+    },
+    epic: {
+        probability: 0.05,   // 5% (完璧な条件)
+        color: 0x9900FF,     // 紫
+        name: 'エピックな思い出',
+        emoji: '🟣'
+    },
+    rare: {
+        probability: 0.08,   // 8% (特殊天気)
+        color: 0x0066FF,     // 青
+        name: 'レアな思い出',
+        emoji: '🔵'
+    },
+    uncommon: {
+        probability: 0.15,   // 15% (天気条件など)
+        color: 0x00FF00,     // 緑
+        name: '珍しい思い出',
+        emoji: '🟢'
+    },
+    common: {
+        probability: 0.3,    // 30% (基本的な思い出)
+        color: 0x808080,     // グレー
+        name: 'よくある思い出',
+        emoji: '⚪'
+    }
+};
+
+// 思い出の種類とパターン（レアリティ付き）
 const MEMORY_PATTERNS = {
     // 🍽️ 餌やりの思い出
     feeding: {
@@ -9,73 +49,106 @@ const MEMORY_PATTERNS = {
             condition: (action) => action.type === 'feed' && action.isFirstTime,
             memory: (userName, birdName, details) => 
                 `初めて${birdName}に${details.food}をあげた日。緊張したけど、喜んで食べてくれて嬉しかった。`,
-            icon: '🍽️'
+            icon: '🍽️',
+            rarity: 'guaranteed' // 重要なので必ず生成
         },
         '好物発見': {
             condition: (action) => action.type === 'feed' && action.preference === 'favorite' && action.isFirstFavorite,
             memory: (userName, birdName, details) => 
                 `${birdName}の好物が${details.food}だと分かった日。あんなに喜んでくれるなんて、発見できて良かった！`,
-            icon: '🌟'
+            icon: '🌟',
+            rarity: 'common'
         },
         '雨の日の餌やり': {
             condition: (action) => action.type === 'feed' && (action.weather === 'rainy' || action.weather === 'drizzle'),
             memory: (userName, birdName, details) => 
                 `雨の日に${birdName}に${details.food}をあげた。${details.weatherDescription}の中、濡れながらも来てくれて、${birdName}も嬉しそうだった。`,
-            icon: '🌧️'
+            icon: '🌧️',
+            rarity: 'uncommon'
         },
         '雪の日の餌やり': {
             condition: (action) => action.type === 'feed' && action.weather === 'snow',
             memory: (userName, birdName, details) => 
                 `雪の日に${birdName}に${details.food}をあげた。${details.weatherDescription}の中、${birdName}が雪をかぶりながら食べる姿が美しかった。`,
-            icon: '❄️'
+            icon: '❄️',
+            rarity: 'rare'
         },
         '虹の日の餌やり': {
             condition: (action) => action.type === 'feed' && action.weather === 'rainbow',
             memory: (userName, birdName, details) => 
                 `虹が出た日に${birdName}に${details.food}をあげた。${details.weatherDescription}の下で、${birdName}と一緒に虹を見上げた特別な瞬間。`,
-            icon: '🌈'
+            icon: '🌈',
+            rarity: 'legendary'
         },
         '霧の日の餌やり': {
             condition: (action) => action.type === 'feed' && action.weather === 'foggy',
             memory: (userName, birdName, details) => 
                 `霧の深い日に${birdName}に${details.food}をあげた。${details.weatherDescription}の中、幻想的な雰囲気で過ごした静かな時間。`,
-            icon: '🌫️'
+            icon: '🌫️',
+            rarity: 'rare'
         },
         '暴風の日の餌やり': {
             condition: (action) => action.type === 'feed' && action.weather === 'stormy',
             memory: (userName, birdName, details) => 
                 `嵐の日に${birdName}に${details.food}をあげた。${details.weatherDescription}で大変だったけど、${birdName}が心配で駆けつけた。`,
-            icon: '⛈️'
+            icon: '⛈️',
+            rarity: 'rare'
         },
         '暑い日の餌やり': {
             condition: (action) => action.type === 'feed' && action.temperature >= 30,
             memory: (userName, birdName, details) => 
                 `暑い日（${details.temperature}°C）に${birdName}に${details.food}をあげた。暑さでぐったりしていた${birdName}が少し元気になってくれた。`,
-            icon: '🌡️'
+            icon: '🌡️',
+            rarity: 'uncommon'
         },
         '寒い日の餌やり': {
             condition: (action) => action.type === 'feed' && action.temperature <= 5,
             memory: (userName, birdName, details) => 
                 `寒い日（${details.temperature}°C）に${birdName}に${details.food}をあげた。${birdName}は寒そうだったけど少しは寒さが和らいだかな。`,
-            icon: '🥶'
+            icon: '🥶',
+            rarity: 'uncommon'
         },
         '早朝の餌やり': {
             condition: (action) => action.type === 'feed' && action.hour >= 6 && action.hour < 8,
             memory: (userName, birdName, details) => 
                 `早起きして${birdName}に${details.food}をあげた朝。朝日の中で食べる姿がとても美しかった。`,
-            icon: '🌅'
+            icon: '🌅',
+            rarity: 'uncommon'
         },
         '夜の餌やり': {
             condition: (action) => action.type === 'feed' && action.hour >= 20,
             memory: (userName, birdName, details) => 
                 `夜遅くに${birdName}に${details.food}をあげた。月明かりの下、静かに食べる姿が印象的だった。`,
-            icon: '🌙'
+            icon: '🌙',
+            rarity: 'uncommon'
+        },
+        '完璧な晴天': {
+            condition: (action) => action.type === 'feed' && action.weather === 'sunny' && action.temperature >= 20 && action.temperature <= 25,
+            memory: (userName, birdName, details) => 
+                `完璧な晴天の日に${birdName}に${details.food}をあげた。${details.weatherDescription}で、${birdName}も私も最高の気分だった。`,
+            icon: '☀️',
+            rarity: 'epic'
+        },
+        '満月の夜': {
+            condition: (action) => action.type === 'feed' && action.hour >= 20 && action.weather === 'clear',
+            memory: (userName, birdName, details) => 
+                `満月の夜に${birdName}に${details.food}をあげた。月明かりに照らされた${birdName}の姿が神秘的だった。`,
+            icon: '🌕',
+            rarity: 'epic'
+        },
+        '雨上がりの虹': {
+            condition: (action) => action.type === 'feed' && action.weather === 'rainbow',
+            memory: (userName, birdName, details) => 
+                `雨上がりに虹が出た日、${birdName}に${details.food}をあげた。${birdName}と一緒に見上げた虹は、希望の象徴のように美しかった。`,
+            icon: '🌈',
+            rarity: 'legendary'
         },
         '100回目の餌やり': {
             condition: (action) => action.type === 'feed' && action.totalFeeds === 100,
             memory: (userName, birdName, details) => 
                 `${birdName}への100回目の餌やり。こんなに長く続けられるなんて、自分でも驚いている。`,
-            icon: '💯'
+            icon: '💯',
+            rarity: 'guaranteed' // マイルストーンなので確実に
         }
     },
 
@@ -85,13 +158,15 @@ const MEMORY_PATTERNS = {
             condition: (action) => action.type === 'affinity' && action.newLevel === 5,
             memory: (userName, birdName, details) => 
                 `${birdName}との絆が深まった日。なんだか、本当の友達になれた気がする。`,
-            icon: '💖'
+            icon: '💖',
+            rarity: 'guaranteed' // 重要なマイルストーン
         },
         '完全な信頼': {
             condition: (action) => action.type === 'affinity' && action.newLevel === 10,
             memory: (userName, birdName, details) => 
                 `${birdName}が完全に心を開いてくれた日。最高レベルの信頼関係を築けて、とても感動した。`,
-            icon: '👑'
+            icon: '👑',
+            rarity: 'guaranteed' // 最高の達成なので確実に
         }
     },
 
@@ -101,121 +176,29 @@ const MEMORY_PATTERNS = {
             condition: (action) => action.type === 'gift_given' && action.isFirst,
             memory: (userName, birdName, details) => 
                 `初めて${birdName}に${details.giftName}をプレゼントした日。あんなに喜んでくれるなんて嬉しい誤算だった。`,
-            icon: '🎁'
+            icon: '🎁',
+            rarity: 'guaranteed' // 初回は確実に
         },
         '特別な贈り物': {
             condition: (action) => action.type === 'gift_given' && action.giftCount >= 5,
             memory: (userName, birdName, details) => 
                 `${birdName}に${details.giftName}をあげた。もう${action.giftCount}個目の贈り物。いつも大切にしてくれて嬉しい。`,
-            icon: '💝'
+            icon: '💝',
+            rarity: 'common'
         },
         '初めてもらった贈り物': {
             condition: (action) => action.type === 'gift_received' && action.isFirstReceived,
             memory: (userName, birdName, details) => 
                 `${birdName}から初めて${details.giftName}をもらった日。こんなに素敵な贈り物がもらえるなんて、夢みたい！`,
-            icon: '🌟'
+            icon: '🌟',
+            rarity: 'guaranteed' // 初回は確実に
         },
         '珍しい贈り物': {
             condition: (action) => action.type === 'gift_received' && action.rarity === 'rare',
             memory: (userName, birdName, details) => 
                 `${birdName}から珍しい${details.giftName}をもらった。こんな特別なものを見つけて持ってきてくれるなんて。`,
-            icon: '💎'
-        }
-    },
-
-    // 🌈 特別な出来事の思い出
-    events: {
-        '完璧な晴天': {
-            condition: (action) => action.type === 'feed' && action.weather === 'sunny' && action.temperature >= 20 && action.temperature <= 25,
-            memory: (userName, birdName, details) => 
-                `完璧な晴天の日に${birdName}に${details.food}をあげた。${details.weatherDescription}で、${birdName}も私も最高の気分だった。`,
-            icon: '☀️'
-        },
-        '満月の夜': {
-            condition: (action) => action.type === 'feed' && action.hour >= 20 && action.weather === 'clear',
-            memory: (userName, birdName, details) => 
-                `満月の夜に${birdName}に${details.food}をあげた。月明かりに照らされた${birdName}の姿が神秘的だった。`,
-            icon: '🌕'
-        },
-        '初雪の日': {
-            condition: (action) => action.type === 'special_weather' && action.weather === 'first_snow',
-            memory: (userName, birdName, details) => 
-                `今年初めての雪の日、${birdName}に会いに行った。雪の中でも元気そうで、ほっとした。`,
-            icon: '❄️'
-        },
-        '桜の季節': {
-            condition: (action) => action.type === 'feed' && action.season === 'spring' && action.weather === 'sunny',
-            memory: (userName, birdName, details) => 
-                `桜の咲く春の日に${birdName}に${details.food}をあげた。花びらが舞う中での餌やりは、まるで映画のワンシーンのようだった。`,
-            icon: '🌸'
-        },
-        '夏祭りの夜': {
-            condition: (action) => action.type === 'event' && action.event === 'festival',
-            memory: (userName, birdName, details) => 
-                `夏祭りの夜に${birdName}と過ごした特別な時間。花火の光が私たちの絆を照らしているようだった。`,
-            icon: '🎆'
-        },
-        '紅葉の秋': {
-            condition: (action) => action.type === 'feed' && action.season === 'autumn' && action.weather === 'sunny',
-            memory: (userName, birdName, details) => 
-                `紅葉が美しい秋の日に${birdName}に${details.food}をあげた。色づいた葉っぱの中で過ごした穏やかな時間。`,
-            icon: '🍂'
-        },
-        '台風一過': {
-            condition: (action) => action.type === 'feed' && action.weather === 'sunny' && action.previousWeather === 'stormy',
-            memory: (userName, birdName, details) => 
-                `台風の後の晴天の日に${birdName}に${details.food}をあげた。嵐を乗り越えた後の平穏な時間が、より特別に感じられた。`,
-            icon: '🌅'
-        },
-        '雨上がりの虹': {
-            condition: (action) => action.type === 'feed' && action.weather === 'rainbow',
-            memory: (userName, birdName, details) => 
-                `雨上がりに虹が出た日、${birdName}に${details.food}をあげた。${birdName}と一緒に見上げた虹は、希望の象徴のように美しかった。`,
-            icon: '🌈'
-        },
-        '星空の夜': {
-            condition: (action) => action.type === 'nightEvent' && action.weather === 'clear' && action.hour >= 22,
-            memory: (userName, birdName, details) => 
-                `満天の星空の夜に${birdName}と過ごした。静寂の中で星を見上げながら、永遠に続いてほしいと思った特別な時間。`,
-            icon: '⭐'
-        }
-    },
-
-    // 📝 記録の思い出
-    milestones: {
-        '10種類目の鳥': {
-            condition: (action) => action.type === 'milestone' && action.milestone === 'birds_10',
-            memory: (userName, birdName, details) => 
-                `${birdName}が10種類目に餌をあげた鳥になった。こんなにたくさんの鳥たちと友達になれるなんて。`,
-            icon: '🔟'
-        },
-        '全エリア制覇': {
-            condition: (action) => action.type === 'milestone' && action.milestone === 'all_areas',
-            memory: (userName, birdName, details) => 
-                `${birdName}のおかげで、ついに全エリアで餌やりができた。森林、草原、水辺、全部楽しい！`,
-            icon: '🗺️'
-        }
-    },
-
-    // 🎵 感情的な思い出
-    emotional: {
-        '感動的な瞬間': {
-            condition: (action) => action.type === 'emotional' && action.emotion === 'moved',
-            memory: (userName, birdName, details) => 
-                `${birdName}が美しく歌っている姿を見て、思わず涙が出そうになった。こんな美しい瞬間に立ち会えるとは。`,
-            icon: '🎵'
-        },
-        '心配した日': {
-            condition: (action) => action.type === 'emotional' && action.emotion === 'worried',
-            memory: (userName, birdName, details) => 
-                `${birdName}の元気がなくて心配した日。でも翌日には元気になっていて、本当に安心した。`,
-            icon: '😌'
-        },
-        '嬉しい再会': {
-            condition: (action) => action.type === 'emotional' && action.emotion === 'reunion',
-            memory: (userName, birdName, details) => 
-                `しばらく会えなかった${birdName}と再会した日。覚えていてくれて、とても嬉しかった。`,
-            icon: '🤗'
+            icon: '💎',
+            rarity: 'rare' // レアアイテムはレア思い出
         }
     }
 };
@@ -224,9 +207,10 @@ const MEMORY_PATTERNS = {
 class HumanMemoryManager {
     constructor() {
         this.memoryPatterns = MEMORY_PATTERNS;
+        this.rarityData = MEMORY_RARITY;
     }
 
-    // 🌟 新しい思い出の生成
+    // 🌟 新しい思い出の生成（確率システム付き）
     async createMemory(userId, userName, birdName, actionData, guildId) {
         try {
             // 条件に合う思い出パターンをチェック
@@ -234,25 +218,38 @@ class HumanMemoryManager {
                 for (const [memoryType, config] of Object.entries(patterns)) {
                     
                     if (config.condition(actionData)) {
-                        // 思い出を生成
-                        const memory = {
-                            id: this.generateMemoryId(),
-                            type: memoryType,
-                            category: category,
-                            content: config.memory(userName, birdName, actionData.details || {}),
-                            icon: config.icon,
-                            birdName: birdName,
-                            userId: userId,
-                            userName: userName,
-                            createdAt: new Date(),
-                            details: actionData.details || {}
-                        };
-
-                        // スプレッドシートに保存
-                        await this.saveMemoryToSheet(memory, guildId);
+                        // 🎲 確率判定
+                        const rarity = config.rarity || 'common';
+                        const probability = this.rarityData[rarity].probability;
+                        const roll = Math.random();
                         
-                        console.log(`💭 新しい思い出が生まれました: ${memoryType}`);
-                        return memory;
+                        console.log(`🎲 思い出確率チェック: ${memoryType} (${rarity}) - ${(probability * 100).toFixed(1)}% (ロール: ${(roll * 100).toFixed(1)}%)`);
+                        
+                        if (roll <= probability) {
+                            // 思い出を生成
+                            const memory = {
+                                id: this.generateMemoryId(),
+                                type: memoryType,
+                                category: category,
+                                rarity: rarity,
+                                content: config.memory(userName, birdName, actionData.details || {}),
+                                icon: config.icon,
+                                birdName: birdName,
+                                userId: userId,
+                                userName: userName,
+                                createdAt: new Date(),
+                                details: actionData.details || {}
+                            };
+
+                            // スプレッドシートに保存
+                            await this.saveMemoryToSheet(memory, guildId);
+                            
+                            console.log(`💭 新しい思い出が生まれました: ${memoryType} (${rarity})`);
+                            return memory;
+                        } else {
+                            console.log(`❌ 思い出生成失敗: ${memoryType} (確率: ${(probability * 100).toFixed(1)}%, ロール: ${(roll * 100).toFixed(1)}%)`);
+                            return null; // 確率失敗時はnullを返して処理を終了
+                        }
                     }
                 }
             }
@@ -270,7 +267,7 @@ class HumanMemoryManager {
         return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
     }
 
-    // スプレッドシートに思い出を保存
+    // スプレッドシートに思い出を保存（レアリティ情報付き）
     async saveMemoryToSheet(memory, guildId) {
         try {
             const sheetsManager = require('../../config/sheets');
@@ -285,6 +282,7 @@ class HumanMemoryManager {
                 鳥名: memory.birdName,
                 思い出種類: memory.type,
                 カテゴリ: memory.category,
+                レアリティ: memory.rarity, // 🆕 レアリティ情報を追加
                 内容: memory.content,
                 アイコン: memory.icon,
                 詳細: JSON.stringify(memory.details),
@@ -296,7 +294,7 @@ class HumanMemoryManager {
         }
     }
 
-    // ユーザーの思い出を取得
+    // ユーザーの思い出を取得（レアリティ情報付き）
     async getUserMemories(userId, guildId) {
         try {
             const sheetsManager = require('../../config/sheets');
@@ -312,6 +310,7 @@ class HumanMemoryManager {
                 .map(row => ({
                     type: row.get('思い出種類'),
                     category: row.get('カテゴリ'),
+                    rarity: row.get('レアリティ') || 'common', // 🆕 レアリティ情報
                     content: row.get('内容'),
                     icon: row.get('アイコン'),
                     birdName: row.get('鳥名'),
@@ -326,7 +325,7 @@ class HumanMemoryManager {
         }
     }
 
-    // 🎁 贈り物履歴の取得（何をあげたかの記録）
+    // 🎁 贈り物履歴の取得
     async getGiftHistory(userId, guildId) {
         try {
             const sheetsManager = require('../../config/sheets');
@@ -341,7 +340,7 @@ class HumanMemoryManager {
                     row.get('贈り主ユーザーID') === userId && row.get('サーバーID') === guildId
                 )
                 .map(row => ({
-                    日時: row.get('日時'),
+                    日時: row.get('贈呈日時') || row.get('日時'),
                     鳥名: row.get('鳥名'),
                     贈り物名: row.get('贈り物名'),
                     キャプション: row.get('キャプション'),
@@ -377,19 +376,26 @@ class HumanMemoryManager {
         }
     }
 
-    // 思い出の通知を送信
+    // 思い出の通知を送信（レアリティ表示付き）
     async sendMemoryNotification(interaction, memory) {
         try {
+            const rarityInfo = this.rarityData[memory.rarity];
+            
             const embed = new EmbedBuilder()
-                .setTitle(`${memory.icon} 新しい思い出`)
+                .setTitle(`${memory.icon} ${rarityInfo.emoji} 新しい思い出`)
                 .setDescription(`**${memory.birdName}**との思い出が追加されました`)
                 .addFields({
-                    name: `💭 ${memory.type}`,
+                    name: `💭 ${memory.type} (${rarityInfo.name})`,
                     value: memory.content,
                     inline: false
                 })
-                .setColor(0x87CEEB)
+                .setColor(rarityInfo.color)
                 .setTimestamp();
+
+            // レアリティが高いほど目立つ表示
+            if (memory.rarity === 'legendary' || memory.rarity === 'epic') {
+                embed.setFooter({ text: '✨ とても貴重な思い出です！' });
+            }
 
             setTimeout(() => {
                 interaction.followUp({ embeds: [embed] });
@@ -397,6 +403,25 @@ class HumanMemoryManager {
             
         } catch (error) {
             console.error('思い出通知エラー:', error);
+        }
+    }
+
+    // 🔍 レアリティ統計の取得
+    async getMemoryRarityStats(userId, guildId) {
+        try {
+            const memories = await this.getUserMemories(userId, guildId);
+            const stats = {};
+            
+            // レアリティ別カウント
+            Object.keys(this.rarityData).forEach(rarity => {
+                stats[rarity] = memories.filter(m => m.rarity === rarity).length;
+            });
+            
+            return stats;
+            
+        } catch (error) {
+            console.error('レアリティ統計取得エラー:', error);
+            return {};
         }
     }
 }
