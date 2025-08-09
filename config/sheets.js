@@ -103,6 +103,11 @@ class SheetsManager {
     '贈り物リスト', '特別な思い出', '友達ユーザーリスト', '好きなエリア'
 　　　　　　　　]);
 
+            // 🆕 新しいシート - 鳥からもらった贈り物（コレクション用）
+            this.sheets.birdGiftsReceived = await this.getOrCreateSheet('bird_gifts_received', [
+                '日時', 'ユーザーID', 'ユーザー名', '鳥名', '贈り物名', '好感度レベル', 'エリア', 'サーバーID'
+            ]);
+
             this.isInitialized = true;
             console.log('✅ 全シートの初期化完了');
             
@@ -386,6 +391,43 @@ async updateBirdMemory(birdName, serverId, serverName, updates) {
         return false;
     }
 }
+
+    // 🆕 鳥からもらった贈り物を記録
+    async logBirdGiftReceived(userId, userName, birdName, giftName, affinityLevel, area, serverId) {
+        return await this.addLog('birdGiftsReceived', {
+            ユーザーID: userId,
+            ユーザー名: userName,
+            鳥名: birdName,
+            贈り物名: giftName,
+            好感度レベル: affinityLevel,
+            エリア: area,
+            サーバーID: serverId
+        });
+    }
+
+    // 🆕 ユーザーが鳥からもらった贈り物を取得
+    async getUserReceivedGifts(userId, serverId) {
+        try {
+            await this.ensureInitialized();
+            
+            const sheet = this.sheets.birdGiftsReceived;
+            const rows = await sheet.getRows();
+            
+            return rows.filter(row => 
+                row.get('ユーザーID') === userId && row.get('サーバーID') === serverId
+            ).map(row => ({
+                日時: row.get('日時'),
+                鳥名: row.get('鳥名'),
+                贈り物名: row.get('贈り物名'),
+                好感度レベル: row.get('好感度レベル'),
+                エリア: row.get('エリア')
+            }));
+            
+        } catch (error) {
+            console.error('受け取った贈り物取得エラー:', error);
+            return [];
+        }
+    }
 
 // 🆕 全サーバーでの鳥の来訪履歴取得
 async getBirdVisitHistory(birdName) {
