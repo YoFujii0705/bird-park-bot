@@ -242,8 +242,15 @@ module.exports = {
 
             for (const [birdName, gifts] of topBirds) {
                 const giftList = gifts
-                    .map(gift => `${this.getGiftEmojiFromName(gift.贈り物名)} **${gift.贈り物名}**\n*${gift.日時}*\n${gift.キャプション ? `"${gift.キャプション.substring(0, 50)}..."` : ''}`)
-                    .join('\n\n');
+    .map(gift => {
+        // キャプションの表示を調整
+        const captionText = gift.キャプション && gift.キャプション.trim() 
+            ? `"${gift.キャプション.substring(0, 50)}${gift.キャプション.length > 50 ? '...' : ''}"`
+            : '';
+        
+        return `${this.getGiftEmojiFromName(gift.贈り物名)} **${gift.贈り物名}**\n*${gift.日時}*${captionText ? `\n${captionText}` : ''}`;
+    })
+    .join('\n\n');
 
                 embed.addFields({
                     name: `🐦 ${birdName} (${gifts.length}個)`,
@@ -495,7 +502,7 @@ async handleAllCommand(interaction, userId, userName, serverId) {
     }
 },
 
-// 🆕 ユーザーが鳥にあげた贈り物を取得するメソッドを追加
+// 🆕 ユーザーが鳥にあげた贈り物を取得するメソッド（キャプション対応版）
 async getUserGivenGifts(userId, serverId) {
     try {
         await sheetsManager.ensureInitialized();
@@ -508,10 +515,10 @@ async getUserGivenGifts(userId, serverId) {
                 row.get('贈り主ユーザーID') === userId && row.get('サーバーID') === serverId
             )
             .map(row => ({
-                日時: row.get('日時'),
+                日時: row.get('贈呈日時'), // 🔧 正しい列名に修正
                 鳥名: row.get('鳥名'),
                 贈り物名: row.get('贈り物名'),
-                キャプション: row.get('キャプション')
+                キャプション: row.get('キャプション') || '' // 🔧 キャプション追加
             }))
             .sort((a, b) => new Date(b.日時) - new Date(a.日時));
             
@@ -520,6 +527,7 @@ async getUserGivenGifts(userId, serverId) {
         return [];
     }
 },
+    
    // 贈り物名でカテゴリ分類
     categorizeGiftsByName(giftNames) {
         const categories = {
