@@ -385,25 +385,43 @@ addRecentlyLeftBird(guildId, birdName) {
         }
     }
 
- async removeBird(guildId, area, index) {
+ // 🆕 既存のremoveBirdメソッドを拡張
+async removeBird(guildId, area, index) {
     const zooState = this.getZooState(guildId);
     const bird = zooState[area][index];
+    
+    // 記憶データを保存
+    await this.saveBirdMemory(bird, area, guildId);
+    
     zooState[area].splice(index, 1);
     
-    // 退園した鳥を記録 ← 追加
+    // 退園した鳥を記録
     this.addRecentlyLeftBird(guildId, bird.name);
     
     await logger.logZoo('退園', area, bird.name, '', '', guildId);
     
+    // 特別な退園メッセージ
+    let departureMessage = `${bird.name}が旅立っていきました。`;
+    
+    if (bird.receivedGifts && bird.receivedGifts.length > 0) {
+        departureMessage += `贈り物を大切に持って帰りました。`;
+    }
+    
+    if (bird.visitCount > 1) {
+        departureMessage += `「また必ず戻ってきます」と言っているようです。`;
+    } else {
+        departureMessage += `また会える日まで...👋`;
+    }
+    
     await this.addEvent(
         guildId,
         'お別れ',
-        `${bird.name}が旅立っていきました。また会える日まで...👋`,
+        departureMessage,
         bird.name
     );
 }
 
-    // 🆕 優先入園チェック（既存のaddNewBirdToAreaを拡張）
+    // 🆕 既存のaddNewBirdToAreaメソッドを拡張（記憶システム対応）
 async addNewBirdToArea(guildId, area) {
     // まず優先キューをチェック
     const zooState = this.getZooState(guildId);
@@ -411,11 +429,13 @@ async addNewBirdToArea(guildId, area) {
         const priorityBird = zooState.priorityQueue.shift();
         
         // 優先鳥を配置
-        const birdDataAll = birdData.getAllBirds();
+        const birdDataManager = require('./birdData');
+        const birdDataAll = birdDataManager.getAllBirds();
         const targetBird = birdDataAll.find(b => b.名前 === priorityBird.birdName);
         
         if (targetBird) {
-            const birdInstance = this.createBirdInstance(targetBird, area);
+            // 🆕 記憶システム対応
+            const birdInstance = await this.createBirdInstanceWithMemory(targetBird, area, guildId);
             zooState[area].push(birdInstance);
             
             await logger.logZoo('優先入園', area, targetBird.名前, '', '', guildId);
@@ -431,19 +451,42 @@ async addNewBirdToArea(guildId, area) {
         }
     }
     
-    // 通常の新鳥追加（既存のロジック）
+    // 通常の新鳥追加（記憶システム対応）
     const newBirds = await this.populateArea(area, 1, guildId);
     
     if (newBirds.length > 0) {
-        zooState[area].push(newBirds[0]);
+        // 🆕 記憶システムを適用
+        const birdWithMemory = await this.createBirdInstanceWithMemory(newBirds[0].data, area, guildId);
+        // 元のbirdインスタンスのプロパティをコピー
+        Object.assign(birdWithMemory, newBirds[0], {
+            receivedGifts: birdWithMemory.receivedGifts,
+            specialMemories: birdWithMemory.specialMemories,
+            friendUsers: birdWithMemory.friendUsers,
+            visitCount: birdWithMemory.visitCount,
+            isReturningVisitor: birdWithMemory.isReturningVisitor,
+            activity: birdWithMemory.activity
+        });
         
-        await logger.logZoo('入園', area, newBirds[0].name, '', '', guildId);
+        zooState[area].push(birdWithMemory);
+        
+        await logger.logZoo('入園', area, birdWithMemory.name, '', '', guildId);
+        
+        // 🆕 特別な入園メッセージ
+        let entryMessage = `${birdWithMemory.name}が新しく${area}エリアに仲間入りしました！🎉`;
+        
+        if (birdWithMemory.isReturningVisitor) {
+            entryMessage = `${birdWithMemory.name}が${birdWithMemory.visitCount}回目の来訪で${area}エリアに入園しました！🎊`;
+            
+            if (birdWithMemory.receivedGifts && birdWithMemory.receivedGifts.length > 0) {
+                entryMessage += `\n大切な贈り物を持って戻ってきました💝`;
+            }
+        }
         
         await this.addEvent(
             guildId,
-            '新入り',
-            `${newBirds[0].name}が新しく${area}エリアに仲間入りしました！🎉`,
-            newBirds[0].name
+            birdWithMemory.isReturningVisitor ? '再訪問' : '新入り',
+            entryMessage,
+            birdWithMemory.name
         );
     } else {
         console.warn(`⚠️ サーバー ${guildId} の ${area}エリアに追加できる新しい鳥が見つかりません`);
@@ -1168,6 +1211,141 @@ async removeVisitorBird(guildId, index) {
     } catch (error) {
         console.error('見学鳥退園エラー:', error);
     }
+}
+
+    // 🆕 鳥の入園時に記憶データをチェック・適用
+async applyBirdMemory(bird, guildId) {
+    try {
+        const sheetsManager = require('../../config/sheets');
+        const memory = await sheetsManager.getBirdMemory(bird.name, guildId);
+        
+        if (memory) {
+            console.log(`💭 ${bird.name}の記憶データを発見: 来訪${memory.来訪回数}回目`);
+            
+            // 贈り物リストを復元
+            if (memory.贈り物リスト) {
+                const gifts = memory.贈り物リスト.split(',').filter(g => g.trim());
+                bird.receivedGifts = gifts.map(giftInfo => {
+                    const [giftName, giver] = giftInfo.split('|');
+                    return {
+                        name: giftName,
+                        giver: giver,
+                        receivedDate: memory.最後の訪問日時
+                    };
+                });
+                
+                console.log(`🎁 ${bird.name}は${bird.receivedGifts.length}個の贈り物を持っています`);
+            }
+            
+            // 特別な思い出を適用
+            if (memory.特別な思い出) {
+                bird.specialMemories = memory.特別な思い出.split(',');
+            }
+            
+            // 友達ユーザーリストを適用
+            if (memory.友達ユーザーリスト) {
+                bird.friendUsers = memory.友達ユーザーリスト.split(',');
+            }
+            
+            // 好きなエリア情報
+            if (memory.好きなエリア) {
+                bird.favoriteArea = memory.好きなエリア;
+            }
+            
+            // 来訪履歴を記録
+            bird.visitCount = memory.来訪回数;
+            bird.isReturningVisitor = true;
+            
+            return memory;
+        }
+        
+        // 初回訪問の場合
+        bird.visitCount = 1;
+        bird.isReturningVisitor = false;
+        return null;
+        
+    } catch (error) {
+        console.error('鳥の記憶適用エラー:', error);
+        return null;
+    }
+}
+
+// 🆕 鳥の退園時に記憶データを保存
+async saveBirdMemory(bird, area, guildId) {
+    try {
+        const sheetsManager = require('../../config/sheets');
+        
+        // 贈り物リストの形式化
+        let giftsList = '';
+        if (bird.receivedGifts && bird.receivedGifts.length > 0) {
+            giftsList = bird.receivedGifts.map(gift => `${gift.name}|${gift.giver}`).join(',');
+        }
+        
+        // 特別な思い出の形式化
+        let memories = '';
+        if (bird.specialMemories && bird.specialMemories.length > 0) {
+            memories = bird.specialMemories.join(',');
+        }
+        
+        // 友達ユーザーリストの形式化
+        let friendUsers = '';
+        if (bird.friendUsers && bird.friendUsers.length > 0) {
+            friendUsers = bird.friendUsers.join(',');
+        }
+        
+        // 記憶データを更新
+        await sheetsManager.updateBirdMemory(bird.name, guildId, '鳥類園', {
+            贈り物リスト: giftsList,
+            特別な思い出: memories,
+            友達ユーザーリスト: friendUsers,
+            好きなエリア: area
+        });
+        
+        console.log(`💾 ${bird.name}の記憶データを保存しました`);
+        
+    } catch (error) {
+        console.error('鳥の記憶保存エラー:', error);
+    }
+}
+
+    // 🆕 既存のcreateBirdInstanceメソッドを拡張
+async createBirdInstanceWithMemory(birdData, area, guildId) {
+    const bird = this.createBirdInstance(birdData, area);
+    
+    // 記憶データを適用
+    const memory = await this.applyBirdMemory(bird, guildId);
+    
+    // 記憶がある場合は特別な活動を設定
+    if (memory) {
+        bird.activity = this.generateReturningBirdActivity(bird, area);
+    }
+    
+    return bird;
+}
+
+// 🆕 戻ってきた鳥の特別な活動生成
+generateReturningBirdActivity(bird, area) {
+    const activities = [
+        '懐かしそうに辺りを見回しています',
+        'ここに戻ってこれて嬉しそうです',
+        '以前の記憶を思い出しているようです',
+        '前回よりもリラックスしている様子です',
+        '親しみを込めて挨拶をしているようです',
+        '久しぶりの場所を味わっています',
+        '思い出の場所を確認して回っています'
+    ];
+    
+    if (bird.receivedGifts && bird.receivedGifts.length > 0) {
+        const giftActivities = [
+            `${bird.receivedGifts[0].giver}さんからの贈り物を大切に持っています`,
+            '大切な贈り物を見せびらかしているようです',
+            '贈り物を他の鳥たちに自慢しているようです',
+            '贈り物のおかげで自信に満ちています'
+        ];
+        activities.push(...giftActivities);
+    }
+    
+    return activities[Math.floor(Math.random() * activities.length)];
 }
     
     // テスト用メソッド
