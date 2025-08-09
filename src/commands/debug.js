@@ -1,7 +1,7 @@
 // commands/debug.js または適切なコマンドファイルに追加
 
 const { SlashCommandBuilder } = require('discord.js');
-const zooManager = require('../src/utils/zooManager');
+const zooManager = require('../utils/zooManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
