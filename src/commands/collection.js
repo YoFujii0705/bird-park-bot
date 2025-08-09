@@ -340,26 +340,68 @@ async handleGivenGiftsCommand(interaction, userId, userName, serverId) {
                 .setTimestamp();
 
             // 最新の思い出を表示（最大10個）
-            if (memories.length > 0) {
-                const recentMemories = memories.slice(0, 10);
-                const memoriesText = recentMemories
-                    .map(memory => `${memory.icon} **${memory.type}**\n${memory.content}\n*${memory.birdName}との思い出 - ${memory.createdAt}*`)
-                    .join('\n\n');
+if (memories.length > 0) {
+    const recentMemories = memories.slice(0, 10);
+    
+    // 🆕 レアリティ情報付きで表示
+    const memoriesText = recentMemories
+        .map(memory => {
+            // レアリティ絵文字の取得
+            const rarityEmojis = {
+                guaranteed: '⭐',
+                legendary: '🟡', 
+                epic: '🟣',
+                rare: '🔵',
+                uncommon: '🟢',
+                common: '⚪'
+            };
+            
+            const rarityEmoji = rarityEmojis[memory.rarity] || '⚪';
+            
+            return `${memory.icon} ${rarityEmoji} **${memory.type}**\n${memory.content}\n*${memory.birdName}との思い出 - ${memory.createdAt}*`;
+        })
+        .join('\n\n');
 
-                embed.addFields({
-                    name: '🌟 特別な思い出',
-                    value: memoriesText,
-                    inline: false
-                });
+    embed.addFields({
+        name: '🌟 特別な思い出',
+        value: memoriesText,
+        inline: false
+    });
 
-                if (memories.length > 10) {
-                    embed.addFields({
-                        name: '📚 その他',
-                        value: `他に${memories.length - 10}個の思い出があります`,
-                        inline: false
-                    });
-                }
-            }
+    if (memories.length > 10) {
+        embed.addFields({
+            name: '📚 その他',
+            value: `他に${memories.length - 10}個の思い出があります`,
+            inline: false
+        });
+    }
+}
+
+// 🆕 レアリティ統計情報の追加
+const rarityStats = await memoryManager.getMemoryRarityStats(userId, serverId);
+
+if (Object.values(rarityStats).some(count => count > 0)) {
+    const rarityText = Object.entries(rarityStats)
+        .filter(([rarity, count]) => count > 0)
+        .map(([rarity, count]) => {
+            const emojis = {
+                guaranteed: '⭐',
+                legendary: '🟡', 
+                epic: '🟣',
+                rare: '🔵',
+                uncommon: '🟢',
+                common: '⚪'
+            };
+            return `${emojis[rarity]} ${count}個`;
+        })
+        .join(' | ');
+    
+    embed.addFields({
+        name: '💎 思い出レアリティ',
+        value: rarityText,
+        inline: false
+    });
+}
 
             // 最近の贈り物履歴を表示（最大5個）
             if (giftHistory.length > 0) {
