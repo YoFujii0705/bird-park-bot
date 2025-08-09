@@ -49,9 +49,8 @@ module.exports = {
                 await interaction.reply({ content: errorMessage, ephemeral: true });
             }
         }
-    },
+    }, // ←コンマ追加
 
-    // 称号一覧表示
     async handleListCommand(interaction, userId, userName, serverId) {
         try {
             const userAchievements = await achievementManager.getUserAchievements(userId, serverId);
@@ -100,7 +99,7 @@ module.exports = {
             const rarityOrder = ['mythic', 'legendary', 'epic', 'rare', 'uncommon', 'common'];
             const rarityNames = {
                 'mythic': '🌟 神話',
-                'legendary': '👑 伝説',
+                'legendary': '👑 伝説', 
                 'epic': '💜 叙事詩',
                 'rare': '💙 レア',
                 'uncommon': '💚 アンコモン',
@@ -135,9 +134,8 @@ module.exports = {
             console.error('称号一覧表示エラー:', error);
             await interaction.editReply({ content: '称号一覧の表示中にエラーが発生しました。' });
         }
-    },
+    }, // ←コンマ追加
 
-    // 統計情報表示
     async handleStatsCommand(interaction, userId, userName, serverId) {
         try {
             const stats = await achievementManager.getUserStats(userId, serverId);
@@ -164,7 +162,7 @@ module.exports = {
                         inline: true
                     },
                     {
-                        name: '🎲 ガチャ統計',
+                        name: '🎲 ガチャ統計', 
                         value: `• ガチャ回数: **${stats.totalGachas || 0}回**\n• 見学招待数: **${stats.visitorsInvited || 0}羽**`,
                         inline: true
                     },
@@ -187,9 +185,8 @@ module.exports = {
             console.error('統計表示エラー:', error);
             await interaction.editReply({ content: '統計情報の表示中にエラーが発生しました。' });
         }
-    },
+    }, // ←コンマ追加
 
-    // 進捗表示
     async handleProgressCommand(interaction, userId, userName, serverId) {
         try {
             const stats = await achievementManager.getUserStats(userId, serverId);
@@ -261,9 +258,8 @@ module.exports = {
             console.error('進捗表示エラー:', error);
             await interaction.editReply({ content: '進捗情報の表示中にエラーが発生しました。' });
         }
-    },
+    }, // ←コンマ追加
 
-    // 称号をタイトルで検索
     findAchievementByTitle(title) {
         for (const [category, achievements] of Object.entries(achievementManager.achievements)) {
             if (achievements[title]) {
@@ -271,9 +267,8 @@ module.exports = {
             }
         }
         return null;
-    },
+    }, // ←コンマ追加
 
-    // 総合ランク計算
     calculateUserRank(stats, achievementCount) {
         const totalActivity = (stats.totalFeeds || 0) + (stats.totalGachas || 0) + (stats.maxAffinityBirds || 0) * 10 + achievementCount * 5;
 
@@ -290,7 +285,6 @@ module.exports = {
         }
     },
 
-    // 進捗計算
     calculateProgress(achievement, stats) {
         let current = 0;
         let required = 0;
@@ -337,7 +331,6 @@ module.exports = {
                 required = achievement.requirement;
                 break;
             case 'multiCondition':
-                // 複数条件の場合は最低進捗率を使用
                 const progresses = Object.entries(achievement.requirements).map(([key, value]) => 
                     Math.min(100, ((stats[key] || 0) / value) * 100)
                 );
@@ -353,23 +346,21 @@ module.exports = {
 
         const percentage = Math.min(100, (current / required) * 100);
         return { current, required, percentage };
-    },
+    }, // ←コンマ追加
 
-    // プログレスバー作成
     createProgressBar(percentage) {
         const barLength = 10;
         const filledLength = Math.round((percentage / 100) * barLength);
         const emptyLength = barLength - filledLength;
         
         return '█'.repeat(filledLength) + '░'.repeat(emptyLength);
-    },
+    }, // ←コンマ追加
 
-    // 総称号数取得
     getTotalAchievementCount() {
         let count = 0;
         for (const [category, achievements] of Object.entries(achievementManager.achievements)) {
             count += Object.keys(achievements).length;
         }
         return count;
-    }
+    } // ←最後のメソッドはコンマなし
 };
