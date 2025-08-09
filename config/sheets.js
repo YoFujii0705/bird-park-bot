@@ -197,14 +197,21 @@ class SheetsManager {
     }
 
     async logBirdGift(birdName, giftName, giverId, giverName, caption, serverId) {
-        return await this.addLog('birdGifts', {
-            鳥名: birdName,
-            贈り物名: giftName,
-            贈り主ユーザーID: giverId,
-            贈り主ユーザー名: giverName,
-            キャプション: caption,
-            サーバーID: serverId
-        });
+        try {
+            console.log(`🔍 logBirdGift呼び出し: ${birdName}, ${giftName}, ${giverId}, ${giverName}, ${serverId}`);
+            
+            return await this.addLog('birdGifts', {
+                鳥名: birdName,
+                贈り物名: giftName,
+                贈り主ユーザーID: giverId,
+                贈り主ユーザー名: giverName,
+                キャプション: caption,
+                サーバーID: serverId
+            });
+        } catch (error) {
+            console.error('鳥への贈り物ログエラー:', error);
+            return false;
+        }
     }
 
     async logAchievement(userId, userName, achievementName, condition, serverId) {
