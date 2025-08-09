@@ -261,6 +261,48 @@ async function handleZooButtons(interaction) {
     const guildId = interaction.guild.id; // サーバーID取得
 
     try {
+        if (interaction.customId === 'zoo_refresh') {
+            // 🆕 async対応
+            const embed = await zooCommand.createZooOverviewEmbed(guildId);
+            const buttons = zooCommand.createZooButtons();
+            
+            await interaction.update({
+                embeds: [embed],
+                components: [buttons]
+            });
+        } else if (interaction.customId.startsWith('zoo_')) {
+            const areaMap = {
+                'zoo_forest': '森林',
+                'zoo_grassland': '草原', 
+                'zoo_waterside': '水辺'
+            };
+            
+            const area = areaMap[interaction.customId];
+            if (area) {
+                // 🆕 async対応
+                const embed = await zooCommand.createAreaDetailEmbed(area, guildId);
+                
+                await interaction.update({
+                    embeds: [embed],
+                    components: []
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Zoo button handling error:', error);
+        // エラー時は安全な応答
+        try {
+            await interaction.update({
+                content: 'エラーが発生しました。もう一度お試しください。',
+                embeds: [],
+                components: []
+            });
+        } catch (updateError) {
+            console.error('Update error:', updateError);
+        }
+    }
+
+    try {
         // 鳥類園関連のボタン
         if (customId.startsWith('zoo_')) {
             const zooCommand = client.commands.get('zoo');
