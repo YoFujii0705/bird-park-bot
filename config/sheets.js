@@ -88,10 +88,10 @@ class SheetsManager {
                 '日時', 'ユーザーID', 'ユーザー名', '贈り物名', '個数', '取得経緯', 'サーバーID'
             ]);
 
-            // 🆕 新しいシート - 鳥への贈り物
-            this.sheets.birdGifts = await this.getOrCreateSheet('bird_gifts', [
-                '日時', '鳥名', '贈り物名', '贈り主ユーザーID', '贈り主ユーザー名', 'キャプション', 'サーバーID'
-            ]);
+            // 🆕 新しいシート - 鳥への贈り物（G列キャプション追加版）
+this.sheets.birdGifts = await this.getOrCreateSheet('bird_gifts', [
+    '鳥名', '贈り物名', '贈り主ユーザーID', '贈り主ユーザー名', '贈呈日時', 'サーバーID', 'キャプション'
+]);
 
             // 🆕 新しいシート - ユーザー称号
             this.sheets.userAchievements = await this.getOrCreateSheet('user_achievements', [
@@ -148,29 +148,35 @@ class SheetsManager {
         }
     }
 
-    // 🆕 ログ追加（安全性チェック付き）
-    async addLog(sheetName, data) {
-        try {
-            await this.ensureInitialized();
-            
-            const sheet = this.sheets[sheetName];
-            if (!sheet) {
-                console.error(`シート "${sheetName}" が見つかりません`);
-                return false;
-            }
-            
-            const logData = {
+    // 🆕 ログ追加（修正版）
+async addLog(sheetName, data) {
+    try {
+        await this.ensureInitialized();
+        
+        const sheet = this.sheets[sheetName];
+        if (!sheet) {
+            console.error(`シート "${sheetName}" が見つかりません`);
+            return false;
+        }
+        
+        // 🔧 birdGiftsシートの場合は日時を自動追加しない
+        let logData;
+        if (sheetName === 'birdGifts') {
+            logData = data; // そのまま使用
+        } else {
+            logData = {
                 日時: new Date().toLocaleString('ja-JP'),
                 ...data
             };
-            
-            await sheet.addRow(logData);
-            return true;
-        } catch (error) {
-            console.error(`ログ追加エラー (${sheetName}):`, error);
-            return false;
         }
+        
+        await sheet.addRow(logData);
+        return true;
+    } catch (error) {
+        console.error(`ログ追加エラー (${sheetName}):`, error);
+        return false;
     }
+}
 
     // 以下、既存のメソッドはそのまま（すべてに ensureInitialized() を追加）
 
@@ -197,22 +203,23 @@ class SheetsManager {
     }
 
     async logBirdGift(birdName, giftName, giverId, giverName, caption, serverId) {
-        try {
-            console.log(`🔍 logBirdGift呼び出し: ${birdName}, ${giftName}, ${giverId}, ${giverName}, ${serverId}`);
-            
-            return await this.addLog('birdGifts', {
-                鳥名: birdName,
-                贈り物名: giftName,
-                贈り主ユーザーID: giverId,
-                贈り主ユーザー名: giverName,
-                キャプション: caption,
-                サーバーID: serverId
-            });
-        } catch (error) {
-            console.error('鳥への贈り物ログエラー:', error);
-            return false;
-        }
+    try {
+        console.log(`🔍 logBirdGift呼び出し: ${birdName}, ${giftName}, ${giverId}, ${giverName}, ${serverId}`);
+        
+        return await this.addLog('birdGifts', {
+            鳥名: birdName,
+            贈り物名: giftName,
+            贈り主ユーザーID: giverId,
+            贈り主ユーザー名: giverName,
+            贈呈日時: new Date().toLocaleString('ja-JP'),
+            サーバーID: serverId,
+            キャプション: caption // 🔧 キャプションを追加
+        });
+    } catch (error) {
+        console.error('鳥への贈り物ログエラー:', error);
+        return false;
     }
+}
 
     async logAchievement(userId, userName, achievementName, condition, serverId) {
         return await this.addLog('userAchievements', {
