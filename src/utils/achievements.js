@@ -1,4 +1,4 @@
-// 称号システムの設計
+// 称号システムの設計（贈り物分離版）
 const sheetsManager = require('../../config/sheets');
 
 const ACHIEVEMENTS = {
@@ -73,8 +73,8 @@ const ACHIEVEMENTS = {
         }
     },
 
-    // 🎁 贈り物関連の称号
-    gifts: {
+    // 🎁 人間→鳥への贈り物関連の称号
+    giving: {
         'はじめての贈り物': {
             condition: 'totalGiftsGiven',
             requirement: 1,
@@ -82,26 +82,90 @@ const ACHIEVEMENTS = {
             emoji: '🎁',
             rarity: 'common'
         },
-        '贈り物コレクター': {
+        '心優しき隣人': {
+            condition: 'totalGiftsGiven',
+            requirement: 5,
+            description: '鳥に5個の贈り物をしました',
+            emoji: '🎊',
+            rarity: 'uncommon'
+        },
+        '創造的な贈与者': {
+            condition: 'totalGiftsGiven',
+            requirement: 15,
+            description: '鳥に15個の贈り物をしました',
+            emoji: '💝',
+            rarity: 'rare'
+        },
+        '鳥たちを見守る光': {
+            condition: 'totalGiftsGiven',
+            requirement: 50,
+            description: '鳥に50個の贈り物をしました',
+            emoji: '👑',
+            rarity: 'epic'
+        }
+    },
+
+    // 🌿 鳥→人間からの贈り物関連の称号
+    receiving: {
+        'はじめての宝物': {
+            condition: 'totalGiftsReceived',
+            requirement: 1,
+            description: '初めて鳥から贈り物をもらいました',
+            emoji: '🌟',
+            rarity: 'common'
+        },
+        '自然の恵みコレクター': {
             condition: 'totalGiftsReceived',
             requirement: 5,
             description: '鳥から5個の贈り物をもらいました',
             emoji: '📦',
             rarity: 'uncommon'
         },
-        '愛されし者': {
+        'ちょっとした宝物庫': {
             condition: 'totalGiftsReceived',
-            requirement: 20,
-            description: '鳥から20個の贈り物をもらいました',
+            requirement: 15,
+            description: '鳥から15個の贈り物をもらいました',
             emoji: '💎',
             rarity: 'rare'
         },
-        '心優しき贈り主': {
-            condition: 'totalGiftsGiven',
-            requirement: 10,
-            description: '鳥に10個の贈り物をしました',
-            emoji: '🎊',
-            rarity: 'uncommon'
+        '愛されし者': {
+            condition: 'totalGiftsReceived',
+            requirement: 30,
+            description: '鳥から30個の贈り物をもらいました',
+            emoji: '✨',
+            rarity: 'epic'
+        },
+        '鳥たちの仲間': {
+            condition: 'totalGiftsReceived',
+            requirement: 100,
+            description: '鳥から100個の贈り物をもらいました',
+            emoji: '🌈',
+            rarity: 'legendary'
+        }
+    },
+
+    // 💫 贈り物バランス関連の称号
+    giftBalance: {
+        '心の交流': {
+            condition: 'multiCondition',
+            requirements: {
+                totalGiftsGiven: 10,
+                totalGiftsReceived: 10
+            },
+            description: '鳥との間で10個ずつ贈り物を交換しました',
+            emoji: '💫',
+            rarity: 'rare'
+        },
+        '真の友情': {
+            condition: 'multiCondition',
+            requirements: {
+                totalGiftsGiven: 25,
+                totalGiftsReceived: 25,
+                maxAffinityBirds: 5
+            },
+            description: '多くの鳥と深い友情を築きました',
+            emoji: '🌺',
+            rarity: 'epic'
         }
     },
 
@@ -164,7 +228,7 @@ const ACHIEVEMENTS = {
 
     // 🌟 特別な称号
     special: {
-        '伝説の鳥使い': {
+        '伝説の愛鳥家': {
             condition: 'multiCondition',
             requirements: {
                 totalFeeds: 200,
@@ -184,6 +248,17 @@ const ACHIEVEMENTS = {
             },
             description: '鳥類園に多大な貢献をしました',
             emoji: '🏆',
+            rarity: 'mythic'
+        },
+        '自然と人の架け橋': {
+            condition: 'multiCondition',
+            requirements: {
+                totalGiftsGiven: 50,
+                totalGiftsReceived: 50,
+                maxAffinityBirds: 25
+            },
+            description: '人と鳥の間で究極の絆を築きました',
+            emoji: '🌍',
             rarity: 'mythic'
         }
     }
@@ -214,7 +289,7 @@ class AchievementManager {
             // 好感度統計
             const affinityStats = await this.getAffinityStats(userId, serverId);
             
-            // 贈り物統計
+            // 贈り物統計（分離版）
             const giftStats = await this.getGiftStats(userId, serverId);
             
             // ガチャ統計
@@ -325,26 +400,22 @@ class AchievementManager {
         }
     }
 
-    // 贈り物統計取得
+    // 🔧 贈り物統計取得（分離版）
     async getGiftStats(userId, serverId) {
         try {
             await sheetsManager.ensureInitialized();
             
-            // 受け取った贈り物
+            // 🎁 人間→鳥への贈り物（gifts_inventoryから取得した数 = 使用可能アイテム数）
             const inventorySheet = sheetsManager.sheets.giftsInventory;
             const inventoryRows = await inventorySheet.getRows();
             
-            const receivedGifts = inventoryRows.filter(row => 
+            const giftItems = inventoryRows.filter(row => 
                 row.get('ユーザーID') === userId && 
                 row.get('サーバーID') === serverId &&
                 parseInt(row.get('個数')) > 0
             );
             
-            const totalGiftsReceived = receivedGifts.reduce((sum, row) => 
-                sum + (parseInt(row.get('個数')) || 0), 0
-            );
-            
-            // 贈った贈り物
+            // 実際に鳥に贈った回数（bird_giftsシートから）
             const birdGiftsSheet = sheetsManager.sheets.birdGifts;
             const birdGiftsRows = await birdGiftsSheet.getRows();
             
@@ -352,17 +423,24 @@ class AchievementManager {
                 row.get('贈り主ユーザーID') === userId && row.get('サーバーID') === serverId
             );
             
-            const totalGiftsGiven = givenGifts.length;
+            // 🌿 鳥→人間への贈り物（bird_gifts_receivedシートから）
+            const receivedGiftsSheet = sheetsManager.sheets.birdGiftsReceived;
+            const receivedGiftsRows = await receivedGiftsSheet.getRows();
+            
+            const receivedGifts = receivedGiftsRows.filter(row => 
+                row.get('ユーザーID') === userId && row.get('サーバーID') === serverId
+            );
             
             return {
-                totalGiftsReceived,
-                totalGiftsGiven
+                totalGiftsGiven: givenGifts.length,        // 人間→鳥への贈り物回数
+                totalGiftsReceived: receivedGifts.length   // 鳥→人間への贈り物回数
             };
+            
         } catch (error) {
             console.error('贈り物統計取得エラー:', error);
             return {
-                totalGiftsReceived: 0,
-                totalGiftsGiven: 0
+                totalGiftsGiven: 0,
+                totalGiftsReceived: 0
             };
         }
     }
