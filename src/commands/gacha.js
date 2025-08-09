@@ -147,7 +147,7 @@ module.exports = {
         return '🐦';
     },
 
-    // 🆕 単体ガチャのボタン処理
+    / 🆕 単体ガチャのボタン処理（タイムアウト対策版）
     async handleSingleBirdVisit(interaction, bird) {
         try {
             const response = await interaction.fetchReply();
@@ -163,17 +163,37 @@ module.exports = {
             } else {
                 await confirmation.update({
                     content: `${bird.名前}を見学に呼ばないことにしました。また機会があればぜひ！`,
+                    embeds: [],
                     components: []
                 });
             }
 
         } catch (error) {
-            console.log('ボタン操作がタイムアウトしました');
-            // タイムアウト時は何もしない（ボタンは無効化される）
+            if (error.code === 'InteractionCollectorError') {
+                console.log('ボタン操作がタイムアウトしました');
+                // タイムアウト時は元のメッセージを更新（見学用ボタンを削除）
+                try {
+                    const embed = this.createBirdEmbed(bird);
+                    embed.addFields({
+                        name: '⏰ タイムアウト',
+                        value: '見学招待の時間が過ぎました。もう一度ガチャを回してください。',
+                        inline: false
+                    });
+                    
+                    await interaction.editReply({
+                        embeds: [embed],
+                        components: []
+                    });
+                } catch (editError) {
+                    console.error('タイムアウト時の更新エラー:', editError);
+                }
+            } else {
+                console.error('見学ボタン処理エラー:', error);
+            }
         }
     },
 
-    // 🆕 複数ガチャの選択処理
+    // 🆕 複数ガチャの選択処理（タイムアウト対策版）
     async handleMultipleBirdVisit(interaction, birds) {
         try {
             const response = await interaction.fetchReply();
@@ -187,6 +207,7 @@ module.exports = {
             if (selectedBirdName === 'none') {
                 await confirmation.update({
                     content: '今回は誰も見学に呼ばないことにしました。また機会があればぜひ！',
+                    embeds: [],
                     components: []
                 });
                 return;
@@ -198,14 +219,39 @@ module.exports = {
             }
 
         } catch (error) {
-            console.log('選択操作がタイムアウトしました');
-            // タイムアウト時は何もしない
+            if (error.code === 'InteractionCollectorError') {
+                console.log('選択操作がタイムアウトしました');
+                // タイムアウト時は元のメッセージを更新
+                try {
+                    const embed = this.createMultipleBirdsEmbed(birds, birds.length);
+                    embed.addFields({
+                        name: '⏰ タイムアウト',
+                        value: '見学招待の時間が過ぎました。もう一度ガチャを回してください。',
+                        inline: false
+                    });
+                    
+                    await interaction.editReply({
+                        embeds: [embed],
+                        components: []
+                    });
+                } catch (editError) {
+                    console.error('タイムアウト時の更新エラー:', editError);
+                }
+            } else {
+                console.error('見学選択処理エラー:', error);
+            }
         }
     },
 
-    // 🆕 鳥を鳥類園に招待
+    // 🆕 鳥を鳥類園に招待（エラーハンドリング強化版）
     async inviteBirdToZoo(interaction, bird, guildId) {
         try {
+            // インタラクションの有効性チェック
+            if (interaction.replied || interaction.deferred) {
+                console.error('インタラクションは既に処理済みです');
+                return;
+            }
+
             const zooManager = require('../utils/zooManager');
             
             // 見学鳥として追加
@@ -228,7 +274,7 @@ module.exports = {
                     },
                     {
                         name: '🎁 特典',
-                        value: '見学に来た鳥が鳥類園に興味を持ったようです！',
+                        value: '見学後、この鳥の入園優先度がアップします！',
                         inline: true
                     }
                 )
@@ -249,10 +295,18 @@ module.exports = {
 
         } catch (error) {
             console.error('見学招待エラー:', error);
-            await interaction.update({
-                content: '見学招待中にエラーが発生しました。もう一度お試しください。',
-                components: []
-            });
+            
+            // エラー時の安全な応答
+            try {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({
+                        content: '見学招待中にエラーが発生しました。もう一度お試しください。',
+                        ephemeral: true
+                    });
+                }
+            } catch (replyError) {
+                console.error('エラー応答に失敗:', replyError);
+            }
         }
     },
 
