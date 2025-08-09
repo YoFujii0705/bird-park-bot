@@ -212,7 +212,7 @@ module.exports = {
             
             const embed = new EmbedBuilder()
                 .setTitle('💖 深い絆が生まれました！')
-                .setDescription(`**${birdName}**があなたを真の友達として認めました！\n\n🎁 **${randomGift}**を手に入れました！\n\n今度は${birdName}に贈り物をしてあげることができます。\n\`/gift bird:${birdName}\` で贈り物をしてみましょう！`)
+                .setDescription(`**${birdName}**があなたを真の友達として認めました！\n\n🎁 **${birdName}**のことを考えながら歩いていると**${randomGift}**を手に入れました！\n\n今度は${birdName}に贈り物をしてあげることができます。\n\`/gift bird:${birdName}\` で贈り物をしてみましょう！`)
                 .setColor(0xFF69B4)
                 .setTimestamp();
 
