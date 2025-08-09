@@ -175,23 +175,41 @@ async function handleComponentInteraction(interaction) {
         if (customId.startsWith('zoo_')) {
             await handleZooButtons(interaction);
         }
+        // 見学招待関連はガチャコマンド内で処理されるので何もしない
+        else if (customId.startsWith('visit_') || customId === 'select_visitor_bird') {
+            console.log(`見学関連の操作: ${customId} - ガチャコマンド内で処理済み`);
+            // ガチャコマンドで既に処理されているため、ここでは何もしない
+        }
+        // 贈り物関連
+        else if (customId === 'select_gift') {
+            console.log('贈り物選択は既に処理済み');
+            // gift.jsで処理済みなので何もしない
+        }
         // 鳥詳細選択メニュー
         else if (customId === 'bird_detail_select') {
             await handleBirdDetailSelect(interaction);
         }
-        // その他のコンポーネント
+        // その他
         else {
             console.log(`未処理のコンポーネント: ${customId}`);
         }
     } catch (error) {
-        console.error('コンポーネント処理エラー:', error);
-        await interaction.reply({ 
-            content: '操作の処理中にエラーが発生しました。', 
-            ephemeral: true 
-        });
+        console.error('❌ インタラクション処理エラー:', error);
+        
+        // インタラクションがまだ応答していない場合のみ応答
+        if (!interaction.replied && !interaction.deferred) {
+            try {
+                await interaction.reply({ 
+                    content: '操作の処理中にエラーが発生しました。', 
+                    ephemeral: true 
+                });
+            } catch (replyError) {
+                console.error('エラー応答に失敗:', replyError);
+            }
+        }
     }
 }
-
+    
 // 鳥詳細選択メニュー処理
 async function handleBirdDetailSelect(interaction) {
     try {
@@ -258,126 +276,84 @@ async function handleBirdDetailSelect(interaction) {
 // ボタン処理部分を修正
 async function handleZooButtons(interaction) {
     const { customId } = interaction;
-    const guildId = interaction.guild.id; // サーバーID取得
+    const guildId = interaction.guild.id;
 
     try {
-        if (interaction.customId === 'zoo_refresh') {
-            // 🆕 async対応
-            const embed = await zooCommand.createZooOverviewEmbed(guildId);
-            const buttons = zooCommand.createZooButtons();
-            
-            await interaction.update({
-                embeds: [embed],
-                components: [buttons]
-            });
-        } else if (interaction.customId.startsWith('zoo_')) {
-            const areaMap = {
-                'zoo_forest': '森林',
-                'zoo_grassland': '草原', 
-                'zoo_waterside': '水辺'
-            };
-            
-            const area = areaMap[interaction.customId];
-            if (area) {
-                // 🆕 async対応
-                const embed = await zooCommand.createAreaDetailEmbed(area, guildId);
-                
-                await interaction.update({
-                    embeds: [embed],
-                    components: []
-                });
-            }
+        // zooCommandを取得
+        const zooCommand = require('./commands/zoo');
+        
+        if (!zooCommand) {
+            console.error('zooCommandが見つかりません');
+            return;
         }
+
+        await logger.logZoo('ボタン操作', customId, '', interaction.user.id, interaction.user.username, guildId);
+
+        switch (customId) {
+            case 'zoo_refresh':
+                // 全体表示を更新
+                await interaction.deferUpdate();
+                const embed = await zooCommand.createZooOverviewEmbed(guildId);
+                const buttons = zooCommand.createZooButtons();
+                await interaction.editReply({ 
+                    embeds: [embed], 
+                    components: [buttons] 
+                });
+                break;
+                
+            case 'zoo_forest':
+                await interaction.deferReply();
+                const forestEmbed = await zooCommand.createAreaDetailEmbed('森林', guildId);
+                await interaction.editReply({ 
+                    embeds: [forestEmbed] 
+                });
+                break;
+            
+            case 'zoo_grassland':
+                await interaction.deferReply();
+                const grasslandEmbed = await zooCommand.createAreaDetailEmbed('草原', guildId);
+                await interaction.editReply({ 
+                    embeds: [grasslandEmbed] 
+                });
+                break;
+            
+            case 'zoo_waterside':
+                await interaction.deferReply();
+                const watersideEmbed = await zooCommand.createAreaDetailEmbed('水辺', guildId);
+                await interaction.editReply({ 
+                    embeds: [watersideEmbed] 
+                });
+                break;
+                
+            default:
+                console.log(`未処理のzooボタン: ${customId}`);
+                await interaction.reply({ 
+                    content: '不明な操作です。', 
+                    ephemeral: true 
+                });
+                break;
+        }
+
     } catch (error) {
         console.error('Zoo button handling error:', error);
-        // エラー時は安全な応答
+        
+        // エラー時の安全な応答
         try {
-            await interaction.update({
-                content: 'エラーが発生しました。もう一度お試しください。',
-                embeds: [],
-                components: []
-            });
-        } catch (updateError) {
-            console.error('Update error:', updateError);
-        }
-    }
-
-    try {
-        // 鳥類園関連のボタン
-        if (customId.startsWith('zoo_')) {
-            const zooCommand = client.commands.get('zoo');
-            
-            if (!zooCommand) return;
-
-            switch (customId) {
-                case 'zoo_refresh':
-                    // 全体表示を更新（サーバー別）
-                    await interaction.deferUpdate();
-                    const embed = zooCommand.createZooOverviewEmbed(guildId);
-                    const buttons = zooCommand.createZooButtons();
-                    await interaction.editReply({ embeds: [embed], components: [buttons] });
-                    break;
-                    
-                case 'zoo_forest':
-                    try {
-                        const forestEmbed = await zooCommand.createAreaDetailEmbed('森林', guildId);
-                        await interaction.reply({ 
-                            embeds: [forestEmbed]
-                        });
-                    } catch (error) {
-                        console.error('森林エリア表示エラー:', error);
-                        await interaction.reply({ 
-                            content: '森林エリアの情報取得中にエラーが発生しました。', 
-                            flags: 64 
-                        });
-                    }
-                    break;
-                
-                case 'zoo_grassland':
-                    try {
-                        const grasslandEmbed = await zooCommand.createAreaDetailEmbed('草原', guildId);
-                        await interaction.reply({ 
-                            embeds: [grasslandEmbed]
-                        });
-                    } catch (error) {
-                        console.error('草原エリア表示エラー:', error);
-                        await interaction.reply({ 
-                            content: '草原エリアの情報取得中にエラーが発生しました。', 
-                            flags: 64 
-                        });
-                    }
-                    break;
-                
-                case 'zoo_waterside':
-                    try {
-                        const watersideEmbed = await zooCommand.createAreaDetailEmbed('水辺', guildId);
-                        await interaction.reply({ 
-                            embeds: [watersideEmbed]
-                        });
-                    } catch (error) {
-                        console.error('水辺エリア表示エラー:', error);
-                        await interaction.reply({ 
-                            content: '水辺エリアの情報取得中にエラーが発生しました。', 
-                            flags: 64 
-                        });
-                    }
-                    break;
+            if (interaction.deferred) {
+                await interaction.editReply({
+                    content: 'エラーが発生しました。もう一度お試しください。',
+                    embeds: [],
+                    components: []
+                });
+            } else {
+                await interaction.reply({
+                    content: 'エラーが発生しました。もう一度お試しください。',
+                    ephemeral: true
+                });
             }
+        } catch (updateError) {
+            console.error('Error response failed:', updateError);
         }
-        // 鳥詳細選択メニュー
-        else if (customId === 'bird_detail_select') {
-            await handleBirdDetailSelect(interaction);
-        }
-        // その他のコンポーネント
-        else {
-            console.log(`未処理のコンポーネント: ${customId}`);
-        }
-    } catch (error) {
-        console.error('コンポーネント処理エラー:', error);
-        await interaction.reply({ 
-            content: '操作の処理中にエラーが発生しました。', 
-            ephemeral: true 
-        });
     }
 }
 
