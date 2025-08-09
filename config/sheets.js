@@ -410,26 +410,34 @@ async updateBirdMemory(birdName, serverId, serverName, updates) {
         });
     }
 
-    // 🆕 ユーザーが鳥からもらった贈り物を取得
+    // 🆕 ユーザーが鳥からもらった贈り物を取得（修正版）
     async getUserReceivedGifts(userId, serverId) {
         try {
             await this.ensureInitialized();
             
             const sheet = this.sheets.birdGiftsReceived;
+            if (!sheet) {
+                console.error('birdGiftsReceived シートが見つかりません');
+                return [];
+            }
+            
             const rows = await sheet.getRows();
             
-            return rows.filter(row => 
-                row.get('ユーザーID') === userId && row.get('サーバーID') === serverId
-            ).map(row => ({
-                日時: row.get('日時'),
-                鳥名: row.get('鳥名'),
-                贈り物名: row.get('贈り物名'),
-                好感度レベル: row.get('好感度レベル'),
-                エリア: row.get('エリア')
-            }));
-            
+            return rows
+                .filter(row => 
+                    row.get('ユーザーID') === userId && row.get('サーバーID') === serverId
+                )
+                .map(row => ({
+                    日時: row.get('日時'),
+                    鳥名: row.get('鳥名'),
+                    贈り物名: row.get('贈り物名'),
+                    好感度レベル: row.get('好感度レベル'),
+                    エリア: row.get('エリア')
+                }))
+                .sort((a, b) => new Date(b.日時) - new Date(a.日時));
+                
         } catch (error) {
-            console.error('受け取った贈り物取得エラー:', error);
+            console.error('鳥からもらった贈り物取得エラー:', error);
             return [];
         }
     }
