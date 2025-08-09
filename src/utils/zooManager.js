@@ -403,7 +403,7 @@ class ZooManager {
                 `${visitor.name}が素敵な思い出を胸に帰路につきました✨`,
                 `${visitor.name}が「ありがとう」と言っているように見えます👋`,
                 `${visitor.name}が名残惜しそうに振り返りながら去っていきました`,
-                `${visitor.name}が「きっとまた来ます」と約束しているようです💫`,
+                `${visitor.name}が「きっとまた来ます」と約束しているかのようです💫`,
                 `${visitor.name}が満足そうな表情で帰っていきました😊`
             ];
             
@@ -411,8 +411,8 @@ class ZooManager {
             
             await this.addEvent(guildId, '見学終了', message, visitor.name);
             
-            // 優先入園権の付与（70%の確率）
-            if (Math.random() < 0.7) {
+            // 優先入園権の付与（80%の確率）
+            if (Math.random() < 0.8) {
                 if (!zooState.priorityQueue) {
                     zooState.priorityQueue = [];
                 }
@@ -755,6 +755,70 @@ class ZooManager {
         }
         
         return results;
+    }
+
+    // テスト用メソッド
+    forceHungry(birdName = null, guildId) {
+        const now = new Date();
+        const fiveHoursAgo = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+        const zooState = this.getZooState(guildId);
+        
+        let count = 0;
+        
+        for (const area of ['森林', '草原', '水辺']) {
+            for (const bird of zooState[area]) {
+                if (!birdName || bird.name.includes(birdName) || birdName.includes(bird.name)) {
+                    bird.lastFed = fiveHoursAgo;
+                    bird.isHungry = true;
+                    bird.hungerNotified = false;
+                    bird.activity = this.generateHungryActivity(area);
+                    count++;
+                    
+                    if (birdName) break;
+                }
+            }
+            if (birdName && count > 0) break;
+        }
+        
+        console.log(`🧪 サーバー ${guildId} で${count}羽の鳥を強制的に空腹状態にしました`);
+        return count;
+    }
+
+    async manualHungerCheck(guildId) {
+        console.log(`🧪 サーバー ${guildId} で手動空腹チェックを実行...`);
+        await this.checkHungerStatus(guildId);
+        return this.getHungerStatistics(guildId);
+    }
+
+    getHungerStatistics(guildId) {
+        const allBirds = this.getAllBirds(guildId);
+        const now = new Date();
+        
+        const stats = {
+            totalBirds: allBirds.length,
+            hungryBirds: 0,
+            birdDetails: []
+        };
+        
+        for (const bird of allBirds) {
+            const lastFeedTime = bird.lastFed || bird.entryTime;
+            const hoursSinceLastFeed = Math.floor((now - lastFeedTime) / (1000 * 60 * 60));
+            
+            if (bird.isHungry) {
+                stats.hungryBirds++;
+            }
+            
+            stats.birdDetails.push({
+                name: bird.name,
+                area: bird.area,
+                isHungry: bird.isHungry,
+                hoursSinceLastFeed: hoursSinceLastFeed,
+                hungerNotified: bird.hungerNotified,
+                activity: bird.activity
+            });
+        }
+        
+        return stats;
     }
 
 // ===========================================
@@ -1108,19 +1172,378 @@ class ZooManager {
     // 活動生成
     generateActivity(area) {
         const activities = {
-            '森林': ['木の枝で休んでいます', '木の実を探しています', '美しい声でさえずっています'],
-            '草原': ['草地を歩き回っています', '種を探しています', '気持ちよさそうに日向ぼっこしています'],
-            '水辺': ['水面に映る自分を見ています', '魚を狙っています', '水浴びを楽しんでいます']
+            '森林': ['木の枝で休んでいます', '木の実を探しています', '美しい声でさえずっています',
+                '羽繕いをしています', '枝から枝へ飛び移っています', '虫を捕まえています',
+                '巣の材料を集めています', '木陰で涼んでいます', '葉っぱと戯れています',
+                '高い枝の上で見張りをしています','木の幹をコツコツと叩いて音を楽しんでいます',
+                '新緑の香りを楽しんでいるようです','森の奥深くから美しいメロディを奏でています',
+                  'こけに覆われた枝で羽を休めています','落ち葉を掻き分けて何かを探しています',
+                  '樹液の匂いに誘われてやってきました','木漏れ日の中で美しく羽ばたいています',
+                  '苔むした岩の上で瞑想しているようです','森の深い静寂に耳を澄ませています',
+                  '古い切り株を興味深そうに調べています','蜘蛛の巣に付いた露を眺めています',
+                  '木の洞を覗き込んで探索しています','倒木を足場にして森を見渡しています'],
+            '草原': ['草地を歩き回っています', '種を探しています', '気持ちよさそうに日向ぼっこしています',
+                '他の鳥と遊んでいます', '風に羽を広げています', '地面で餌を探しています',
+                'のんびりと過ごしています', '花の蜜を吸っています', '芝生の上を転がっています',
+                '青空を見上げています','蝶を追いかけて遊んでいます','草花の種を器用に選り分けています',
+                '仲間と一緒に草原を散歩しています','風に舞う花粉を追いかけています','背の高い草に隠れてかくれんぼをしています',
+                  '丘の頂上で風を感じています','野花の間を縫うように歩いています','温かい土の上で砂浴びを楽しんでいます',
+                  '朝露に濡れた草葉を歩いています','広い空を見上げて飛び立つタイミングを計っています',
+                  'タンポポの綿毛を羽で飛ばして遊んでいます','草原の小道をのんびりと散策しています','遠くの山並みを眺めて思いにふけっています'],
+            '水辺': ['水面に映る自分を見ています', '魚を狙っています', '水浴びを楽しんでいます',
+                '水辺を静かに歩いています', '小さな波と戯れています', '羽を乾かしています',
+                '水草の間を優雅に泳ぎ回っています', '石の上で休んでいます', '水面をそっと歩いています',
+                '水面に落ちた葉っぱで遊んでいます','自分の影を水面で確認しています',
+                '小さな渦を作って楽しんでいます','水滴を羽で弾いて遊んでいます','岸辺の砂利を脚で探っています',
+                  '浅瀬でぱちゃぱちゃと水遊びしています','水辺の葦の影で涼んでいます','自分の羽に水滴を付けて輝かせています',
+                  '流れに身を任せて気持ちよさそうです','水面に映る雲を不思議そうに見つめています','小さな貝殻を見つけてつついています',
+                  '川底の小石を羽で動かして遊んでいます']
         };
 
         const areaActivities = activities[area] || activities['森林'];
         return areaActivities[Math.floor(Math.random() * areaActivities.length)];
     }
 
+    generateHungryActivity(area) {
+        const hungryActivities = {
+            '森林': [
+                'お腹を空かせて餌を探し回っています',
+                '木の枝で寂しそうに鳴いています', 
+                '餌を求めてあちこち見回しています',
+                'お腹がぺこぺこで元気がありません',
+                '木の実が落ちていないか必死に探しています',
+                'お腹の音が森に響いているようです',
+                '他の鳥が食べている様子を羨ましそうに見ています',
+                '枝の上で小さくお腹を鳴らしています',
+                'お腹を鳴らしながら木の根元を掘り返しています',
+                '樹皮の隙間になにかないか必死に探しています',
+                '他の鳥の食事を羨ましそうに見つめています',
+                '空腹で普段より低い声で鳴いています',
+                '木の実の殻だけでも食べられないか調べています',
+                'お腹が空いて羽を小刻みに震わせています',
+                '落ち葉の下に何か食べ物がないか探り続けています',
+                '空腹で木の枝にとまる力も弱くなっています'
+            ],
+            '草原': [
+                '地面をつついて何か食べ物を探しています',
+                'お腹を空かせてそわそわしています',
+                '餌を求めて草むらを探しています',
+                '空腹で少し疲れているようです',
+                'お腹がぺこぺこで羽を垂らして歩いています',
+                '種を探して地面を夢中で掘っています',
+                '空腹で少しふらつきながら歩いています',
+                'お腹を空かせて小さく鳴き続けています',
+                '空腹で草の根っこまで掘り起こしています',
+                'お腹を空かせて地面に耳を当てています',
+                '種の殻だけでも拾い集めています',
+                '空腹でいつもより頻繁に首を振っています',
+                '茎をくちばしでつついて汁を吸おうとしています',
+                'お腹が鳴る度に小さく震えています',
+                '他の鳥が残した食べかすを探しています',
+                '空腹でゆっくりと歩いています'
+            ],
+            '水辺': [
+                '水面を見つめて魚を探しています',
+                'お腹を空かせて水辺をうろうろしています',
+                '餌を求めて浅瀬を歩き回っています',
+                '空腹で羽を垂らしています',
+                'お腹を空かせて水面をじっと見つめています',
+                '空腹で普段より低い位置で泳いでいます',
+                '魚の気配を必死に探っています',
+                'お腹が空いて水辺をとぼとぼ歩いています',
+                '水の中の小さな虫も見逃さないよう集中しています',
+                'お腹を空かせて水面に顔を近づけて探っています',
+                '普段食べない水草も口にしてみています',
+                '空腹で水に映る魚の影も追いかけています',
+                '岸辺の泥の中になにかいないか探しています',
+                'お腹が空いて水面を歩く歩幅が小さくなっています',
+                '他の水鳥が食べているものを真似しようとしています',
+                '空腹で水面を叩いて何か出てこないか試しています'
+            ]
+        };
+
+        const activities = hungryActivities[area] || hungryActivities['森林'];
+        return activities[Math.floor(Math.random() * activities.length)];
+    }
+
     getRandomMood() {
         const moods = ['happy', 'normal', 'sleepy', 'excited', 'calm'];
         return moods[Math.floor(Math.random() * moods.length)];
     }
+
+
+    createInteractionEvent(allBirds) {
+        if (allBirds.length < 2) return null;
+
+        const bird1 = allBirds[Math.floor(Math.random() * allBirds.length)];
+        const bird2 = allBirds[Math.floor(Math.random() * allBirds.length)];
+        
+        if (bird1.name === bird2.name) return null;
+
+        const interactions = [
+            `${bird1.name}と${bird2.name}が仲良くおしゃべりしています`,
+            `${bird1.name}が${bird2.name}に何かを教えているようです`,
+            `${bird1.name}と${bird2.name}が一緒に遊んでいます`,
+            `${bird1.name}と${bird2.name}が美しいデュエットを奏でています`,
+            `${bird1.name}と${bird2.name}が羽を重ね合わせて絆を深めています`,
+            `${bird1.name}が${bird2.name}に秘密の場所を案内しているようです`,
+            `${bird1.name}と${bird2.name}が夕日を一緒に眺めています`,
+            `${bird1.name}と${bird2.name}が互いの羽繕いをし合っています`,
+            `${bird1.name}が${bird2.name}と鳴き声で会話を楽しんでいます`,
+            `${bird1.name}と${bird2.name}が仲良く並んで休憩しています`,
+            `${bird1.name}が${bird2.name}におすすめの餌場を教えています`,
+            `${bird1.name}と${bird2.name}が一緒に空を舞っています`,
+            `${bird1.name}が${bird2.name}の美しい羽を褒めているようです`,
+            `${bird1.name}と${bird2.name}が昔話をしているようです`,
+            `${bird1.name}と${bird2.name}が互いを気遣い合っています`,
+            `${bird1.name}が${bird2.name}と楽しそうに追いかけっこをしています`,
+            `${bird1.name}と${bird2.name}が一緒に新しい歌を作っているようです`,
+            `${bird1.name}が${bird2.name}に面白い話を聞かせています`,
+            `${bird1.name}と${bird2.name}が心を通わせる特別な瞬間を過ごしています`,
+            `${bird1.name}と${bird2.name}が互いの存在に安らぎを感じているようです`,
+            `${bird1.name}と${bird2.name}が羽の美しさを競い合っています`,
+            `${bird1.name}が${bird2.name}に新しい鳴き方を教えています`,
+            `${bird1.name}と${bird2.name}が並んで夢の話をしているようです`,
+            `${bird1.name}と${bird2.name}が互いの好きな食べ物について話し合っています`,
+            `${bird1.name}が${bird2.name}と一緒にダンスを踊っています`,
+            `${bird1.name}と${bird2.name}が翼を広げて大きさを比べています`,
+            `${bird1.name}と${bird2.name}が互いの巣作りの技術を披露しています`,
+            `${bird1.name}が${bird2.name}と静かに寄り添って休んでいます`,
+            `${bird1.name}と${bird2.name}が競争しながら餌を探しています`,
+            `${bird1.name}と${bird2.name}が夕暮れ時の思い出を語り合っています`
+        ];
+
+        return {
+            type: '交流',
+            content: interactions[Math.floor(Math.random() * interactions.length)],
+            relatedBird: `${bird1.name}, ${bird2.name}`
+        };
+    }
+
+    createDiscoveryEvent(allBirds) {
+        const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+        
+        const discoveries = [
+            `${bird.name}が珍しい木の実を発見しました`,
+            `${bird.name}が新しい隠れ家を見つけたようです`,
+            `${bird.name}が美しい羽根を落としていきました`,
+            `${bird.name}が興味深い行動を見せています`,
+            `${bird.name}が四つ葉のクローバーを見つけて喜んでいます`,
+            `${bird.name}が虹色に光る水滴を発見して見とれています`,
+            `${bird.name}が珍しい形の雲を指差して興奮しています`,
+            `${bird.name}が珍しい色の小石を見つけて喜んでいます`,
+            `${bird.name}が古い鳥の巣跡を発見しました`,
+            `${bird.name}が風で飛んできた種を興味深そうに調べています`,
+            `${bird.name}が自分だけの秘密の水飲み場を見つけたようです`,
+            `${bird.name}が珍しい形の枝を巣の材料として選んでいます`,
+            `${bird.name}が光る虫を見つけて目を輝かせています`,
+            `${bird.name}が池に落ちた花びらを美しそうに眺めています`,
+            `${bird.name}が見たことのない蝶を発見して追いかけています`,
+            `${bird.name}が特別な香りのする花を見つけました`,
+            `${bird.name}が自分の影と遊んでいるようです`
+        ];
+
+        return {
+            type: '発見',
+            content: discoveries[Math.floor(Math.random() * discoveries.length)],
+            relatedBird: bird.name
+        };
+    }
+
+    createWeatherEvent(allBirds) {
+        const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+        
+        const weatherEvents = [
+            `暖かい日差しの中、${bird.name}が気持ちよさそうに羽を広げています`,
+            `そよ風に乗って、${bird.name}が優雅に舞っています`,
+            `雨上がりの清々しい空気を、${bird.name}が楽しんでいます`,
+            `薄雲の隙間から差す光を、${bird.name}が見つめています`,
+            `朝霧の中を${bird.name}が幻想的に舞っています`,
+            `${bird.name}が雨上がりの新鮮な空気を深く吸い込んでいます`,
+            `雨粒が羽に当たる感触を、${bird.name}が楽しんでいます`,
+            `霧の中を${bird.name}が神秘的にゆっくりと歩いています`,
+            `陽だまりで${bird.name}が幸せそうに羽を温めています`,
+            `強い風に${bird.name}が羽を広げて自然の力を感じています`,
+            `雪が積もった枝で${bird.name}が雪玉を作って遊んでいます`,
+            `黄金の光に照らされて、${bird.name}の羽が輝いています`,
+            `小雨の中で${bird.name}が雨音のリズムに合わせて踊っています`,
+            `曇り空の下で${bird.name}が静かに瞑想しています`,
+            `暖かい風に${bird.name}が羽を震わせて喜んでいます`,
+            `雨上がりの虹を${bird.name}が見つめて感動しているようです`
+        ];
+
+        return {
+            type: '天気',
+            content: weatherEvents[Math.floor(Math.random() * weatherEvents.length)],
+            relatedBird: bird.name
+        };
+    }
+
+    createSpecialEvent(allBirds) {
+        const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+        
+        const specialEvents = [
+            `${bird.name}が珍しい鳴き声を披露しています`,
+            `${bird.name}が普段とは違う場所にいます`,
+            `${bird.name}が特別な羽ばたきを見せています`,
+            `${bird.name}が訪問者に興味を示しているようです`,
+            `${bird.name}が訪問者に向かって特別な挨拶をしています`,
+            `${bird.name}が今日だけの特別な羽の模様を見せています`,
+            `${bird.name}が感謝の気持ちを込めて美しく舞い踊っています`,
+            `${bird.name}が訪問者のために特別な羽ばたきパフォーマンスを披露しています`,
+            `${bird.name}が今まで見せたことのない優雅な着地を決めました`,
+            `${bird.name}が記念日を祝うかのように華麗に舞っています`,
+            `${bird.name}が特別な日の贈り物として美しい羽根を落としました`,
+            `${bird.name}が訪問者との絆を感じて特別な鳴き声で応えています`,
+            `${bird.name}が感謝の気持ちを羽の動きで表現しています`,
+            `${bird.name}が普段は見せない特別な表情を浮かべています`,
+            `${bird.name}が記念撮影のポーズを取ってあげているようです`,
+            `${bird.name}が特別な日だからと羽を特別美しく整えてくれています`,
+            `${bird.name}が訪問者だけのために秘密の隠れ場所を案内してくれました`
+        ];
+
+        return {
+            type: '特別',
+            content: specialEvents[Math.floor(Math.random() * specialEvents.length)],
+            relatedBird: bird.name
+        };
+    }
+
+// 夜間専用のイベント作成メソッドを追加
+async createNightEvent(eventType, allBirds) {
+    switch (eventType) {
+        case 'sleep':
+            return this.createSleepEvent(allBirds);
+        case 'dream':
+            return this.createDreamEvent(allBirds);
+        case 'night_watch':
+            return this.createNightWatchEvent(allBirds);
+        case 'nocturnal':
+            return this.createNocturnalEvent(allBirds);
+        default:
+            return null;
+    }
+}
+
+// 夜間イベント: 睡眠
+createSleepEvent(allBirds) {
+    const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+    
+    const sleepEvents = [
+        `${bird.name}が安らかに眠っています💤`,
+        `${bird.name}が羽の中に頭を埋めて深く眠っています`,
+        `${bird.name}が静かな寝息を立てています`,
+        `${bird.name}が暖かい場所で丸くなって眠っています`,
+        `${bird.name}が月明かりの下で穏やかに休んでいます`,
+        `${bird.name}が仲間と寄り添って眠っています`,
+        `${bird.name}が枝の上で器用にバランスを取りながら眠っています`,
+        `${bird.name}が羽を膨らませて暖かく眠っています`,
+        `${bird.name}が片足立ちで器用にバランスを取りながら眠っています`,
+        `${bird.name}が仲間の体温を感じながら安心して眠っています`,
+        `${bird.name}が風に揺れる枝の上でも落ちずに眠り続けています`,
+        `${bird.name}が小さくくちばしを羽の中に埋めて眠っています`,
+        `${bird.name}が夜露に濡れないよう葉の下で眠っています`,
+        `${bird.name}が朝まで安全な場所でぐっすりと眠っています`,
+        `${bird.name}が静かな夜の中で規則正しい寝息を立てています`,
+        `${bird.name}が暖かい巣の中で丸くなって眠っています`,
+        `${bird.name}が星明かりの下で穏やかな表情で眠っています`
+    ];
+
+    return {
+        type: '夜間の休息',
+        content: sleepEvents[Math.floor(Math.random() * sleepEvents.length)],
+        relatedBird: bird.name
+    };
+}
+
+// 夜間イベント: 夢
+createDreamEvent(allBirds) {
+    const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+    
+    const dreamEvents = [
+        `${bird.name}が楽しそうな夢を見ているようです✨`,
+        `${bird.name}が寝言で小さく鳴いています`,
+        `${bird.name}が夢の中で空を飛んでいるのか、羽をひらひらと動かしています`,
+        `${bird.name}が美味しい夢を見て満足そうな表情を浮かべています`,
+        `${bird.name}が夢の中で仲間と遊んでいるのか、嬉しそうな表情をしています`,
+        `${bird.name}が幸せそうな夢を見て、小さく笑っているようです`,
+        `${bird.name}が夢の中で歌を歌っているのか、くちばしを小さく動かしています`,
+        `${bird.name}が夢の中で温かい巣にいるのか、嬉しそうに羽を震わせています`,
+        `${bird.name}が楽しい夢を見て小さく羽ばたく真似をしています`,
+        `${bird.name}が夢の中で友達と出会っているのか、嬉しそうです`
+        
+    ];
+
+    return {
+        type: '夢の中',
+        content: dreamEvents[Math.floor(Math.random() * dreamEvents.length)],
+        relatedBird: bird.name
+    };
+}
+
+// 夜間イベント: 夜間見回り
+createNightWatchEvent(allBirds) {
+    const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+    
+    const watchEvents = [
+        `${bird.name}が夜警として静かに辺りを見回っています🌙`,
+        `${bird.name}が月の光を浴びながら優雅に佇んでいます`,
+        `${bird.name}が夜風に羽を揺らしながら静かに過ごしています`,
+        `${bird.name}が星空を見上げて何かを考えているようです`,
+        `${bird.name}が夜の静寂を楽しんでいるようです`,
+        `${bird.name}が月光で銀色に輝く羽を披露しています`,
+        `${bird.name}が夜の美しさに見とれているようです`,
+        `${bird.name}が夜の鳥類園を静かに見守っています`,
+        `${bird.name}が月の位置を確認しながら時を過ごしています`,
+        `${bird.name}が夜風の音に耳を傾けて過ごしています`,
+        `${bird.name}が星座の並びを眺めながら夜警を続けています`,
+        `${bird.name}が夜の香りを嗅ぎながら辺りの様子を伺っています`,
+        `${bird.name}が月光に照らされた羽を美しく輝かせながら佇んでいます`,
+        `${bird.name}が夜の静けさの中で瞑想するように過ごしています`,
+        `${bird.name}が遠くの街明かりを眺めています`,
+        `${bird.name}が夜露が降りる前に羽の手入れをしています`,
+        `${bird.name}が夜明け前の特別な空気を楽しんでいます`
+    ];
+
+    return {
+        type: '夜間の見回り',
+        content: watchEvents[Math.floor(Math.random() * watchEvents.length)],
+        relatedBird: bird.name
+    };
+}
+
+// 夜間イベント: 夜行性の活動
+createNocturnalEvent(allBirds) {
+    // フクロウなど夜行性の鳥がいる場合の特別イベント
+    const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+    
+    const nocturnalEvents = [
+        `${bird.name}が夜の闇の中で静かに活動しています🦉`,
+        `${bird.name}が夜の獲物を探しているようです`,
+        `${bird.name}が暗闇の中を器用に飛び回っています`,
+        `${bird.name}が夜の世界の王者のように堂々としています`,
+        `${bird.name}が月明かりを頼りに狩りの準備をしています`,
+        `${bird.name}が夜の静寂の中で鋭い目を光らせています`,
+        `${bird.name}が夜の森の番人として佇んでいます`,
+        `${bird.name}が夜の世界で本領を発揮して活動しています`,
+        `${bird.name}が暗闇を縫って静かに移動しています`,
+        `${bird.name}が夜の獲物の気配を鋭く察知しています`,
+        `${bird.name}が月明かりを利用して狩りをしています`,
+        `${bird.name}が夜の森の音を全て聞き分けているようです`,
+        `${bird.name}が完全な静寂の中を音もなく飛び回っています`,
+        `${bird.name}が夜の王者としての威厳を示しています`,
+        `${bird.name}が暗闇の中で獲物を待ち伏せています`,
+        `${bird.name}が夜の冷たい空気を羽で感じながら活動しています`
+        
+    ];
+
+    return {
+        type: '夜行性の活動',
+        content: nocturnalEvents[Math.floor(Math.random() * nocturnalEvents.length)],
+        relatedBird: bird.name
+    };
+}
+
 
     // 夜間判定
     isSleepTime() {
@@ -1172,37 +1595,91 @@ class ZooManager {
         }
     }
 
-    // 空腹チェック
-    async checkHungerStatus(guildId) {
-        try {
-            const zooState = this.getZooState(guildId);
-            if (!zooState.isInitialized || this.isSleepTime()) return;
-            
-            // 簡略化した空腹チェック
-            console.log(`🍽️ サーバー ${guildId} の空腹チェック実行`);
-            
-        } catch (error) {
-            console.error(`サーバー ${guildId} の空腹状態チェックエラー:`, error);
+    // 夜間は空腹チェックを停止する既存のメソッドを確認
+async checkHungerStatus(guildId) {
+    try {
+        const zooState = this.getZooState(guildId);
+        if (!zooState.isInitialized) return;
+
+        // 夜間は空腹チェックをスキップ（鳥は寝ているため）
+        if (this.isSleepTime()) {
+            console.log(`🌙 サーバー ${guildId} - 夜間のため空腹チェックをスキップします`);
+            return;
         }
+        
+        const now = new Date();
+            
+        for (const area of ['森林', '草原', '水辺']) {
+            for (const bird of zooState[area]) {
+                const hungryThreshold = 4 * 60 * 60 * 1000; // 4時間
+                const lastFeedTime = bird.lastFed || bird.entryTime;
+                
+                if ((now - lastFeedTime) > hungryThreshold) {
+                    if (!bird.isHungry) {
+                        bird.isHungry = true;
+                        bird.hungerNotified = false;
+                        bird.activity = this.generateHungryActivity(area);
+                        
+                        if (Math.random() < 0.50) {
+                            await this.addEvent(
+                                guildId,
+                                '空腹通知',
+                                `${bird.name}がお腹を空かせているようです！🍽️ \`/feed bird:${bird.name} food:[餌の種類]\` でごはんをあげてみましょう`,
+                                bird.name
+                            );
+                            bird.hungerNotified = true;
+                        }
+                        
+                        console.log(`🍽️ サーバー ${guildId} - ${bird.name} が空腹になりました (${area}エリア)`);
+                    }
+                } else {
+                    if (bird.isHungry) {
+                        bird.isHungry = false;
+                        bird.activity = this.generateActivity(area);
+                        console.log(`😊 サーバー ${guildId} - ${bird.name} が満腹になりました (${area}エリア)`);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error(`サーバー ${guildId} の空腹状態チェックエラー:`, error);
     }
+}
 
     // ランダムイベント生成
     async generateRandomEvent(guildId) {
-        try {
-            const zooState = this.getZooState(guildId);
-            if (!zooState.isInitialized) return;
+    try {
+        const zooState = this.getZooState(guildId);
+        if (!zooState.isInitialized) return;
 
-            const allBirds = this.getAllBirds(guildId);
-            if (allBirds.length === 0) return;
+        const allBirds = this.getAllBirds(guildId);
+        if (allBirds.length === 0) return;
 
-            // 簡単なランダムイベント
-            const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
-            await this.addEvent(guildId, '日常', `${bird.name}が楽しそうに過ごしています`, bird.name);
-
-        } catch (error) {
-            console.error(`サーバー ${guildId} のランダムイベント生成エラー:`, error);
+        let event;
+        
+        // 夜間かどうかで異なるイベントを生成
+        if (this.isSleepTime()) {
+            // 夜間イベント（22時〜7時）
+            const nightEventTypes = ['sleep', 'dream', 'night_watch', 'nocturnal'];
+            const eventType = nightEventTypes[Math.floor(Math.random() * nightEventTypes.length)];
+            event = await this.createNightEvent(eventType, allBirds);
+            console.log(`🌙 サーバー ${guildId} で夜間イベント発生: ${eventType}`);
+        } else {
+            // 昼間イベント（7時〜22時）
+            const dayEventTypes = ['interaction', 'discovery', 'weather', 'special'];
+            const eventType = dayEventTypes[Math.floor(Math.random() * dayEventTypes.length)];
+            event = await this.createEvent(eventType, allBirds);
+            console.log(`☀️ サーバー ${guildId} で昼間イベント発生: ${eventType}`);
         }
+        
+        if (event) {
+            await this.addEvent(guildId, event.type, event.content, event.relatedBird);
+        }
+
+    } catch (error) {
+        console.error(`サーバー ${guildId} のランダムイベント生成エラー:`, error);
     }
+}
 }
 
 module.exports = new ZooManager();
