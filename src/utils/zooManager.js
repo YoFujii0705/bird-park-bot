@@ -366,6 +366,8 @@ addRecentlyLeftBird(guildId, birdName) {
                     }
                 }
                 
+                await this.checkVisitorBirds(guildId);
+                
                 if (zooState[area].length < 5) {
                     await this.addNewBirdToArea(guildId, area);
                     migrationOccurred = true;
@@ -1094,7 +1096,7 @@ scheduleVisitorEvents(guildId, visitorBird) {
         await this.addEvent(
             guildId,
             '見学感想',
-            `${visitorBird.name}が「この鳥類園、とても居心地がいいですね！」と感激しています`,
+            `${visitorBird.name}が居心地が良さそうにからだを揺らしています`,
             visitorBird.name
         );
     }, 60 * 60 * 1000); // 1時間後
@@ -1138,11 +1140,11 @@ async removeVisitorBird(guildId, index) {
         await this.addEvent(
             guildId,
             '見学終了',
-            `${visitor.name}が見学を終えて帰っていきました。「また来ますね！」👋`,
+            `${visitor.name}が見学を終えて帰っていきました。「また来ますね！」🪽`,
             visitor.name
         );
         
-        console.log(`👋 サーバー ${guildId} - ${visitor.name} が見学終了`);
+        console.log(`🪽 サーバー ${guildId} - ${visitor.name} が見学終了`);
         
     } catch (error) {
         console.error('見学鳥退園エラー:', error);
