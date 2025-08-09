@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const logger = require('../utils/logger');
+const birdData = require('../utils/birdData');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -58,7 +59,7 @@ module.exports = {
     },
 
     async handleViewCommand(interaction, guildId) {
-        const embed = this.createZooOverviewEmbed(guildId);
+        const embed = await this.createZooOverviewEmbed(guildId);
         const buttons = this.createZooButtons();
         
         await interaction.reply({ 
@@ -78,14 +79,21 @@ module.exports = {
         await logger.logZoo('エリア表示', area, '', interaction.user.id, interaction.user.username, guildId);
     },
 
-    createZooOverviewEmbed(guildId) {
+    // 🆕 見学鳥対応版全体表示
+    async createZooOverviewEmbed(guildId) {
         const zooManager = require('../utils/zooManager');
         const zooState = zooManager.getZooState(guildId);
-        const totalBirds = zooState.森林.length + zooState.草原.length + zooState.水辺.length;
+        
+        // 見学鳥をエリア別に振り分け
+        const visitorsByArea = await this.distributeVisitorsToAreas(guildId);
+        
+        const totalResidents = zooState.森林.length + zooState.草原.length + zooState.水辺.length;
+        const totalVisitors = (zooState.visitors || []).length;
+        const totalBirds = totalResidents + totalVisitors;
         
         const embed = new EmbedBuilder()
             .setTitle('🏞️ オリジナル鳥類園')
-            .setDescription(`現在 **${totalBirds}羽** の鳥たちが園内で過ごしています`)
+            .setDescription(`現在 **${totalBirds}羽** の鳥たちが園内で過ごしています\n${totalVisitors > 0 ? `(👀 見学中: ${totalVisitors}羽)` : ''}`)
             .setColor(0x228B22)
             .setTimestamp();
 
@@ -96,20 +104,53 @@ module.exports = {
         ];
 
         areas.forEach(area => {
-            const birds = zooState[area.key];
-            const birdList = birds.length > 0 
-                ? birds.map(bird => {
+            const residents = zooState[area.key];
+            const visitors = visitorsByArea[area.key] || [];
+            const allBirds = [...residents, ...visitors];
+            
+            let birdList = '';
+            
+            // 住民の鳥
+            if (residents.length > 0) {
+                birdList += residents.map(bird => {
                     const sizeEmoji = this.getSizeEmoji(bird.data.全長区分);
                     return `${sizeEmoji} ${bird.name}`;
-                }).join('\n')
-                : '(現在いません)';
+                }).join('\n');
+            }
+            
+            // 見学中の鳥
+            if (visitors.length > 0) {
+                if (birdList) birdList += '\n';
+                birdList += visitors.map(bird => {
+                    const sizeEmoji = this.getSizeEmoji(bird.data.全長区分);
+                    return `👀 ${sizeEmoji} ${bird.name} (見学中)`;
+                }).join('\n');
+            }
+            
+            if (!birdList) {
+                birdList = '(現在いません)';
+            }
 
             embed.addFields({
-                name: `${area.emoji} ${area.name} (${birds.length}/5)`,
+                name: `${area.emoji} ${area.name} (${residents.length}/5${visitors.length > 0 ? ` +${visitors.length}人見学` : ''})`,
                 value: birdList,
                 inline: true
             });
         });
+
+        // 見学情報の詳細
+        if (totalVisitors > 0) {
+            const visitorsInfo = (zooState.visitors || []).map(visitor => {
+                const remainingTime = this.getRemainingVisitTime(visitor.scheduledDeparture);
+                return `• ${visitor.name} (残り${remainingTime})`;
+            }).join('\n');
+            
+            embed.addFields({
+                name: '👀 見学中の鳥たち',
+                value: visitorsInfo,
+                inline: false
+            });
+        }
 
         embed.setFooter({ 
             text: `最終更新: ${zooState.lastUpdate.toLocaleString('ja-JP')}` 
@@ -118,6 +159,38 @@ module.exports = {
         return embed;
     },
 
+    // 🆕 見学鳥をエリア別に振り分け
+    async distributeVisitorsToAreas(guildId) {
+        const zooManager = require('../utils/zooManager');
+        const zooState = zooManager.getZooState(guildId);
+        const visitors = zooState.visitors || [];
+        
+        const visitorsByArea = {
+            森林: [],
+            草原: [],
+            水辺: []
+        };
+        
+        visitors.forEach(visitor => {
+            const birdEnvironment = visitor.data.環境;
+            let targetArea;
+            
+            // 鳥の環境に基づいてエリア決定
+            if (birdEnvironment.includes('森林') || birdEnvironment.includes('高山')) {
+                targetArea = '森林';
+            } else if (birdEnvironment.includes('河川・湖沼') || birdEnvironment.includes('海')) {
+                targetArea = '水辺';
+            } else {
+                targetArea = '草原'; // 農耕地、草地、市街地など
+            }
+            
+            visitorsByArea[targetArea].push(visitor);
+        });
+        
+        return visitorsByArea;
+    },
+
+    // 🆕 見学鳥対応版エリア詳細
     async createAreaDetailEmbed(area, guildId) {
         const areaInfo = {
             '森林': { emoji: '🌲', description: '高い木々に囲まれた静かなエリア', color: 0x228B22 },
@@ -128,8 +201,13 @@ module.exports = {
         const info = areaInfo[area];
         const zooManager = require('../utils/zooManager');
         const zooState = zooManager.getZooState(guildId);
-        const birds = zooState[area];
-
+        const residents = zooState[area];
+        
+        // 見学鳥を取得
+        const visitorsByArea = await this.distributeVisitorsToAreas(guildId);
+        const visitors = visitorsByArea[area] || [];
+        
+        const allBirds = [...residents, ...visitors];
         const sleepStatus = this.checkSleepTime();
 
         const embed = new EmbedBuilder()
@@ -140,15 +218,17 @@ module.exports = {
             .setColor(sleepStatus.isSleeping ? 0x2F4F4F : info.color)
             .setTimestamp();
 
-        if (birds.length === 0) {
+        if (allBirds.length === 0) {
             embed.addFields({
                 name: '現在の状況',
                 value: '現在このエリアには鳥がいません',
                 inline: false
             });
         } else {
-            for (let i = 0; i < birds.length; i++) {
-                const bird = birds[i];
+            let birdIndex = 1;
+            
+            // 住民の鳥を表示
+            for (const bird of residents) {
                 const stayDuration = this.getStayDuration(bird.entryTime);
                 let activityText;
                 
@@ -160,16 +240,74 @@ module.exports = {
                 }
                 
                 embed.addFields({
-                    name: `${i + 1}. ${this.getSizeEmoji(bird.data.全長区分)} ${bird.name}`,
+                    name: `${birdIndex}. ${this.getSizeEmoji(bird.data.全長区分)} ${bird.name}`,
                     value: activityText,
                     inline: true
                 });
+                birdIndex++;
+            }
+            
+            // 見学中の鳥を表示
+            for (const visitor of visitors) {
+                const remainingTime = this.getRemainingVisitTime(visitor.scheduledDeparture);
+                const inviterText = visitor.inviterName ? ` (${visitor.inviterName}さんの招待)` : '';
+                
+                let activityText;
+                if (sleepStatus.isSleeping) {
+                    const sleepActivity = await this.generateVisitorSleepActivity(visitor, area);
+                    activityText = `😴 ${sleepActivity}\n👀 見学残り時間: ${remainingTime}${inviterText}`;
+                } else {
+                    activityText = `👀 ${visitor.activity}\n⏰ 見学残り時間: ${remainingTime}${inviterText}`;
+                }
+                
+                embed.addFields({
+                    name: `${birdIndex}. 👀 ${this.getSizeEmoji(visitor.data.全長区分)} ${visitor.name} (見学中)`,
+                    value: activityText,
+                    inline: true
+                });
+                birdIndex++;
             }
         }
 
         return embed;
     },
 
+    // 🆕 見学残り時間計算
+    getRemainingVisitTime(scheduledDeparture) {
+        const now = new Date();
+        const remaining = scheduledDeparture - now;
+        
+        if (remaining <= 0) {
+            return 'まもなく終了';
+        }
+        
+        const hours = Math.floor(remaining / (1000 * 60 * 60));
+        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+        
+        if (hours > 0) {
+            return `約${hours}時間${minutes}分`;
+        } else {
+            return `約${minutes}分`;
+        }
+    },
+
+    // 🆕 見学鳥の睡眠活動生成
+    async generateVisitorSleepActivity(visitor, area) {
+        const sleepActivities = [
+            '見学で疲れて安らかに眠っています',
+            '新しい環境に慣れて穏やかに眠っています',
+            '明日もここにいたいと夢見ているようです',
+            '住民の鳥たちと一緒に仲良く眠っています',
+            '見学の思い出を夢に見ながら眠っています',
+            'ここの心地よさに感動して深く眠っています',
+            '招待してくれた人への感謝を胸に眠っています',
+            '鳥類園の美しさに包まれて眠っています'
+        ];
+        
+        return sleepActivities[Math.floor(Math.random() * sleepActivities.length)];
+    },
+
+    // 既存のメソッドはそのまま
     checkSleepTime() {
         const now = new Date();
         const jstTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Tokyo"}));
@@ -201,46 +339,38 @@ module.exports = {
                      '雲の隙間を通る月光の下で眠っています'
                    ],
             rainy: [
-                     // 既存
                      '雨音を聞きながら安らかに眠っています',
                      '雨宿りをしながら静かに眠っています',
                      '雨の夜の涼しさの中で深く眠っています',
                      '雨粒の音に包まれて眠っています',
-                     // 新規追加
                      '雨のリズムに合わせて深い眠りについています',
                      '雨の匂いを感じながら穏やかに眠っています',
                      '雨雲の下で心地よく丸くなっています',
                      '雨の恵みに感謝しながら眠っているようです'
                    ],
             snowy: [
-                     // 既存
                      '雪景色の中で静かに眠っています',
                      '雪に包まれて暖かく眠っています',
                      '雪の結晶が舞い散る中で眠っています',
                      '雪明かりの下で安らかに眠っています',
-                     // 新規追加
                      '雪の毛布に包まれて幸せそうに眠っています',
                      '雪化粧した世界で特別な夢を見ているようです',
                      '雪の静寂に包まれて深い眠りについています',
                      '雪の結晶を数えながら眠りについたようです'
                     ],
             stormy: [
-                     // 既存
                     '嵐を避けて安全な場所で眠っています',
                     '風雨から身を守って眠っています',
                     '嵐が過ぎるのを待ちながら眠っています',
-                     // 新規追加
                     '嵐の夜も安心して眠りについています',
                     '強い風に負けず安全な場所で休んでいます',
                     '嵐の音を遠くに聞きながら静かに眠っています',
                     '明日の晴天を夢見て嵐をやり過ごしています'
                     ],
             foggy: [
-                     // 既存
                     '霧に包まれて神秘的に眠っています',
                     '霧の中でひっそりと眠っています',
                     '霧の静寂の中で安らかに眠っています',
-                     // 新規追加
                     '霧のベールに守られて眠っています',
                     '幻想的な霧の世界で夢心地です',
                     '霧の湿り気を感じながら深く眠っています',
