@@ -201,6 +201,72 @@ module.exports = {
                 }
             }, 1500); // 1.5秒後に称号チェック
 
+            // 🆕 思い出システム - 餌やり後の思い出チェック
+            setTimeout(async () => {
+                const memoryManager = require('../utils/humanMemoryManager');
+                
+                // 餌やりアクションデータを構築
+                const actionData = {
+                    type: 'feed',
+                    preference: preference,
+                    food: food,
+                    isFirstTime: bird.feedCount === 1,
+                    isFirstFavorite: preference === 'favorite' && !bird.feedHistory.some(h => h.preference === 'favorite'),
+                    weather: this.getCurrentWeather(), // 天気情報
+                    hour: new Date().getHours(),
+                    totalFeeds: bird.feedCount,
+                    details: {
+                        food: food,
+                        area: birdInfo.area,
+                        effect: feedResult.effect
+                    }
+                };
+                
+                // 思い出生成をチェック
+                const newMemory = await memoryManager.createMemory(
+                    interaction.user.id,
+                    interaction.user.username,
+                    birdInfo.bird.name,
+                    actionData,
+                    guildId
+                );
+                
+                // 思い出が生成された場合は通知
+                if (newMemory) {
+                    await memoryManager.sendMemoryNotification(interaction, newMemory);
+                }
+                
+            }, 7000); // 7秒後に思い出チェック
+
+            // 🆕 好感度アップ時の思い出生成
+            if (affinityResult.levelUp) {
+                setTimeout(async () => {
+                    const memoryManager = require('../utils/humanMemoryManager');
+                    
+                    const affinityActionData = {
+                        type: 'affinity',
+                        newLevel: affinityResult.newLevel,
+                        previousLevel: affinityResult.previousLevel,
+                        details: {
+                            newLevel: affinityResult.newLevel,
+                            birdName: birdInfo.bird.name
+                        }
+                    };
+                    
+                    const affinityMemory = await memoryManager.createMemory(
+                        interaction.user.id,
+                        interaction.user.username,
+                        birdInfo.bird.name,
+                        affinityActionData,
+                        guildId
+                    );
+                    
+                    if (affinityMemory) {
+                        await memoryManager.sendMemoryNotification(interaction, affinityMemory);
+                    }
+                    
+                }, 8000); // 8秒後
+
             // 🆕 鳥からユーザーへの贈り物チェック
             setTimeout(async () => {
                 if (affinityResult && affinityResult.newLevel >= 5) {
