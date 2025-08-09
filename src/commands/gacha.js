@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, StringSelectMenuBuilder, ButtonStyle } = require('discord.js');
 const birdData = require('../utils/birdData');
 const logger = require('../utils/logger');
 
@@ -39,8 +39,12 @@ module.exports = {
             if (count === 1) {
                 const bird = birds[0];
                 const embed = this.createBirdEmbed(bird);
+                const buttons = this.createVisitButtons(bird.名前);
                 
-                await interaction.reply({ embeds: [embed] });
+                await interaction.reply({ 
+                    embeds: [embed], 
+                    components: [buttons] 
+                });
                 
                 // ログ記録
                 await logger.logGachaWithServer(
@@ -50,12 +54,19 @@ module.exports = {
                     bird.名前,
                     interaction.guild.id
                 );
+
+                // ボタン待機
+                this.handleSingleBirdVisit(interaction, bird);
             } 
             // 複数ガチャ
             else {
                 const embed = this.createMultipleBirdsEmbed(birds, count);
+                const selectMenu = this.createBirdSelectMenu(birds);
                 
-                await interaction.reply({ embeds: [embed] });
+                await interaction.reply({ 
+                    embeds: [embed], 
+                    components: [selectMenu] 
+                });
                 
                 // ログ記録
                 const birdNames = birds.map(b => b.名前).join(', ');
@@ -66,6 +77,9 @@ module.exports = {
                     birdNames,
                     interaction.guild.id
                 );
+
+                // 選択待機
+                this.handleMultipleBirdVisit(interaction, birds);
             }
 
         } catch (error) {
@@ -80,7 +94,184 @@ module.exports = {
         }
     },
 
-    // 単体鳥用Embed作成
+    // 🆕 単体ガチャ用ボタン作成
+    createVisitButtons(birdName) {
+        return new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`visit_yes_${birdName}`)
+                    .setLabel('見学に呼ぶ')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji('🏞️'),
+                new ButtonBuilder()
+                    .setCustomId(`visit_no_${birdName}`)
+                    .setLabel('呼ばない')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('❌')
+            );
+    },
+
+    // 🆕 複数ガチャ用選択メニュー作成
+    createBirdSelectMenu(birds) {
+        const options = birds.map((bird, index) => ({
+            label: bird.名前,
+            value: bird.名前,
+            description: `${bird.キャッチコピー}`,
+            emoji: this.getBirdEmoji(bird)
+        }));
+
+        // 「呼ばない」オプションも追加
+        options.push({
+            label: '誰も呼ばない',
+            value: 'none',
+            description: '今回は見学に呼びません',
+            emoji: '❌'
+        });
+
+        return new ActionRowBuilder()
+            .addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('select_visitor_bird')
+                    .setPlaceholder('見学に呼ぶ鳥を選んでください...')
+                    .addOptions(options.slice(0, 25)) // Discord制限
+            );
+    },
+
+    // 🆕 鳥の特徴に応じた絵文字選択
+    getBirdEmoji(bird) {
+        const environment = bird.環境;
+        if (environment.includes('森林')) return '🌲';
+        if (environment.includes('水辺') || environment.includes('海')) return '🌊';
+        if (environment.includes('草原') || environment.includes('農耕地')) return '🌾';
+        if (environment.includes('高山')) return '⛰️';
+        return '🐦';
+    },
+
+    // 🆕 単体ガチャのボタン処理
+    async handleSingleBirdVisit(interaction, bird) {
+        try {
+            const response = await interaction.fetchReply();
+            const confirmation = await response.awaitMessageComponent({
+                filter: i => i.user.id === interaction.user.id,
+                time: 60000
+            });
+
+            const isVisit = confirmation.customId.startsWith('visit_yes');
+            
+            if (isVisit) {
+                await this.inviteBirdToZoo(confirmation, bird, interaction.guild.id);
+            } else {
+                await confirmation.update({
+                    content: `${bird.名前}を見学に呼ばないことにしました。また機会があればぜひ！`,
+                    components: []
+                });
+            }
+
+        } catch (error) {
+            console.log('ボタン操作がタイムアウトしました');
+            // タイムアウト時は何もしない（ボタンは無効化される）
+        }
+    },
+
+    // 🆕 複数ガチャの選択処理
+    async handleMultipleBirdVisit(interaction, birds) {
+        try {
+            const response = await interaction.fetchReply();
+            const confirmation = await response.awaitMessageComponent({
+                filter: i => i.user.id === interaction.user.id,
+                time: 60000
+            });
+
+            const selectedBirdName = confirmation.values[0];
+            
+            if (selectedBirdName === 'none') {
+                await confirmation.update({
+                    content: '今回は誰も見学に呼ばないことにしました。また機会があればぜひ！',
+                    components: []
+                });
+                return;
+            }
+
+            const selectedBird = birds.find(b => b.名前 === selectedBirdName);
+            if (selectedBird) {
+                await this.inviteBirdToZoo(confirmation, selectedBird, interaction.guild.id);
+            }
+
+        } catch (error) {
+            console.log('選択操作がタイムアウトしました');
+            // タイムアウト時は何もしない
+        }
+    },
+
+    // 🆕 鳥を鳥類園に招待
+    async inviteBirdToZoo(interaction, bird, guildId) {
+        try {
+            const zooManager = require('../utils/zooManager');
+            
+            // 見学鳥として追加
+            await zooManager.addVisitorBird(guildId, bird, interaction.user.id, interaction.user.username);
+            
+            const embed = new EmbedBuilder()
+                .setTitle('🎉 見学招待成功！')
+                .setDescription(`**${bird.名前}**が${interaction.guild.name}の鳥類園に見学にやってきました！`)
+                .setColor(0x00FF00)
+                .addFields(
+                    {
+                        name: '🎭 現在の様子',
+                        value: this.generateVisitorActivity(bird),
+                        inline: false
+                    },
+                    {
+                        name: '⏰ 見学時間',
+                        value: '約2-4時間の予定です',
+                        inline: true
+                    },
+                    {
+                        name: '🎁 特典',
+                        value: '見学に来た鳥が鳥類園に興味を持ったようです！',
+                        inline: true
+                    }
+                )
+                .setTimestamp();
+
+            await interaction.update({
+                embeds: [embed],
+                components: []
+            });
+
+            // 見学イベントログ
+            await logger.logEvent(
+                '見学招待',
+                `${interaction.user.username}さんが${bird.名前}を見学に招待しました`,
+                bird.名前,
+                guildId
+            );
+
+        } catch (error) {
+            console.error('見学招待エラー:', error);
+            await interaction.update({
+                content: '見学招待中にエラーが発生しました。もう一度お試しください。',
+                components: []
+            });
+        }
+    },
+
+    // 🆕 見学鳥の活動生成
+    generateVisitorActivity(bird) {
+        const activities = [
+            `${bird.名前}が鳥類園の様子を興味深そうに見回しています`,
+            `${bird.名前}が先住の鳥たちに挨拶をしています`,
+            `${bird.名前}が「ここは素敵な場所ですね」と鳴いているようです`,
+            `${bird.名前}が鳥類園の環境をとても気に入ったようです`,
+            `${bird.名前}が他の鳥たちと楽しそうに交流しています`,
+            `${bird.名前}が「また来たいです」と言っているかのようです`,
+            `${bird.名前}が鳥類園の美しさに感動しているようです`
+        ];
+        
+        return activities[Math.floor(Math.random() * activities.length)];
+    },
+
+    // 既存のEmbed作成メソッド
     createBirdEmbed(bird) {
         const colorMap = {
             '茶系': 0x8B4513,
@@ -96,7 +287,7 @@ module.exports = {
         const mainColor = bird.色.split('、')[0];
         const embedColor = colorMap[mainColor] || 0x00AE86;
 
-        return new EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle(`🐦 ${bird.名前}`)
             .setColor(embedColor)
             .setDescription(`*${bird.キャッチコピー}*\n\n${bird.説明文}`)
@@ -109,14 +300,22 @@ module.exports = {
                 { name: '🍽️ 好物', value: bird.好物 || '設定なし', inline: true }
             )
             .setTimestamp();
+
+        // 🆕 見学招待の案内を追加
+        embed.addFields({
+            name: '🏞️ 見学招待',
+            value: `${bird.名前}を鳥類園に見学に呼びますか？`,
+            inline: false
+        });
+
+        return embed;
     },
 
-    // 複数鳥用Embed作成
     createMultipleBirdsEmbed(birds, count) {
         const embed = new EmbedBuilder()
             .setTitle(`🐦✨ ${count}連ガチャ結果！`)
             .setColor(0x00AE86)
-            .setDescription(`${count}羽の鳥が現れました！`)
+            .setDescription(`${count}羽の鳥が現れました！\n\n💡 その中から1羽を選んで見学に呼ぶことができます。`)
             .setTimestamp();
 
         const birdList = birds.map((bird, index) => {
