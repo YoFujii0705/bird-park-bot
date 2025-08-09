@@ -175,40 +175,42 @@ module.exports = {
                 .setTimestamp();
 
             // 🆕 思い出システム - 贈り物後の思い出生成
-            setTimeout(async () => {
-                const memoryManager = require('../utils/humanMemoryManager');
-                
-                // 現在の贈り物数を取得
-                const currentGiftCount = userGiftsToThisBird.length + 1; // +1 は今回の贈り物
-                
-                // 贈り物アクションデータを構築
-                const actionData = {
-                    type: 'gift_given',
-                    isFirst: userGiftsToThisBird.length === 0, // 初回の贈り物かどうか
-                    giftCount: currentGiftCount,
-                    details: {
-                        giftName: selectedGift,
-                        birdName: birdName,
-                        area: area,
-                        giftCount: currentGiftCount
-                    }
-                };
-                
-                // 思い出生成をチェック
-                const newMemory = await memoryManager.createMemory(
-                    userId,
-                    userName,
-                    birdName,
-                    actionData,
-                    guildId
-                );
-                
-                // 思い出が生成された場合は通知
-                if (newMemory) {
-                    await memoryManager.sendMemoryNotification(interaction, newMemory);
-                }
-                
-            }, 3000); // 3秒後に思い出チェック
+setTimeout(async () => {
+    const memoryManager = require('../utils/humanMemoryManager');
+    
+    // 🔧 修正: 現在の贈り物数を正しく取得
+    const currentBirdGifts = await sheetsManager.getBirdGifts(birdName, guildId);
+    const userGiftsToThisBird = currentBirdGifts.filter(gift => gift.giverId === userId);
+    const currentGiftCount = userGiftsToThisBird.length; // +1 を削除（既に記録済みのため）
+    
+    // 贈り物アクションデータを構築
+    const actionData = {
+        type: 'gift_given',
+        isFirst: currentGiftCount === 1, // 修正: 今回の贈り物が初回かチェック
+        giftCount: currentGiftCount,
+        details: {
+            giftName: selectedGift,
+            birdName: birdName,
+            area: area,
+            giftCount: currentGiftCount
+        }
+    };
+    
+    // 思い出生成をチェック
+    const newMemory = await memoryManager.createMemory(
+        userId,
+        userName,
+        birdName,
+        actionData,
+        guildId
+    );
+    
+    // 思い出が生成された場合は通知
+    if (newMemory) {
+        await memoryManager.sendMemoryNotification(interaction, newMemory);
+    }
+    
+}, 3000); // 3秒後に思い出チェック
 
             await interaction.editReply({
                 embeds: [embed],
