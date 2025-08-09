@@ -17,10 +17,46 @@ const MEMORY_PATTERNS = {
             icon: '🌟'
         },
         '雨の日の餌やり': {
-            condition: (action) => action.type === 'feed' && action.weather === 'rainy',
+            condition: (action) => action.type === 'feed' && (action.weather === 'rainy' || action.weather === 'drizzle'),
             memory: (userName, birdName, details) => 
-                `雨の日に${birdName}に${details.food}をあげた。濡れながらも来てくれて、${birdName}も嬉しそうだった。`,
+                `雨の日に${birdName}に${details.food}をあげた。${details.weatherDescription}の中、濡れながらも来てくれて、${birdName}も嬉しそうだった。`,
             icon: '🌧️'
+        },
+        '雪の日の餌やり': {
+            condition: (action) => action.type === 'feed' && action.weather === 'snow',
+            memory: (userName, birdName, details) => 
+                `雪の日に${birdName}に${details.food}をあげた。${details.weatherDescription}の中、${birdName}が雪をかぶりながら食べる姿が美しかった。`,
+            icon: '❄️'
+        },
+        '虹の日の餌やり': {
+            condition: (action) => action.type === 'feed' && action.weather === 'rainbow',
+            memory: (userName, birdName, details) => 
+                `虹が出た日に${birdName}に${details.food}をあげた。${details.weatherDescription}の下で、${birdName}と一緒に虹を見上げた特別な瞬間。`,
+            icon: '🌈'
+        },
+        '霧の日の餌やり': {
+            condition: (action) => action.type === 'feed' && action.weather === 'foggy',
+            memory: (userName, birdName, details) => 
+                `霧の深い日に${birdName}に${details.food}をあげた。${details.weatherDescription}の中、幻想的な雰囲気で過ごした静かな時間。`,
+            icon: '🌫️'
+        },
+        '暴風の日の餌やり': {
+            condition: (action) => action.type === 'feed' && action.weather === 'stormy',
+            memory: (userName, birdName, details) => 
+                `嵐の日に${birdName}に${details.food}をあげた。${details.weatherDescription}で大変だったけど、${birdName}が心配で駆けつけた。`,
+            icon: '⛈️'
+        },
+        '暑い日の餌やり': {
+            condition: (action) => action.type === 'feed' && action.temperature >= 30,
+            memory: (userName, birdName, details) => 
+                `暑い日（${details.temperature}°C）に${birdName}に${details.food}をあげた。暑さでぐったりしていた${birdName}が少し元気になってくれた。`,
+            icon: '🌡️'
+        },
+        '寒い日の餌やり': {
+            condition: (action) => action.type === 'feed' && action.temperature <= 5,
+            memory: (userName, birdName, details) => 
+                `寒い日（${details.temperature}°C）に${birdName}に${details.food}をあげた。${birdName}は寒そうだったけど少しは寒さが和らいだかな。`,
+            icon: '🥶'
         },
         '早朝の餌やり': {
             condition: (action) => action.type === 'feed' && action.hour >= 6 && action.hour < 8,
@@ -47,7 +83,7 @@ const MEMORY_PATTERNS = {
         '絆の始まり': {
             condition: (action) => action.type === 'affinity' && action.newLevel === 5,
             memory: (userName, birdName, details) => 
-                `${birdName}との絆が深まった日。好感度レベル5になって、本当の友達になれた気がする。`,
+                `${birdName}との絆が深まった日。なんだか、本当の友達になれた気がする。`,
             icon: '💖'
         },
         '完全な信頼': {
@@ -63,7 +99,7 @@ const MEMORY_PATTERNS = {
         '初めての贈り物': {
             condition: (action) => action.type === 'gift_given' && action.isFirst,
             memory: (userName, birdName, details) => 
-                `初めて${birdName}に${details.giftName}をプレゼントした日。あんなに喜んでくれるなんて、贈り物って素敵だな。`,
+                `初めて${birdName}に${details.giftName}をプレゼントした日。あんなに喜んでくれるなんて嬉しい誤算だった。`,
             icon: '🎁'
         },
         '特別な贈り物': {
@@ -75,7 +111,7 @@ const MEMORY_PATTERNS = {
         '初めてもらった贈り物': {
             condition: (action) => action.type === 'gift_received' && action.isFirstReceived,
             memory: (userName, birdName, details) => 
-                `${birdName}から初めて${details.giftName}をもらった日。鳥からこんな素敵な贈り物がもらえるなんて、夢みたい！`,
+                `${birdName}から初めて${details.giftName}をもらった日。こんなに素敵な贈り物がもらえるなんて、夢みたい！`,
             icon: '🌟'
         },
         '珍しい贈り物': {
@@ -88,11 +124,17 @@ const MEMORY_PATTERNS = {
 
     // 🌈 特別な出来事の思い出
     events: {
-        '虹の日': {
-            condition: (action) => action.type === 'special_weather' && action.weather === 'rainbow',
+        '完璧な晴天': {
+            condition: (action) => action.type === 'feed' && action.weather === 'sunny' && action.temperature >= 20 && action.temperature <= 25,
             memory: (userName, birdName, details) => 
-                `${birdName}と一緒に虹を見た日。虹が出た時、${birdName}も空を見上げていて、同じものを見ているんだと思った。`,
-            icon: '🌈'
+                `完璧な晴天の日に${birdName}に${details.food}をあげた。${details.weatherDescription}で、${birdName}も私も最高の気分だった。`,
+            icon: '☀️'
+        },
+        '満月の夜': {
+            condition: (action) => action.type === 'feed' && action.hour >= 20 && action.weather === 'clear',
+            memory: (userName, birdName, details) => 
+                `満月の夜に${birdName}に${details.food}をあげた。月明かりに照らされた${birdName}の姿が神秘的だった。`,
+            icon: '🌕'
         },
         '初雪の日': {
             condition: (action) => action.type === 'special_weather' && action.weather === 'first_snow',
@@ -100,17 +142,41 @@ const MEMORY_PATTERNS = {
                 `今年初めての雪の日、${birdName}に会いに行った。雪の中でも元気そうで、ほっとした。`,
             icon: '❄️'
         },
-        '誕生日': {
-            condition: (action) => action.type === 'special_day' && action.day === 'birthday',
+        '桜の季節': {
+            condition: (action) => action.type === 'feed' && action.season === 'spring' && action.weather === 'sunny',
             memory: (userName, birdName, details) => 
-                `自分の誕生日に${birdName}に会いに行った。なんだか${birdName}も一緒にお祝いしてくれているような気がした。`,
-            icon: '🎂'
+                `桜の咲く春の日に${birdName}に${details.food}をあげた。花びらが舞う中での餌やりは、まるで映画のワンシーンのようだった。`,
+            icon: '🌸'
         },
-        '記念日': {
-            condition: (action) => action.type === 'anniversary',
+        '夏祭りの夜': {
+            condition: (action) => action.type === 'event' && action.event === 'festival',
             memory: (userName, birdName, details) => 
-                `${birdName}と知り合って${details.days}日目の記念日。こんなに長く友達でいられるなんて嬉しい。`,
-            icon: '🎊'
+                `夏祭りの夜に${birdName}と過ごした特別な時間。花火の光が私たちの絆を照らしているようだった。`,
+            icon: '🎆'
+        },
+        '紅葉の秋': {
+            condition: (action) => action.type === 'feed' && action.season === 'autumn' && action.weather === 'sunny',
+            memory: (userName, birdName, details) => 
+                `紅葉が美しい秋の日に${birdName}に${details.food}をあげた。色づいた葉っぱの中で過ごした穏やかな時間。`,
+            icon: '🍂'
+        },
+        '台風一過': {
+            condition: (action) => action.type === 'feed' && action.weather === 'sunny' && action.previousWeather === 'stormy',
+            memory: (userName, birdName, details) => 
+                `台風の後の晴天の日に${birdName}に${details.food}をあげた。嵐を乗り越えた後の平穏な時間が、より特別に感じられた。`,
+            icon: '🌅'
+        },
+        '雨上がりの虹': {
+            condition: (action) => action.type === 'feed' && action.weather === 'rainbow',
+            memory: (userName, birdName, details) => 
+                `雨上がりに虹が出た日、${birdName}に${details.food}をあげた。${birdName}と一緒に見上げた虹は、希望の象徴のように美しかった。`,
+            icon: '🌈'
+        },
+        '星空の夜': {
+            condition: (action) => action.type === 'nightEvent' && action.weather === 'clear' && action.hour >= 22,
+            memory: (userName, birdName, details) => 
+                `満天の星空の夜に${birdName}と過ごした。静寂の中で星を見上げながら、永遠に続いてほしいと思った特別な時間。`,
+            icon: '⭐'
         }
     },
 
@@ -119,7 +185,7 @@ const MEMORY_PATTERNS = {
         '10種類目の鳥': {
             condition: (action) => action.type === 'milestone' && action.milestone === 'birds_10',
             memory: (userName, birdName, details) => 
-                `${birdName}が10種類目に餌をあげた鳥になった。こんなにたくさんの鳥と友達になれるなんて。`,
+                `${birdName}が10種類目に餌をあげた鳥になった。こんなにたくさんの鳥たちと友達になれるなんて。`,
             icon: '🔟'
         },
         '全エリア制覇': {
@@ -135,7 +201,7 @@ const MEMORY_PATTERNS = {
         '感動的な瞬間': {
             condition: (action) => action.type === 'emotional' && action.emotion === 'moved',
             memory: (userName, birdName, details) => 
-                `${birdName}が美しく歌っている姿を見て、思わず涙が出そうになった。こんな美しい瞬間に立ち会えて幸せ。`,
+                `${birdName}が美しく歌っている姿を見て、思わず涙が出そうになった。こんな美しい瞬間に立ち会えるとは。`,
             icon: '🎵'
         },
         '心配した日': {
