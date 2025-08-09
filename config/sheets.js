@@ -208,11 +208,11 @@ this.sheets.birdGifts = await this.getOrCreateSheet('bird_gifts', [
         return await this.addLog('birdGifts', {
             鳥名: birdName,
             贈り物名: giftName,
-            贈り主ユーザーID: giverId,
-            贈り主ユーザー名: giverName,
+            送り主ユーザーID: giverId,        // 🔧 修正：実際のヘッダー名に合わせる
+            送り主ユーザー名: giverName,      // 🔧 修正：実際のヘッダー名に合わせる
             贈呈日時: new Date().toLocaleString('ja-JP'),
             サーバーID: serverId,
-            キャプション: caption // 🔧 キャプションを追加
+            キャプション: caption
         });
     } catch (error) {
         console.error('鳥への贈り物ログエラー:', error);
