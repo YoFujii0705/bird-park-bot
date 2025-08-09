@@ -150,7 +150,7 @@ module.exports = {
         }
     },
 
-    // 🔧 鳥にあげた贈り物表示（ヘッダー名修正版）
+    // 🔧 鳥にあげた贈り物表示（安全なデバッグ版）
 async handleGivenGiftsCommand(interaction, userId, userName, serverId) {
     try {
         await sheetsManager.ensureInitialized();
@@ -163,15 +163,39 @@ async handleGivenGiftsCommand(interaction, userId, userName, serverId) {
         
         console.log('🔍 bird_gifts シートの全行数:', rows.length);
         
-        // 🔧 デバッグ: 最初の行のヘッダーを確認
+        // 🔧 デバッグ: 最初の行の全データを確認
         if (rows.length > 0) {
-            console.log('🔍 利用可能なヘッダー:', rows[0]._sheet.headerValues);
+            const firstRow = rows[0];
+            console.log('🔍 最初の行の全データ:', firstRow._rawData);
+            
+            // 利用可能なヘッダーを確認
+            try {
+                const headers = sheet.headerValues;
+                console.log('🔍 シートのヘッダー:', headers);
+            } catch (e) {
+                console.log('🔍 ヘッダー取得エラー:', e.message);
+            }
         }
         
         const givenGifts = rows
             .filter(row => {
-                // 🔧 複数の可能な列名でチェック
-                const rowUserId = row.get('送り主ユーザーID') || row.get('贈り主ユーザーID') || row.get('ユーザーID');
+                // 🔧 すべての可能な列名で試行
+                const possibleUserIdKeys = ['送り主ユーザーID', '贈り主ユーザーID', 'ユーザーID'];
+                let rowUserId = null;
+                
+                for (const key of possibleUserIdKeys) {
+                    try {
+                        const value = row.get(key);
+                        if (value) {
+                            rowUserId = value;
+                            break;
+                        }
+                    } catch (e) {
+                        // この列名は存在しない
+                        continue;
+                    }
+                }
+                
                 const rowServerId = row.get('サーバーID');
                 console.log('🔍 行データ確認:', { rowUserId, rowServerId, targetUserId: userId, targetServerId: serverId });
                 return rowUserId === userId && rowServerId === serverId;
@@ -201,79 +225,81 @@ async handleGivenGiftsCommand(interaction, userId, userName, serverId) {
             await interaction.editReply({ embeds: [embed] });
             return;
         }
-            // 贈り物を鳥別に統計処理
-            const giftsByBird = {};
-            const giftCounts = {};
+
+        // 贈り物を鳥別に統計処理
+        const giftsByBird = {};
+        const giftCounts = {};
+        
+        givenGifts.forEach(gift => {
+            const birdName = gift.鳥名;
+            const giftName = gift.贈り物名;
             
-            givenGifts.forEach(gift => {
-                const birdName = gift.鳥名;
-                const giftName = gift.贈り物名;
-                
-                if (!giftsByBird[birdName]) {
-                    giftsByBird[birdName] = [];
-                }
-                giftsByBird[birdName].push(gift);
-                
-                giftCounts[giftName] = (giftCounts[giftName] || 0) + 1;
-            });
-
-            const embed = new EmbedBuilder()
-                .setTitle('🎁 鳥にあげた贈り物')
-                .setDescription(`${userName}さんが鳥たちにあげた贈り物: **${givenGifts.length}個** (${Object.keys(giftsByBird).length}羽に)`)
-                .setColor(0xFF69B4)
-                .setTimestamp();
-
-            // 鳥別で表示（最大5羽）
-            const topBirds = Object.entries(giftsByBird)
-                .sort(([,a], [,b]) => b.length - a.length)
-                .slice(0, 5);
-
-            for (const [birdName, gifts] of topBirds) {
-                const giftList = gifts
-                    .map(gift => {
-                        const captionText = gift.キャプション && gift.キャプション.trim() 
-                            ? `"${gift.キャプション.substring(0, 50)}${gift.キャプション.length > 50 ? '...' : ''}"`
-                            : '';
-                        
-                        return `${this.getGiftEmojiFromName(gift.贈り物名)} **${gift.贈り物名}**\n*${gift.日時}*${captionText ? `\n${captionText}` : ''}`;
-                    })
-                    .join('\n\n');
-
-                embed.addFields({
-                    name: `🐦 ${birdName} (${gifts.length}個)`,
-                    value: giftList,
-                    inline: false
-                });
+            if (!giftsByBird[birdName]) {
+                giftsByBird[birdName] = [];
             }
+            giftsByBird[birdName].push(gift);
+            
+            giftCounts[giftName] = (giftCounts[giftName] || 0) + 1;
+        });
 
-            // 残りの鳥がいる場合
-            if (Object.keys(giftsByBird).length > 5) {
-                const remainingBirds = Object.keys(giftsByBird).length - 5;
-                embed.addFields({
-                    name: '📋 その他',
-                    value: `他に${remainingBirds}羽の鳥に贈り物をしています`,
-                    inline: false
-                });
-            }
+        const embed = new EmbedBuilder()
+            .setTitle('🎁 鳥にあげた贈り物')
+            .setDescription(`${userName}さんが鳥たちにあげた贈り物: **${givenGifts.length}個** (${Object.keys(giftsByBird).length}羽に)`)
+            .setColor(0xFF69B4)
+            .setTimestamp();
 
-            // 統計情報
-            const uniqueBirds = Object.keys(giftsByBird).length;
-            const totalGifts = givenGifts.length;
-            const uniqueGiftTypes = Object.keys(giftCounts).length;
+        // 鳥別で表示（最大5羽）
+        const topBirds = Object.entries(giftsByBird)
+            .sort(([,a], [,b]) => b.length - a.length)
+            .slice(0, 5);
+
+        for (const [birdName, gifts] of topBirds) {
+            const giftList = gifts
+                .map(gift => {
+                    const captionText = gift.キャプション && gift.キャプション.trim() 
+                        ? `"${gift.キャプション.substring(0, 50)}${gift.キャプション.length > 50 ? '...' : ''}"`
+                        : '';
+                    
+                    return `${this.getGiftEmojiFromName(gift.贈り物名)} **${gift.贈り物名}**\n*${gift.日時}*${captionText ? `\n${captionText}` : ''}`;
+                })
+                .join('\n\n');
 
             embed.addFields({
-                name: '📊 統計',
-                value: `総数: ${totalGifts}個 | 種類: ${uniqueGiftTypes}種 | 贈り先: ${uniqueBirds}羽`,
+                name: `🐦 ${birdName} (${gifts.length}個)`,
+                value: giftList,
                 inline: false
             });
-
-            await interaction.editReply({ embeds: [embed] });
-
-        } catch (error) {
-            console.error('鳥にあげた贈り物表示エラー:', error);
-            await interaction.editReply({ content: '鳥にあげた贈り物の表示中にエラーが発生しました。' });
         }
-    },
+
+        // 残りの鳥がいる場合
+        if (Object.keys(giftsByBird).length > 5) {
+            const remainingBirds = Object.keys(giftsByBird).length - 5;
+            embed.addFields({
+                name: '📋 その他',
+                value: `他に${remainingBirds}羽の鳥に贈り物をしています`,
+                inline: false
+            });
+        }
+
+        // 統計情報
+        const uniqueBirds = Object.keys(giftsByBird).length;
+        const totalGifts = givenGifts.length;
+        const uniqueGiftTypes = Object.keys(giftCounts).length;
+
+        embed.addFields({
+            name: '📊 統計',
+            value: `総数: ${totalGifts}個 | 種類: ${uniqueGiftTypes}種 | 贈り先: ${uniqueBirds}羽`,
+            inline: false
+        });
+
+        await interaction.editReply({ embeds: [embed] });
+
+    } catch (error) {
+        console.error('鳥にあげた贈り物表示エラー:', error);
+        await interaction.editReply({ content: '鳥にあげた贈り物の表示中にエラーが発生しました。' });
+    }
+},
+
 
     // 特別な思い出表示
     async handleMemoriesCommand(interaction, userId, userName, serverId) {
@@ -385,7 +411,7 @@ async handleGivenGiftsCommand(interaction, userId, userName, serverId) {
         }
     },
     
-    // 🔧 全コレクション表示（ヘッダー名修正版）
+    // 🔧 全コレクション表示（安全なデバッグ版）
 async handleAllCommand(interaction, userId, userName, serverId) {
     try {
         const memoryManager = require('../utils/humanMemoryManager');
@@ -402,15 +428,39 @@ async handleAllCommand(interaction, userId, userName, serverId) {
         const sheet = sheetsManager.sheets.birdGifts;
         const rows = await sheet.getRows();
         
-        // 🔧 デバッグ: 最初の行のヘッダーを確認
+        // 🔧 デバッグ: 最初の行の全データを確認（安全に）
         if (rows.length > 0) {
-            console.log('🔍 All - 利用可能なヘッダー:', rows[0]._sheet.headerValues);
+            const firstRow = rows[0];
+            console.log('🔍 All - 最初の行の全データ:', firstRow._rawData);
+            
+            // 利用可能なヘッダーを確認
+            try {
+                const headers = sheet.headerValues;
+                console.log('🔍 All - シートのヘッダー:', headers);
+            } catch (e) {
+                console.log('🔍 All - ヘッダー取得エラー:', e.message);
+            }
         }
         
         const givenGifts = rows
             .filter(row => {
-                // 🔧 複数の可能な列名でチェック
-                const rowUserId = row.get('送り主ユーザーID') || row.get('贈り主ユーザーID') || row.get('ユーザーID');
+                // 🔧 すべての可能な列名で試行
+                const possibleUserIdKeys = ['送り主ユーザーID', '贈り主ユーザーID', 'ユーザーID'];
+                let rowUserId = null;
+                
+                for (const key of possibleUserIdKeys) {
+                    try {
+                        const value = row.get(key);
+                        if (value) {
+                            rowUserId = value;
+                            break;
+                        }
+                    } catch (e) {
+                        // この列名は存在しない
+                        continue;
+                    }
+                }
+                
                 const rowServerId = row.get('サーバーID');
                 console.log('🔍 All - 行データ確認:', { rowUserId, rowServerId, targetUserId: userId, targetServerId: serverId });
                 return rowUserId === userId && rowServerId === serverId;
@@ -424,94 +474,93 @@ async handleAllCommand(interaction, userId, userName, serverId) {
 
         console.log('🎁 All - 鳥にあげた贈り物データ:', givenGifts.length);
 
-            const embed = new EmbedBuilder()
-                .setTitle('📚 コレクション総覧')
-                .setDescription(`${userName}さんの鳥類園コレクション`)
-                .setColor(0x9370DB)
-                .setTimestamp();
+        const embed = new EmbedBuilder()
+            .setTitle('📚 コレクション総覧')
+            .setDescription(`${userName}さんの鳥類園コレクション`)
+            .setColor(0x9370DB)
+            .setTimestamp();
 
-            // 🎁 鳥からの贈り物サマリー
-            if (receivedGifts.length > 0) {
-                const giftCounts = {};
-                receivedGifts.forEach(gift => {
-                    const giftName = gift.贈り物名;
-                    giftCounts[giftName] = (giftCounts[giftName] || 0) + 1;
-                });
-                
-                const totalGifts = Object.values(giftCounts).reduce((sum, count) => sum + count, 0);
-                const uniqueGivers = new Set(receivedGifts.map(gift => gift.鳥名)).size;
-                
-                const recentGifts = receivedGifts.slice(0, 3)
-                    .map(gift => `${this.getGiftEmoji(gift.贈り物名)} ${gift.贈り物名} (${gift.鳥名})`)
-                    .join('\n');
-
-                embed.addFields({
-                    name: '🎁 鳥からの贈り物',
-                    value: `**${Object.keys(giftCounts).length}種類** (総数${totalGifts}個, ${uniqueGivers}羽から)\n\n📋 最近の贈り物:\n${recentGifts}`,
-                    inline: false
-                });
-            } else {
-                embed.addFields({
-                    name: '🎁 鳥からの贈り物',
-                    value: 'まだ贈り物をもらっていません',
-                    inline: false
-                });
-            }
-
-            // 💭 思い出サマリー
-            if (memories.length > 0) {
-                const recentMemories = memories.slice(0, 3)
-                    .map(memory => `${memory.icon} ${memory.type} (${memory.birdName})`)
-                    .join('\n');
-
-                embed.addFields({
-                    name: '💭 特別な思い出',
-                    value: `**${memories.length}個の思い出**\n\n📋 最近の思い出:\n${recentMemories}`,
-                    inline: false
-                });
-            } else {
-                embed.addFields({
-                    name: '💭 特別な思い出',
-                    value: 'まだ特別な思い出がありません',
-                    inline: false
-                });
-            }
-
-            // 🎊 贈り物履歴サマリー（修正版）
-            embed.addFields({
-                name: '🎊 贈り物交換履歴',
-                value: `贈った贈り物: **${givenGifts.length}個**\nもらった贈り物: **${receivedGifts.length}個**`,
-                inline: false
+        // 🎁 鳥からの贈り物サマリー
+        if (receivedGifts.length > 0) {
+            const giftCounts = {};
+            receivedGifts.forEach(gift => {
+                const giftName = gift.贈り物名;
+                giftCounts[giftName] = (giftCounts[giftName] || 0) + 1;
             });
-
-            // 📊 総合統計
-            const uniqueBirds = new Set([
-                ...receivedGifts.map(g => g.鳥名),
-                ...memories.map(m => m.birdName),
-                ...givenGifts.map(g => g.鳥名)
-            ]).size;
+            
+            const totalGifts = Object.values(giftCounts).reduce((sum, count) => sum + count, 0);
+            const uniqueGivers = new Set(receivedGifts.map(gift => gift.鳥名)).size;
+            
+            const recentGifts = receivedGifts.slice(0, 3)
+                .map(gift => `${this.getGiftEmoji(gift.贈り物名)} ${gift.贈り物名} (${gift.鳥名})`)
+                .join('\n');
 
             embed.addFields({
-                name: '📊 総合統計',
-                value: `思い出のある鳥: **${uniqueBirds}羽**\n特別な思い出: **${memories.length}個**\n鳥からの贈り物: **${receivedGifts.length}個**`,
+                name: '🎁 鳥からの贈り物',
+                value: `**${Object.keys(giftCounts).length}種類** (総数${totalGifts}個, ${uniqueGivers}羽から)\n\n📋 最近の贈り物:\n${recentGifts}`,
                 inline: false
             });
-
-            // 詳細確認のヒント
+        } else {
             embed.addFields({
-                name: '💡 詳細確認',
-                value: '`/collection gifts` - 鳥からもらった贈り物\n`/collection given` - 鳥にあげた贈り物\n`/collection memories` - 思い出詳細',
+                name: '🎁 鳥からの贈り物',
+                value: 'まだ贈り物をもらっていません',
                 inline: false
             });
-
-            await interaction.editReply({ embeds: [embed] });
-
-        } catch (error) {
-            console.error('全コレクション表示エラー:', error);
-            await interaction.editReply({ content: '全コレクションの表示中にエラーが発生しました。' });
         }
-    },
 
+        // 💭 思い出サマリー
+        if (memories.length > 0) {
+            const recentMemories = memories.slice(0, 3)
+                .map(memory => `${memory.icon} ${memory.type} (${memory.birdName})`)
+                .join('\n');
+
+            embed.addFields({
+                name: '💭 特別な思い出',
+                value: `**${memories.length}個の思い出**\n\n📋 最近の思い出:\n${recentMemories}`,
+                inline: false
+            });
+        } else {
+            embed.addFields({
+                name: '💭 特別な思い出',
+                value: 'まだ特別な思い出がありません',
+                inline: false
+            });
+        }
+
+        // 🎊 贈り物履歴サマリー（修正版）
+        embed.addFields({
+            name: '🎊 贈り物交換履歴',
+            value: `贈った贈り物: **${givenGifts.length}個**\nもらった贈り物: **${receivedGifts.length}個**`,
+            inline: false
+        });
+
+        // 📊 総合統計
+        const uniqueBirds = new Set([
+            ...receivedGifts.map(g => g.鳥名),
+            ...memories.map(m => m.birdName),
+            ...givenGifts.map(g => g.鳥名)
+        ]).size;
+
+        embed.addFields({
+            name: '📊 総合統計',
+            value: `思い出のある鳥: **${uniqueBirds}羽**\n特別な思い出: **${memories.length}個**\n鳥からの贈り物: **${receivedGifts.length}個**`,
+            inline: false
+        });
+
+        // 詳細確認のヒント
+        embed.addFields({
+            name: '💡 詳細確認',
+            value: '`/collection gifts` - 鳥からもらった贈り物\n`/collection given` - 鳥にあげた贈り物\n`/collection memories` - 思い出詳細',
+            inline: false
+        });
+
+        await interaction.editReply({ embeds: [embed] });
+
+    } catch (error) {
+        console.error('全コレクション表示エラー:', error);
+        await interaction.editReply({ content: '全コレクションの表示中にエラーが発生しました。' });
+    }
+},
     // 贈り物名でカテゴリ分類
     categorizeGiftsByName(giftNames) {
         const categories = {
