@@ -39,7 +39,7 @@ const BIRD_TO_HUMAN_GIFTS = {
     草原: [
         '花の種', '美しい小石', '蝶の羽根（自然に落ちたもの）',
         'クローバー', '草で編んだ輪', '露で濡れた花びら',
-        '風に飛ばされた美しい葉', '草原の小さな贝殻化石',
+        '風に飛ばされた美しい葉', '草原の小さな貝殻化石',
         '鳥が見つけた古い硬貨', '自然に形作られた小枝'
     ],
     水辺: [
@@ -314,33 +314,32 @@ module.exports = {
         return levelRequirements[targetLevel] || 999;
     },
 
-    // 🆕 鳥からユーザーへの贈り物チェック（正しいシート記録版）
     async checkBirdGiftToUser(interaction, userId, userName, birdName, affinityLevel, area, guildId) {
-        try {
-            // 好感度が5以上の場合のみ贈り物チャンス
-            if (affinityLevel < 5) return null;
-            
-            // 贈り物確率
-            let giftChance = 0;
-            if (affinityLevel >= 5) giftChance = 0.30; // 30%
-            if (affinityLevel >= 6) giftChance = 0.35; // 35%
-            if (affinityLevel >= 7) giftChance = 0.45; // 45%
-            if (affinityLevel >= 8) giftChance = 0.55; // 55%
-            if (affinityLevel >= 9) giftChance = 0.65; // 65%
-            if (affinityLevel >= 10) giftChance = 0.75; // 75%
-            
-            console.log(`🎲 ${birdName}(好感度${affinityLevel}) 贈り物チャンス: ${(giftChance * 100).toFixed(0)}%`);
-            
-            // ランダムチェック
-            const roll = Math.random();
-            console.log(`🎯 ロール結果: ${(roll * 100).toFixed(1)}% (必要: ${(giftChance * 100).toFixed(0)}%以下)`);
-            
-            if (roll > giftChance) {
-                console.log(`❌ 贈り物なし (${(roll * 100).toFixed(1)}% > ${(giftChance * 100).toFixed(0)}%)`);
-                return null;
-            }
-            
-            // 🔧 鳥→人間用の贈り物カテゴリから選択
+    try {
+        // 好感度が5以上の場合のみ贈り物チャンス
+        if (affinityLevel < 5) return null;
+        
+        // 贈り物確率
+        let giftChance = 0;
+        if (affinityLevel >= 5) giftChance = 0.30; // 30%
+        if (affinityLevel >= 6) giftChance = 0.35; // 35%
+        if (affinityLevel >= 7) giftChance = 0.45; // 45%
+        if (affinityLevel >= 8) giftChance = 0.55; // 55%
+        if (affinityLevel >= 9) giftChance = 0.65; // 65%
+        if (affinityLevel >= 10) giftChance = 0.75; // 75%
+        
+        console.log(`🎲 ${birdName}(好感度${affinityLevel}) 贈り物チャンス: ${(giftChance * 100).toFixed(0)}%`);
+        
+        // ランダムチェック
+        const roll = Math.random();
+        console.log(`🎯 ロール結果: ${(roll * 100).toFixed(1)}% (必要: ${(giftChance * 100).toFixed(0)}%以下)`);
+        
+        if (roll > giftChance) {
+            console.log(`❌ 贈り物なし (${(roll * 100).toFixed(1)}% > ${(giftChance * 100).toFixed(0)}%)`);
+            return null;
+        }
+        
+        // 🔧 鳥→人間用の贈り物カテゴリから選択
         const areaGifts = BIRD_TO_HUMAN_GIFTS[area] || [];
         const specialGifts = BIRD_TO_HUMAN_GIFTS.特別;
         
@@ -357,29 +356,44 @@ module.exports = {
             userId, userName, birdName, selectedGift, affinityLevel, area, guildId
         );
         
+        console.log(`🎁 ${birdName}が${userName}に${selectedGift}をプレゼント！（bird_gifts_receivedシートに記録）`);
+        
         return {
             giftName: selectedGift,
             message: this.generateBirdGiftMessage(birdName, selectedGift, area)
         };
-            
-        } catch (error) {
-            console.error('鳥からの贈り物チェックエラー:', error);
-            return null;
-        }
-    },
-
-    // 🆕 贈り物メッセージ生成
-    generateBirdGiftMessage(birdName, giftName, area) {
-    const messageTypes = ['発見', '感謝', '偶然'];
-    const messageType = messageTypes[Math.floor(Math.random() * messageTypes.length)];
-    const messages = BIRD_GIFT_MESSAGES[messageType];
-    const template = messages[Math.floor(Math.random() * messages.length)];
+        
+    } catch (error) {
+        console.error('鳥からの贈り物チェックエラー:', error);
+        return null;
+    }
+},
+    // 3. 鳥→人間の贈り物メッセージ生成
+generateBirdGiftMessage(birdName, giftName, area) {
+    const messages = {
+        森林: [
+            `${birdName}が森の奥で${giftName}を見つけて、あなたにプレゼントしました！`,
+            `${birdName}が${giftName}を見つけて、嬉しそうにあなたに差し出しています。`,
+            `森を散歩していた${birdName}が発見した${giftName}。あなたへの感謝の気持ちです。`,
+            `${birdName}が木々の間で${giftName}を見つけました。きっとあなたが喜ぶと思ったのでしょう。`
+        ],
+        草原: [
+            `${birdName}が草原で${giftName}を見つけて、あなたにくれました！`,
+            `${birdName}が${giftName}をくちばしに咥えて、あなたの前に置きました。`,
+            `風に吹かれる草原で、${birdName}が${giftName}を見つけて贈ってくれました。`,
+            `${birdName}が花畑を歩いていて偶然見つけた${giftName}。あなたとの友情の証です。`
+        ],
+        水辺: [
+            `${birdName}が水辺で拾った${giftName}をあなたにプレゼント！`,
+            `${birdName}が清らかな水辺で見つけた${giftName}。大切な友達への贈り物です。`,
+            `波打ち際で${birdName}が発見した${giftName}。あなたとの絆の証です。`,
+            `${birdName}が水面に映る${giftName}を見つけて、そっと拾ってくれました。`
+        ]
+    };
     
-    return template
-        .replace(/\(鳥名\)/g, birdName)
-        .replace(/\(贈り物名\)/g, giftName)
-        .replace(/\(エリア\)/g, area);
-    },
+    const areaMessages = messages[area] || messages.森林;
+    return areaMessages[Math.floor(Math.random() * areaMessages.length)];
+},
 
     // 🆕 贈り物通知の送信
     async sendBirdGiftNotification(interaction, birdName, giftInfo) {
@@ -405,25 +419,64 @@ module.exports = {
         }
     },
 
-    // 🆕 贈り物名から絵文字取得
-    getGiftEmojiFromName(giftName) {
-        if (giftName.includes('どんぐり')) return '🌰';
-        if (giftName.includes('羽根') || giftName.includes('羽')) return '🪶';
-        if (giftName.includes('花')) return '🌸';
-        if (giftName.includes('石')) return '💎';
-        if (giftName.includes('種')) return '🌱';
-        if (giftName.includes('枝')) return '🌿';
-        if (giftName.includes('葉')) return '🍃';
-        if (giftName.includes('貝')) return '🐚';
-        if (giftName.includes('真珠')) return '🦪';
-        if (giftName.includes('水晶')) return '💎';
-        if (giftName.includes('鈴')) return '🔔';
-        if (giftName.includes('クローバー')) return '🍀';
-        return '🎁';
-    },
+    // 4. 贈り物名から絵文字取得（鳥→人間用）
+getGiftEmojiFromName(giftName) {
+    const emojiMap = {
+        // 森林の自然物
+        'どんぐり': '🌰',
+        '美しい羽根': '🪶',
+        '珍しい木の実': '🫐',
+        '苔の付いた小枝': '🌿',
+        '森の小石': '🪨',
+        '不思議な種': '🌱',
+        '朽ちた美しい木片': '🪵',
+        '虫食いの葉っぱ（芸術的）': '🍃',
+        '鳥が集めた小さな宝物': '💎',
+        '森で見つけた化石': '🦕',
+        
+        // 草原の自然物
+        '花の種': '🌱',
+        '美しい小石': '🪨',
+        '蝶の羽根（自然に落ちたもの）': '🦋',
+        'クローバー': '🍀',
+        '草で編んだ輪': '⭕',
+        '露で濡れた花びら': '🌸',
+        '風に飛ばされた美しい葉': '🍃',
+        '草原の小さな貝殻化石': '🐚',
+        '鳥が見つけた古い硬貨': '🪙',
+        '自然に形作られた小枝': '🌿',
+        
+        // 水辺の自然物
+        '美しい貝殻': '🐚',
+        '丸い小石': '🪨',
+        '流木': '🪵',
+        '水草': '🌊',
+        '小さな巻貝': '🐌',
+        '波で磨かれたガラス片': '🔮',
+        '川底の美しい砂': '⏳',
+        '水に濡れた美しい羽根': '🪶',
+        '鳥が拾った真珠': '🤍',
+        '水辺で見つけた琥珀色の石': '🟡',
+        
+        // 特別な自然物
+        '虹色の羽根': '🌈',
+        'ハート型の自然石': '💖',
+        '四つ葉のクローバー': '🍀',
+        '天然の水晶': '💎',
+        '古い時代のコイン': '🪙',
+        '隕石の欠片': '☄️',
+        '化石化した木の実': '🌰',
+        '自然に穴の開いた石': '🕳️',
+        '完璧な巻貝': '🐚',
+        '二股に分かれた小枝': '🌿'
+    };
+    
+    return emojiMap[giftName] || '🎁';
+},
 
     // 🆕 改良版好感度MAX通知（レベル5から）
-    async sendAffinityMaxNotification(interaction, birdName, area) {
+    // 1. sendAffinityMaxNotification メソッド内
+async sendAffinityMaxNotification(interaction, birdName, area) {
     try {
         // 🔧 人間→鳥用の贈り物カテゴリから選択
         const areaGifts = HUMAN_TO_BIRD_GIFTS[area] || [];
@@ -447,14 +500,15 @@ module.exports = {
             `${birdName}との深い絆で獲得(好感度5)`,
             interaction.guild.id
         );
-            setTimeout(() => {
-                interaction.followUp({ embeds: [embed] });
-            }, 2000);
 
-        } catch (error) {
-            console.error('好感度MAX通知エラー:', error);
-        }
-    },
+        setTimeout(() => {
+            interaction.followUp({ embeds: [embed] });
+        }, 2000);
+
+    } catch (error) {
+        console.error('好感度MAX通知エラー:', error);
+    }
+},
     
     findBirdInZoo(birdName, guildId) {
         const zooManager = require('../utils/zooManager');
