@@ -98,6 +98,11 @@ class SheetsManager {
                 '日時', 'ユーザーID', 'ユーザー名', '称号名', '取得条件', 'サーバーID'
             ]);
 
+            this.sheets.birdMemory = await this.getOrCreateSheet('bird_memory', [
+    '日時', '鳥名', 'サーバーID', 'サーバー名', '来訪回数', '最後の訪問日時', 
+    '贈り物リスト', '特別な思い出', '友達ユーザーリスト', '好きなエリア'
+　　　　　　　　]);
+
             this.isInitialized = true;
             console.log('✅ 全シートの初期化完了');
             
@@ -302,6 +307,116 @@ class SheetsManager {
             return [];
         }
     }
+
+    // 🆕 鳥の記憶ログ追加
+async logBirdMemory(birdName, serverId, serverName, visitCount, giftsList, memories, friendUsers, favoriteArea) {
+    return await this.addLog('birdMemory', {
+        鳥名: birdName,
+        サーバーID: serverId,
+        サーバー名: serverName,
+        来訪回数: visitCount,
+        最後の訪問日時: new Date().toLocaleString('ja-JP'),
+        贈り物リスト: giftsList,
+        特別な思い出: memories,
+        友達ユーザーリスト: friendUsers,
+        好きなエリア: favoriteArea
+    });
+}
+
+    // 🆕 鳥の記憶データ取得
+async getBirdMemory(birdName, serverId) {
+    try {
+        await this.ensureInitialized();
+        
+        const sheet = this.sheets.birdMemory;
+        const rows = await sheet.getRows();
+        
+        // 最新の記録を取得
+        let latestMemory = null;
+        rows.forEach(row => {
+            if (row.get('鳥名') === birdName && row.get('サーバーID') === serverId) {
+                const rowDate = new Date(row.get('最後の訪問日時'));
+                if (!latestMemory || rowDate > new Date(latestMemory.最後の訪問日時)) {
+                    latestMemory = {
+                        鳥名: row.get('鳥名'),
+                        サーバーID: row.get('サーバーID'),
+                        サーバー名: row.get('サーバー名'),
+                        来訪回数: parseInt(row.get('来訪回数')) || 0,
+                        最後の訪問日時: row.get('最後の訪問日時'),
+                        贈り物リスト: row.get('贈り物リスト') || '',
+                        特別な思い出: row.get('特別な思い出') || '',
+                        友達ユーザーリスト: row.get('友達ユーザーリスト') || '',
+                        好きなエリア: row.get('好きなエリア') || ''
+                    };
+                }
+            }
+        });
+        
+        return latestMemory;
+    } catch (error) {
+        console.error('鳥の記憶データ取得エラー:', error);
+        return null;
+    }
+}
+
+    // 🆕 鳥の記憶データ更新
+async updateBirdMemory(birdName, serverId, serverName, updates) {
+    try {
+        // 既存データを取得
+        const existingMemory = await this.getBirdMemory(birdName, serverId);
+        
+        // データ統合
+        const newData = {
+            鳥名: birdName,
+            サーバーID: serverId,
+            サーバー名: serverName,
+            来訪回数: (existingMemory?.来訪回数 || 0) + 1,
+            最後の訪問日時: new Date().toLocaleString('ja-JP'),
+            贈り物リスト: updates.贈り物リスト || existingMemory?.贈り物リスト || '',
+            特別な思い出: updates.特別な思い出 || existingMemory?.特別な思い出 || '',
+            友達ユーザーリスト: updates.友達ユーザーリスト || existingMemory?.友達ユーザーリスト || '',
+            好きなエリア: updates.好きなエリア || existingMemory?.好きなエリア || ''
+        };
+        
+        // 新しい記録として追加
+        return await this.addLog('birdMemory', newData);
+        
+    } catch (error) {
+        console.error('鳥の記憶データ更新エラー:', error);
+        return false;
+    }
+}
+
+// 🆕 全サーバーでの鳥の来訪履歴取得
+async getBirdVisitHistory(birdName) {
+    try {
+        await this.ensureInitialized();
+        
+        const sheet = this.sheets.birdMemory;
+        const rows = await sheet.getRows();
+        
+        const visitHistory = [];
+        rows.forEach(row => {
+            if (row.get('鳥名') === birdName) {
+                visitHistory.push({
+                    サーバーID: row.get('サーバーID'),
+                    サーバー名: row.get('サーバー名'),
+                    来訪回数: parseInt(row.get('来訪回数')) || 0,
+                    最後の訪問日時: row.get('最後の訪問日時'),
+                    贈り物数: (row.get('贈り物リスト') || '').split(',').filter(g => g.trim()).length
+                });
+            }
+        });
+        
+        // 最後の訪問日時でソート
+        return visitHistory.sort((a, b) => new Date(b.最後の訪問日時) - new Date(a.最後の訪問日時));
+        
+    } catch (error) {
+        console.error('鳥の来訪履歴取得エラー:', error);
+        return [];
+    }
+}
+    
 }
 
 module.exports = new SheetsManager();
