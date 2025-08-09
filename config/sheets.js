@@ -5,18 +5,36 @@ class SheetsManager {
     constructor() {
         this.doc = null;
         this.sheets = {};
-        this.initializeAuth();
+        this.isAuthInitialized = false;
+        this.isInitialized = false;
+        // 🆕 コンストラクタでは認証を実行しない
     }
 
-    // 認証初期化
+    // 🆕 認証の遅延初期化
     initializeAuth() {
+        if (this.isAuthInitialized) return;
+        
         try {
+            // 環境変数の存在確認
+            if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+                throw new Error('GOOGLE_SERVICE_ACCOUNT_EMAIL が設定されていません');
+            }
+            if (!process.env.GOOGLE_PRIVATE_KEY) {
+                throw new Error('GOOGLE_PRIVATE_KEY が設定されていません');
+            }
+            if (!process.env.GOOGLE_SHEETS_ID) {
+                throw new Error('GOOGLE_SHEETS_ID が設定されていません');
+            }
+
             const serviceAccountAuth = new JWT({
                 email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
                 key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
                 scopes: ['https://www.googleapis.com/auth/spreadsheets'],
             });
+            
             this.doc = new GoogleSpreadsheet(process.env.GOOGLE_SHEETS_ID, serviceAccountAuth);
+            this.isAuthInitialized = true;
+            
         } catch (error) {
             console.error('Google Sheets認証エラー:', error);
             throw error;
@@ -25,6 +43,11 @@ class SheetsManager {
 
     // シート接続・初期化
     async initialize() {
+        if (this.isInitialized) return;
+        
+        // 🆕 ここで初めて認証を実行
+        this.initializeAuth();
+        
         try {
             await this.doc.loadInfo();
             console.log('✅ Google Sheetsに接続しました:', this.doc.title);
@@ -75,10 +98,19 @@ class SheetsManager {
                 '日時', 'ユーザーID', 'ユーザー名', '称号名', '取得条件', 'サーバーID'
             ]);
 
+            this.isInitialized = true;
             console.log('✅ 全シートの初期化完了');
+            
         } catch (error) {
             console.error('シート初期化エラー:', error);
             throw error;
+        }
+    }
+
+    // 🆕 安全な初期化チェック
+    async ensureInitialized() {
+        if (!this.isInitialized) {
+            await this.initialize();
         }
     }
 
@@ -101,9 +133,11 @@ class SheetsManager {
         }
     }
 
-    // ログ追加
+    // 🆕 ログ追加（安全性チェック付き）
     async addLog(sheetName, data) {
         try {
+            await this.ensureInitialized();
+            
             const sheet = this.sheets[sheetName];
             if (!sheet) {
                 console.error(`シート "${sheetName}" が見つかりません`);
@@ -123,7 +157,8 @@ class SheetsManager {
         }
     }
 
-    // 🆕 好感度ログ追加
+    // 以下、既存のメソッドはそのまま（すべてに ensureInitialized() を追加）
+
     async logAffinity(userId, userName, birdName, affinityLevel, feedCount, serverId) {
         return await this.addLog('userAffinity', {
             ユーザーID: userId,
@@ -135,7 +170,6 @@ class SheetsManager {
         });
     }
 
-    // 🆕 贈り物インベントリログ追加
     async logGiftInventory(userId, userName, giftName, quantity, source, serverId) {
         return await this.addLog('giftsInventory', {
             ユーザーID: userId,
@@ -147,7 +181,6 @@ class SheetsManager {
         });
     }
 
-    // 🆕 鳥への贈り物ログ追加
     async logBirdGift(birdName, giftName, giverId, giverName, caption, serverId) {
         return await this.addLog('birdGifts', {
             鳥名: birdName,
@@ -159,7 +192,6 @@ class SheetsManager {
         });
     }
 
-    // 🆕 称号ログ追加
     async logAchievement(userId, userName, achievementName, condition, serverId) {
         return await this.addLog('userAchievements', {
             ユーザーID: userId,
@@ -170,9 +202,10 @@ class SheetsManager {
         });
     }
 
-    // 🆕 好感度データ取得
     async getUserAffinity(userId, serverId) {
         try {
+            await this.ensureInitialized();
+            
             const sheet = this.sheets.userAffinity;
             const rows = await sheet.getRows();
             
@@ -182,7 +215,7 @@ class SheetsManager {
                     const birdName = row.get('鳥名');
                     userAffinities[birdName] = {
                         level: parseInt(row.get('好感度レベル')) || 0,
-                        feedCount: parseInt(row.get('餌やり回数')) || 0
+                        feedCount: parseFloat(row.get('餌やり回数')) || 0
                     };
                 }
             });
@@ -194,9 +227,10 @@ class SheetsManager {
         }
     }
 
-    // 🆕 ユーザーの贈り物インベントリ取得
     async getUserGifts(userId, serverId) {
         try {
+            await this.ensureInitialized();
+            
             const sheet = this.sheets.giftsInventory;
             const rows = await sheet.getRows();
             
@@ -216,9 +250,10 @@ class SheetsManager {
         }
     }
 
-    // 🆕 鳥の贈り物取得
     async getBirdGifts(birdName, serverId) {
         try {
+            await this.ensureInitialized();
+            
             const sheet = this.sheets.birdGifts;
             const rows = await sheet.getRows();
             
@@ -242,9 +277,10 @@ class SheetsManager {
         }
     }
 
-    // 既存メソッド
     async getBirds() {
         try {
+            await this.ensureInitialized();
+            
             const sheet = this.sheets.birds;
             const rows = await sheet.getRows();
             
