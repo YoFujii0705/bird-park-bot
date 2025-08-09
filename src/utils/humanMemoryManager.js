@@ -36,7 +36,7 @@ const MEMORY_RARITY = {
     common: {
         probability: 0.3,    // 30% (基本的な思い出)
         color: 0x808080,     // グレー
-        name: 'よくある思い出',
+        name: '日常の思い出',
         emoji: '⚪'
     }
 };
