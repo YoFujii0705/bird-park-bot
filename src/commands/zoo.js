@@ -132,7 +132,7 @@ module.exports = {
             }
 
             embed.addFields({
-                name: `${area.emoji} ${area.name} (${residents.length}/5${visitors.length > 0 ? ` +${visitors.length}人見学` : ''})`,
+                name: `${area.emoji} ${area.name} (${residents.length}/5${visitors.length > 0 ? ` +${visitors.length}羽` : ''})`,
                 value: birdList,
                 inline: true
             });
@@ -272,10 +272,22 @@ module.exports = {
         return embed;
     },
 
-    // 🆕 見学残り時間計算
+    // 🆕 見学残り時間計算（修正版）
     getRemainingVisitTime(scheduledDeparture) {
         const now = new Date();
-        const remaining = scheduledDeparture - now;
+        
+        // scheduledDepartureがDateオブジェクトでない場合の対処
+        let departureTime;
+        if (scheduledDeparture instanceof Date) {
+            departureTime = scheduledDeparture;
+        } else if (typeof scheduledDeparture === 'string') {
+            departureTime = new Date(scheduledDeparture);
+        } else {
+            console.warn('無効なscheduledDeparture:', scheduledDeparture);
+            return 'データエラー';
+        }
+        
+        const remaining = departureTime - now;
         
         if (remaining <= 0) {
             return 'まもなく終了';
