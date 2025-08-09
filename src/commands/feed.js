@@ -108,7 +108,7 @@ module.exports = {
             this.checkForSpecialEvents(birdInfo, food, preference, interaction, guildId);
 
             // 🆕 好感度MAXになった場合の贈り物通知
-            if (affinityResult.levelUp && affinityResult.newLevel >= 3) {
+            if (affinityResult.levelUp && affinityResult.newLevel >= 5) {
                 await this.sendAffinityMaxNotification(interaction, birdInfo.bird.name, birdInfo.area);
             }
 
@@ -222,7 +222,7 @@ module.exports = {
                 interaction.user.username,
                 randomGift,
                 1,
-                `${birdName}との深い絆で獲得`,
+                `${birdName}との深い絆で獲得(好感度5)`,
                 interaction.guild.id
             );
 
@@ -437,6 +437,8 @@ module.exports = {
                 affinityText += '\n🎁 贈り物可能！';
             } else if (affinityResult.newLevel >= 4) {
                 affinityText += '\n🎁 もうすぐ贈り物可能！';
+        　  } else if (affinityResult.newLevel >= 3) {  
+  　　　　　　　　 affinityText += '\n🎁 あと少しで贈り物可能！';
             }
             
             embed.addFields({
