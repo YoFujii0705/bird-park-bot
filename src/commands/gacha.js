@@ -94,7 +94,7 @@ module.exports = {
         }
     },
 
-    // 🆕 単体ガチャ用ボタン作成
+    // 単体ガチャ用ボタン作成
     createVisitButtons(birdName) {
         return new ActionRowBuilder()
             .addComponents(
@@ -111,7 +111,7 @@ module.exports = {
             );
     },
 
-    // 🆕 複数ガチャ用選択メニュー作成
+    // 複数ガチャ用選択メニュー作成
     createBirdSelectMenu(birds) {
         const options = birds.map((bird, index) => ({
             label: bird.名前,
@@ -137,7 +137,7 @@ module.exports = {
             );
     },
 
-    // 🆕 鳥の特徴に応じた絵文字選択
+    // 鳥の特徴に応じた絵文字選択
     getBirdEmoji(bird) {
         const environment = bird.環境;
         if (environment.includes('森林')) return '🌲';
@@ -147,7 +147,7 @@ module.exports = {
         return '🐦';
     },
 
-    / 🆕 単体ガチャのボタン処理（タイムアウト対策版）
+    // 単体ガチャのボタン処理
     async handleSingleBirdVisit(interaction, bird) {
         try {
             const response = await interaction.fetchReply();
@@ -171,12 +171,12 @@ module.exports = {
         } catch (error) {
             if (error.code === 'InteractionCollectorError') {
                 console.log('ボタン操作がタイムアウトしました');
-                // タイムアウト時は元のメッセージを更新（見学用ボタンを削除）
+                // タイムアウト時はボタンを無効化
                 try {
                     const embed = this.createBirdEmbed(bird);
                     embed.addFields({
                         name: '⏰ タイムアウト',
-                        value: '見学招待の時間が過ぎました。もう一度ガチャを回してください。',
+                        value: '見学招待の時間が過ぎました。',
                         inline: false
                     });
                     
@@ -185,7 +185,7 @@ module.exports = {
                         components: []
                     });
                 } catch (editError) {
-                    console.error('タイムアウト時の更新エラー:', editError);
+                    console.log('タイムアウト時の更新に失敗しました');
                 }
             } else {
                 console.error('見学ボタン処理エラー:', error);
@@ -193,7 +193,7 @@ module.exports = {
         }
     },
 
-    // 🆕 複数ガチャの選択処理（タイムアウト対策版）
+    // 複数ガチャの選択処理
     async handleMultipleBirdVisit(interaction, birds) {
         try {
             const response = await interaction.fetchReply();
@@ -221,12 +221,11 @@ module.exports = {
         } catch (error) {
             if (error.code === 'InteractionCollectorError') {
                 console.log('選択操作がタイムアウトしました');
-                // タイムアウト時は元のメッセージを更新
                 try {
                     const embed = this.createMultipleBirdsEmbed(birds, birds.length);
                     embed.addFields({
                         name: '⏰ タイムアウト',
-                        value: '見学招待の時間が過ぎました。もう一度ガチャを回してください。',
+                        value: '見学招待の時間が過ぎました。',
                         inline: false
                     });
                     
@@ -235,7 +234,7 @@ module.exports = {
                         components: []
                     });
                 } catch (editError) {
-                    console.error('タイムアウト時の更新エラー:', editError);
+                    console.log('タイムアウト時の更新に失敗しました');
                 }
             } else {
                 console.error('見学選択処理エラー:', error);
@@ -243,15 +242,9 @@ module.exports = {
         }
     },
 
-    // 🆕 鳥を鳥類園に招待（エラーハンドリング強化版）
+    // 鳥を鳥類園に招待
     async inviteBirdToZoo(interaction, bird, guildId) {
         try {
-            // インタラクションの有効性チェック
-            if (interaction.replied || interaction.deferred) {
-                console.error('インタラクションは既に処理済みです');
-                return;
-            }
-
             const zooManager = require('../utils/zooManager');
             
             // 見学鳥として追加
@@ -295,37 +288,34 @@ module.exports = {
 
         } catch (error) {
             console.error('見学招待エラー:', error);
-            
-            // エラー時の安全な応答
             try {
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({
-                        content: '見学招待中にエラーが発生しました。もう一度お試しください。',
-                        ephemeral: true
-                    });
-                }
-            } catch (replyError) {
-                console.error('エラー応答に失敗:', replyError);
+                await interaction.update({
+                    content: '見学招待中にエラーが発生しました。もう一度お試しください。',
+                    embeds: [],
+                    components: []
+                });
+            } catch (updateError) {
+                console.log('エラー応答に失敗しました');
             }
         }
     },
 
-    // 🆕 見学鳥の活動生成
+    // 見学鳥の活動生成
     generateVisitorActivity(bird) {
         const activities = [
             `${bird.名前}が鳥類園の様子を興味深そうに見回しています`,
             `${bird.名前}が先住の鳥たちに挨拶をしています`,
-            `${bird.名前}が「ここは素敵な場所ですね」と鳴いているようです`,
+            `${bird.名前}がお気に入りの場所を見つけたようです`,
             `${bird.名前}が鳥類園の環境をとても気に入ったようです`,
             `${bird.名前}が他の鳥たちと楽しそうに交流しています`,
-            `${bird.名前}が「また来たいです」と言っているかのようです`,
+            `${bird.名前}がリラックスしてからだを揺さぶっています`,
             `${bird.名前}が鳥類園の美しさに感動しているようです`
         ];
         
         return activities[Math.floor(Math.random() * activities.length)];
     },
 
-    // 既存のEmbed作成メソッド
+    // 単体鳥用Embed作成
     createBirdEmbed(bird) {
         const colorMap = {
             '茶系': 0x8B4513,
@@ -355,7 +345,7 @@ module.exports = {
             )
             .setTimestamp();
 
-        // 🆕 見学招待の案内を追加
+        // 見学招待の案内を追加
         embed.addFields({
             name: '🏞️ 見学招待',
             value: `${bird.名前}を鳥類園に見学に呼びますか？`,
@@ -365,6 +355,7 @@ module.exports = {
         return embed;
     },
 
+    // 複数鳥用Embed作成
     createMultipleBirdsEmbed(birds, count) {
         const embed = new EmbedBuilder()
             .setTitle(`🐦✨ ${count}連ガチャ結果！`)
