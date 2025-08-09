@@ -372,7 +372,7 @@ module.exports = {
         return activityList[Math.floor(Math.random() * activityList.length)];
     },
 
-    // 🆕 拡張された結果表示（改良版好感度情報）
+    // 🆕 拡張された結果表示（改良版好感度情報）- 修正版
     createFeedingResultEmbed(birdInfo, food, result, affinityResult) {
         const { bird, area } = birdInfo;
         
@@ -392,39 +392,59 @@ module.exports = {
             '微妙': 0xFFA500
         };
 
+        const embed = new EmbedBuilder()
+            .setTitle(`🍽️ 餌やり結果`)
+            .setDescription(`**${bird.name}**${result.message}`)
+            .setColor(effectColors[result.effect] || 0x00AE86)
+            .addFields(
+                { name: '🐦 鳥', value: bird.name, inline: true },
+                { name: '📍 場所', value: `${area}エリア`, inline: true },
+                { name: '🍽️ 餌', value: `${foodEmojis[food]} ${food}`, inline: true },
+                { name: '😊 反応', value: result.effect, inline: true },
+                { 
+                    name: '📅 効果', 
+                    value: result.stayExtension > 0 ? `滞在期間 +${result.stayExtension}時間` : '効果なし', 
+                    inline: true 
+                },
+                { name: '🎭 現在の様子', value: bird.activity, inline: true }
+            )
+            .setTimestamp();
+
         // 🆕 改良版好感度情報
-        const maxHearts = 10;
-        const hearts = '💖'.repeat(affinityResult.newLevel) + '🤍'.repeat(maxHearts - affinityResult.newLevel);
-        
-        let affinityText = `${hearts}\nLv.${affinityResult.newLevel}/10 (${affinityResult.newFeedCount}回)`;
-        
-        if (affinityResult.levelUp) {
-            affinityText += '\n✨ レベルアップ！';
+        if (affinityResult) {
+            const maxHearts = 10;
+            const hearts = '💖'.repeat(affinityResult.newLevel) + '🤍'.repeat(maxHearts - affinityResult.newLevel);
+            
+            let affinityText = `${hearts}\nLv.${affinityResult.newLevel}/10 (${affinityResult.newFeedCount}回)`;
+            
+            if (affinityResult.levelUp) {
+                affinityText += '\n✨ レベルアップ！';
+            }
+            
+            // 好物ボーナス表示
+            if (affinityResult.feedIncrement > 1) {
+                affinityText += '\n🌟 好物ボーナス！(×1.5)';
+            }
+            
+            // 次のレベルまでの進捗
+            if (affinityResult.newLevel < 10 && affinityResult.requiredForNext) {
+                const remaining = affinityResult.requiredForNext - affinityResult.newFeedCount;
+                affinityText += `\n次のレベルまで: ${remaining.toFixed(1)}回`;
+            }
+            
+            // 贈り物解放通知
+            if (affinityResult.newLevel >= 5) {
+                affinityText += '\n🎁 贈り物可能！';
+            } else if (affinityResult.newLevel >= 4) {
+                affinityText += '\n🎁 もうすぐ贈り物可能！';
+            }
+            
+            embed.addFields({
+                name: '💝 好感度',
+                value: affinityText,
+                inline: false
+            });
         }
-        
-        // 好物ボーナス表示
-        if (affinityResult.feedIncrement > 1) {
-            affinityText += '\n🌟 好物ボーナス！(×1.5)';
-        }
-        
-        // 次のレベルまでの進捗
-        if (affinityResult.newLevel < 10 && affinityResult.requiredForNext) {
-            const remaining = affinityResult.requiredForNext - affinityResult.newFeedCount;
-            affinityText += `\n次のレベルまで: ${remaining.toFixed(1)}回`;
-        }
-        
-        // 贈り物解放通知
-        if (affinityResult.newLevel >= 5) {
-            affinityText += '\n🎁 贈り物可能！';
-        } else if (affinityResult.newLevel >= 4) {
-            affinityText += '\n🎁 もうすぐ贈り物可能！';
-        }
-        
-        embed.addFields({
-            name: '💝 好感度',
-            value: affinityText,
-            inline: false
-        });
 
         const feedCount = bird.feedCount || 1;
         embed.addFields({
