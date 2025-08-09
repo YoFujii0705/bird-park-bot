@@ -1,4 +1,5 @@
 // 称号システムの設計
+const sheetsManager = require('../../config/sheets');
 
 const ACHIEVEMENTS = {
     // 🍽️ 餌やり関連の称号
@@ -230,7 +231,7 @@ class AchievementManager {
             console.error('ユーザー統計取得エラー:', error);
             return {};
         }
-    },
+    }
 
     // 餌やり統計取得
     async getFeedingStats(userId, serverId) {
@@ -282,7 +283,7 @@ class AchievementManager {
                 allAreasExplored: 0
             };
         }
-    },
+    }
 
     // 好感度統計取得
     async getAffinityStats(userId, serverId) {
@@ -322,7 +323,7 @@ class AchievementManager {
                 level10Birds: 0
             };
         }
-    },
+    }
 
     // 贈り物統計取得
     async getGiftStats(userId, serverId) {
@@ -364,7 +365,7 @@ class AchievementManager {
                 totalGiftsGiven: 0
             };
         }
-    },
+    }
 
     // ガチャ統計取得
     async getGachaStats(userId, serverId) {
@@ -396,7 +397,7 @@ class AchievementManager {
                 visitorsInvited: 0
             };
         }
-    },
+    }
 
     // 称号チェック
     async checkAchievements(userId, userName, serverId) {
@@ -444,7 +445,7 @@ class AchievementManager {
             console.error('称号チェックエラー:', error);
             return [];
         }
-    },
+    }
 
     // 称号条件の判定
     checkAchievementCondition(achievement, stats) {
@@ -487,7 +488,7 @@ class AchievementManager {
             default:
                 return false;
         }
-    },
+    }
 
     // ユーザーの既存称号取得
     async getUserAchievements(userId, serverId) {
