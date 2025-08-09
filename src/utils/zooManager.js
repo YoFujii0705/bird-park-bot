@@ -990,13 +990,16 @@ async checkHungerStatus(guildId) {
 // 🆕 見学鳥を追加
 async addVisitorBird(guildId, birdData, inviterId, inviterName) {
     try {
+        console.log(`🔍 見学鳥追加開始: ${birdData.名前} (サーバー: ${guildId})`);
+        
         const zooState = this.getZooState(guildId);
+        console.log(`🔍 現在の見学鳥数: ${(zooState.visitors || []).length}`);
         
         // 見学鳥用の特別な鳥インスタンス作成
         const visitorBird = {
             name: birdData.名前,
             data: birdData,
-            area: 'visitor', // 特別なエリア
+            area: 'visitor',
             entryTime: new Date(),
             lastFed: null,
             lastFedBy: null,
@@ -1007,18 +1010,27 @@ async addVisitorBird(guildId, birdData, inviterId, inviterName) {
             isVisitor: true,
             inviterId: inviterId,
             inviterName: inviterName,
-            visitDuration: this.calculateVisitDuration(), // 2-4時間
+            visitDuration: this.calculateVisitDuration(),
             scheduledDeparture: this.calculateVisitorDeparture(),
             isHungry: false,
             hungerNotified: false
         };
         
+        console.log(`🔍 見学終了予定時刻: ${visitorBird.scheduledDeparture}`);
+        
         // 見学鳥リストに追加
-        if (!zooState.visitors) zooState.visitors = [];
+        if (!zooState.visitors) {
+            zooState.visitors = [];
+            console.log('🔍 見学鳥リストを初期化しました');
+        }
+        
         zooState.visitors.push(visitorBird);
+        console.log(`🔍 見学鳥追加後の数: ${zooState.visitors.length}`);
         
         // 優先入園リストに追加
-        if (!zooState.priorityQueue) zooState.priorityQueue = [];
+        if (!zooState.priorityQueue) {
+            zooState.priorityQueue = [];
+        }
         zooState.priorityQueue.push({
             birdName: birdData.名前,
             priority: 'high',
@@ -1026,6 +1038,8 @@ async addVisitorBird(guildId, birdData, inviterId, inviterName) {
             addedTime: new Date(),
             inviterId: inviterId
         });
+        
+        console.log(`🔍 優先入園リストに追加: ${birdData.名前}`);
         
         // イベント記録
         await this.addEvent(
@@ -1038,25 +1052,30 @@ async addVisitorBird(guildId, birdData, inviterId, inviterName) {
         // 見学中の交流イベントをスケジュール
         this.scheduleVisitorEvents(guildId, visitorBird);
         
-        console.log(`👀 サーバー ${guildId} - ${birdData.名前} が見学開始`);
+        console.log(`👀 サーバー ${guildId} - ${birdData.名前} が見学開始（成功）`);
+        
+        // データ保存
+        await this.saveServerZoo(guildId);
+        console.log(`💾 見学鳥データを保存しました`);
         
     } catch (error) {
-        console.error('見学鳥追加エラー:', error);
+        console.error('❌ 見学鳥追加エラー:', error);
         throw error;
     }
+}
+
+// 見学終了時間計算も修正
+calculateVisitorDeparture() {
+    const now = new Date();
+    const duration = this.calculateVisitDuration(); // 2-4時間
+    const departure = new Date(now.getTime() + duration * 60 * 60 * 1000);
+    console.log(`🔍 見学時間計算: ${duration}時間 (${now} → ${departure})`);
+    return departure;
 }
 
 // 🆕 見学時間計算（2-4時間）
 calculateVisitDuration() {
     return Math.floor(Math.random() * 2 + 2); // 2-4時間
-}
-
-// 🆕 見学終了時間計算
-calculateVisitorDeparture() {
-    const now = new Date();
-    const duration = this.calculateVisitDuration();
-    const departure = new Date(now.getTime() + duration * 60 * 60 * 1000);
-    return departure;
 }
 
 // 🆕 見学鳥の活動生成
