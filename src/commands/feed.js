@@ -233,20 +233,20 @@ module.exports = {
         return levelRequirements[targetLevel] || 999;
     },
 
-    // 🆕 鳥からユーザーへの贈り物チェック（確率改善版）
+    // 🆕 鳥からユーザーへの贈り物チェック（正しいシート記録版）
     async checkBirdGiftToUser(interaction, userId, userName, birdName, affinityLevel, area, guildId) {
         try {
             // 好感度が5以上の場合のみ贈り物チャンス
             if (affinityLevel < 5) return null;
             
-            // 🔧 大幅に確率を上げました！
+            // 贈り物確率
             let giftChance = 0;
-            if (affinityLevel >= 5) giftChance = 0.30; // 30% (約3回に1回)
-            if (affinityLevel >= 6) giftChance = 0.35; // 35% (約3回に1回)
-            if (affinityLevel >= 7) giftChance = 0.45; // 45% (約2回に1回)
-            if (affinityLevel >= 8) giftChance = 0.55; // 55% (約2回に1回)
-            if (affinityLevel >= 9) giftChance = 0.65; // 65% (約2回に1回)
-            if (affinityLevel >= 10) giftChance = 0.75; // 75% (4回に3回)
+            if (affinityLevel >= 5) giftChance = 0.30; // 30%
+            if (affinityLevel >= 6) giftChance = 0.35; // 35%
+            if (affinityLevel >= 7) giftChance = 0.45; // 45%
+            if (affinityLevel >= 8) giftChance = 0.55; // 55%
+            if (affinityLevel >= 9) giftChance = 0.65; // 65%
+            if (affinityLevel >= 10) giftChance = 0.75; // 75%
             
             console.log(`🎲 ${birdName}(好感度${affinityLevel}) 贈り物チャンス: ${(giftChance * 100).toFixed(0)}%`);
             
@@ -266,17 +266,18 @@ module.exports = {
             
             const selectedGift = allGifts[Math.floor(Math.random() * allGifts.length)];
             
-            // インベントリに追加
-            await sheetsManager.logGiftInventory(
+            // 🔧 正しいシートに記録（鳥からもらった贈り物専用シート）
+            await sheetsManager.logBirdGiftReceived(
                 userId,
                 userName,
+                birdName,
                 selectedGift,
-                1,
-                `${birdName}からの贈り物(好感度${affinityLevel})`,
+                affinityLevel,
+                area,
                 guildId
             );
             
-            console.log(`🎁 ${birdName}が${userName}に${selectedGift}をプレゼント！`);
+            console.log(`🎁 ${birdName}が${userName}に${selectedGift}をプレゼント！（bird_gifts_receivedシートに記録）`);
             
             return {
                 giftName: selectedGift,
