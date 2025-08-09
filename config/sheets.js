@@ -55,7 +55,7 @@ class SheetsManager {
             // 既存シート
             this.sheets.birds = await this.getOrCreateSheet('birds', [
                 '名前', '全長', '全長区分', '色', '季節', '渡り区分', '環境', 
-                'キャッチコピー', '説明文', '好物', '食べられる餌'
+                'キャッチコピー', '説明文', '好物', '食べられる餌','夜行性'
             ]);
             
             this.sheets.gachaLog = await this.getOrCreateSheet('gacha_log', [
