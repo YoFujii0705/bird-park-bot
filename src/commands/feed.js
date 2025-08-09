@@ -527,7 +527,7 @@ async sendAffinityMaxNotification(interaction, birdName, area) {
 
     checkFeedingCooldown(bird, userId) {
         const now = new Date();
-        const cooldownMinutes = 30;
+        const cooldownMinutes = 10;
         
         if (!bird.lastFed) {
             return { canFeed: true };
@@ -762,7 +762,7 @@ async sendAffinityMaxNotification(interaction, birdName, area) {
             favorite: [
                 {
                     type: '仲良し',
-                    description: `${bird.name}が${user.username}さんをとても気に入ったようです！`,
+                    description: `${bird.name}が${user.username}さんのあとをついてきます！`,
                     effect: '特別な絆が生まれました'
                 },
                 {
