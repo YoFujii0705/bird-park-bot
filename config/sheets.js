@@ -108,6 +108,11 @@ class SheetsManager {
                 '日時', 'ユーザーID', 'ユーザー名', '鳥名', '贈り物名', '好感度レベル', 'エリア', 'サーバーID'
             ]);
 
+            // 🆕 新しいシート - ユーザーの思い出
+            this.sheets.userMemories = await this.getOrCreateSheet('user_memories', [
+                '日時', 'ユーザーID', 'ユーザー名', '鳥名', '思い出種類', 'カテゴリ', '内容', 'アイコン', '詳細', 'サーバーID'
+            ]);
+
             this.isInitialized = true;
             console.log('✅ 全シートの初期化完了');
             
