@@ -204,6 +204,10 @@ module.exports = {
             // 🆕 思い出システム - 餌やり後の思い出チェック
             setTimeout(async () => {
                 const memoryManager = require('../utils/humanMemoryManager');
+                const weatherManager = require('../utils/weather');
+                
+                // 現在の天気を取得
+                const currentWeather = await weatherManager.getCurrentWeather();
                 
                 // 餌やりアクションデータを構築
                 const actionData = {
@@ -212,13 +216,18 @@ module.exports = {
                     food: food,
                     isFirstTime: bird.feedCount === 1,
                     isFirstFavorite: preference === 'favorite' && !bird.feedHistory.some(h => h.preference === 'favorite'),
-                    weather: this.getCurrentWeather(), // 天気情報
+                    weather: currentWeather.condition, // 天気情報
+                    weatherDescription: currentWeather.description,
+                    temperature: currentWeather.temperature,
                     hour: new Date().getHours(),
                     totalFeeds: bird.feedCount,
                     details: {
                         food: food,
                         area: birdInfo.area,
-                        effect: feedResult.effect
+                        effect: feedResult.effect,
+                        weather: currentWeather.condition,
+                        weatherDescription: currentWeather.description,
+                        temperature: currentWeather.temperature
                     }
                 };
                 
@@ -285,6 +294,7 @@ module.exports = {
                     }
                 }
             }, 3500); // 3.5秒後に贈り物チェック
+            }
 
             this.checkForSpecialEvents(birdInfo, food, preference, interaction, guildId);
 
