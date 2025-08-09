@@ -148,8 +148,7 @@ this.sheets.birdGifts = await this.getOrCreateSheet('bird_gifts', [
         }
     }
 
-    // 🆕 ログ追加（修正版）
-async addLog(sheetName, data) {
+    async addLog(sheetName, data) {
     try {
         await this.ensureInitialized();
         
@@ -159,10 +158,10 @@ async addLog(sheetName, data) {
             return false;
         }
         
-        // 🔧 birdGiftsシートの場合は日時を自動追加しない
+        // 🔧 birdGiftsは独自の日時フィールドを持つので、自動追加しない
         let logData;
         if (sheetName === 'birdGifts') {
-            logData = data; // そのまま使用
+            logData = data;
         } else {
             logData = {
                 日時: new Date().toLocaleString('ja-JP'),
