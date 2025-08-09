@@ -34,9 +34,9 @@ module.exports = {
             const affinities = await sheetsManager.getUserAffinity(userId, guildId);
             const birdAffinity = affinities[birdInfo.bird.name];
             
-            if (!birdAffinity || birdAffinity.level < 3) {
+            if (!birdAffinity || birdAffinity.level < 5) {
                 const currentLevel = birdAffinity ? birdAffinity.level : 0;
-                const currentHearts = '💖'.repeat(currentLevel) + '🤍'.repeat(3 - currentLevel);
+                const currentHearts = '💖'.repeat(currentLevel) + '🤍'.repeat(5) + '🤍'.repeat(5);  // 10個表示
                 
                 await interaction.editReply({
                     content: `💔 ${birdInfo.bird.name}とはまだ贈り物ができるほど仲良くありません。\n\n現在の好感度: ${currentHearts} (Lv.${currentLevel})\n\n餌やりを続けて好感度レベル3にしましょう！`
