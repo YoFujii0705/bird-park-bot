@@ -203,46 +203,51 @@ module.exports = {
 
             // 🆕 思い出システム - 餌やり後の思い出チェック
             setTimeout(async () => {
-                const memoryManager = require('../utils/humanMemoryManager');
-                const weatherManager = require('../utils/weather');
-                
-                // 現在の天気を取得
-                const currentWeather = await weatherManager.getCurrentWeather();
-                
-                // 餌やりアクションデータを構築
-                const actionData = {
-                    type: 'feed',
-                    preference: preference,
-                    food: food,
-                    isFirstTime: bird.feedCount === 1,
-                    isFirstFavorite: preference === 'favorite' && !bird.feedHistory.some(h => h.preference === 'favorite'),
-                    weather: currentWeather.condition, // 天気情報
-                    weatherDescription: currentWeather.description,
-                    temperature: currentWeather.temperature,
-                    hour: new Date().getHours(),
-                    totalFeeds: bird.feedCount,
-                    details: {
+                try {
+                    const memoryManager = require('../utils/humanMemoryManager');
+                    const weatherManager = require('../utils/weather');
+                    
+                    // 現在の天気を取得
+                    const currentWeather = await weatherManager.getCurrentWeather();
+                    
+                    // 餌やりアクションデータを構築
+                    const actionData = {
+                        type: 'feed',
+                        preference: preference,
                         food: food,
-                        area: birdInfo.area,
-                        effect: feedResult.effect,
+                        isFirstTime: birdInfo.bird.feedCount === 1, // 🔧 bird → birdInfo.bird
+                        isFirstFavorite: preference === 'favorite' && !birdInfo.bird.feedHistory.some(h => h.preference === 'favorite'), // 🔧 修正
                         weather: currentWeather.condition,
                         weatherDescription: currentWeather.description,
-                        temperature: currentWeather.temperature
+                        temperature: currentWeather.temperature,
+                        hour: new Date().getHours(),
+                        totalFeeds: birdInfo.bird.feedCount, // 🔧 bird → birdInfo.bird
+                        details: {
+                            food: food,
+                            area: birdInfo.area,
+                            effect: feedResult.effect,
+                            weather: currentWeather.condition,
+                            weatherDescription: currentWeather.description,
+                            temperature: currentWeather.temperature
+                        }
+                    };
+                    
+                    // 思い出生成をチェック
+                    const newMemory = await memoryManager.createMemory(
+                        interaction.user.id,
+                        interaction.user.username,
+                        birdInfo.bird.name,
+                        actionData,
+                        guildId
+                    );
+                    
+                    // 思い出が生成された場合は通知
+                    if (newMemory) {
+                        await memoryManager.sendMemoryNotification(interaction, newMemory);
                     }
-                };
-                
-                // 思い出生成をチェック
-                const newMemory = await memoryManager.createMemory(
-                    interaction.user.id,
-                    interaction.user.username,
-                    birdInfo.bird.name,
-                    actionData,
-                    guildId
-                );
-                
-                // 思い出が生成された場合は通知
-                if (newMemory) {
-                    await memoryManager.sendMemoryNotification(interaction, newMemory);
+                    
+                } catch (error) {
+                    console.error('思い出生成エラー:', error);
                 }
                 
             }, 7000); // 7秒後に思い出チェック
@@ -250,48 +255,98 @@ module.exports = {
             // 🆕 好感度アップ時の思い出生成
             if (affinityResult.levelUp) {
                 setTimeout(async () => {
-                    const memoryManager = require('../utils/humanMemoryManager');
-                    
-                    const affinityActionData = {
-                        type: 'affinity',
-                        newLevel: affinityResult.newLevel,
-                        previousLevel: affinityResult.previousLevel,
-                        details: {
+                    try {
+                        const memoryManager = require('../utils/humanMemoryManager');
+                        
+                        const affinityActionData = {
+                            type: 'affinity',
                             newLevel: affinityResult.newLevel,
-                            birdName: birdInfo.bird.name
+                            previousLevel: affinityResult.previousLevel,
+                            details: {
+                                newLevel: affinityResult.newLevel,
+                                birdName: birdInfo.bird.name
+                            }
+                        };
+                        
+                        const affinityMemory = await memoryManager.createMemory(
+                            interaction.user.id,
+                            interaction.user.username,
+                            birdInfo.bird.name,
+                            affinityActionData,
+                            guildId
+                        );
+                        
+                        if (affinityMemory) {
+                            await memoryManager.sendMemoryNotification(interaction, affinityMemory);
                         }
-                    };
-                    
-                    const affinityMemory = await memoryManager.createMemory(
-                        interaction.user.id,
-                        interaction.user.username,
-                        birdInfo.bird.name,
-                        affinityActionData,
-                        guildId
-                    );
-                    
-                    if (affinityMemory) {
-                        await memoryManager.sendMemoryNotification(interaction, affinityMemory);
+                        
+                    } catch (error) {
+                        console.error('好感度思い出生成エラー:', error);
                     }
                     
                 }, 8000); // 8秒後
+            }
 
-            // 🆕 鳥からユーザーへの贈り物チェック
+            // 🆕 鳥からの贈り物をもらった時の思い出生成
             setTimeout(async () => {
-                if (affinityResult && affinityResult.newLevel >= 5) {
-                    const birdGift = await this.checkBirdGiftToUser(
-                        interaction,
-                        interaction.user.id,
-                        interaction.user.username,
-                        birdInfo.bird.name,
-                        affinityResult.newLevel,
-                        birdInfo.area,
-                        guildId
-                    );
-                    
-                    if (birdGift) {
-                        await this.sendBirdGiftNotification(interaction, birdInfo.bird.name, birdGift);
+                try {
+                    if (affinityResult && affinityResult.newLevel >= 5) {
+                        const birdGift = await this.checkBirdGiftToUser(
+                            interaction,
+                            interaction.user.id,
+                            interaction.user.username,
+                            birdInfo.bird.name,
+                            affinityResult.newLevel,
+                            birdInfo.area,
+                            guildId
+                        );
+                        
+                        if (birdGift) {
+                            await this.sendBirdGiftNotification(interaction, birdInfo.bird.name, birdGift);
+                            
+                            // 🆕 鳥からもらった贈り物の思い出生成
+                            setTimeout(async () => {
+                                try {
+                                    const memoryManager = require('../utils/humanMemoryManager');
+                                    
+                                    // 初回受取かどうかチェック
+                                    const receivedGifts = await sheetsManager.getUserReceivedGifts ? 
+                                        await sheetsManager.getUserReceivedGifts(interaction.user.id, guildId) : [];
+                                    const isFirstReceived = receivedGifts.length === 1; // 今もらったのが1個目
+                                    
+                                    const giftActionData = {
+                                        type: 'gift_received',
+                                        isFirstReceived: isFirstReceived,
+                                        rarity: birdGift.giftName.includes('虹色') || birdGift.giftName.includes('四つ葉') ? 'rare' : 'common',
+                                        details: {
+                                            giftName: birdGift.giftName,
+                                            birdName: birdInfo.bird.name,
+                                            area: birdInfo.area,
+                                            affinityLevel: affinityResult.newLevel
+                                        }
+                                    };
+                                    
+                                    const giftMemory = await memoryManager.createMemory(
+                                        interaction.user.id,
+                                        interaction.user.username,
+                                        birdInfo.bird.name,
+                                        giftActionData,
+                                        guildId
+                                    );
+                                    
+                                    if (giftMemory) {
+                                        await memoryManager.sendMemoryNotification(interaction, giftMemory);
+                                    }
+                                    
+                                } catch (error) {
+                                    console.error('贈り物思い出生成エラー:', error);
+                                }
+                                
+                            }, 1000); // 贈り物通知の1秒後
+                        }
                     }
+                } catch (error) {
+                    console.error('鳥からの贈り物チェックエラー:', error);
                 }
             }, 3500); // 3.5秒後に贈り物チェック
             }
