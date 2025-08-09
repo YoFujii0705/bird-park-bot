@@ -120,9 +120,28 @@ module.exports = {
                 }
             }, 1500); // 1.5秒後に称号チェック
 
+            // 🆕 鳥からユーザーへの贈り物チェック
+            setTimeout(async () => {
+                if (affinityResult && affinityResult.newLevel >= 5) {
+                    const birdGift = await this.checkBirdGiftToUser(
+                        interaction,
+                        interaction.user.id,
+                        interaction.user.username,
+                        birdInfo.bird.name,
+                        affinityResult.newLevel,
+                        birdInfo.area,
+                        guildId
+                    );
+                    
+                    if (birdGift) {
+                        await this.sendBirdGiftNotification(interaction, birdInfo.bird.name, birdGift);
+                    }
+                }
+            }, 3500); // 3.5秒後に贈り物チェック
+
             this.checkForSpecialEvents(birdInfo, food, preference, interaction, guildId);
 
-            // 🆕 好感度MAXになった場合の贈り物通知
+            // 🆕 好感度MAXになった場合の贈り物通知（ユーザーから鳥への贈り物解放）
             if (affinityResult.levelUp && affinityResult.newLevel >= 5) {
                 await this.sendAffinityMaxNotification(interaction, birdInfo.bird.name, birdInfo.area);
             }
@@ -212,6 +231,127 @@ module.exports = {
         };
         
         return levelRequirements[targetLevel] || 999;
+    },
+
+    // 🆕 鳥からユーザーへの贈り物チェック（確率改善版）
+    async checkBirdGiftToUser(interaction, userId, userName, birdName, affinityLevel, area, guildId) {
+        try {
+            // 好感度が5以上の場合のみ贈り物チャンス
+            if (affinityLevel < 5) return null;
+            
+            // 🔧 大幅に確率を上げました！
+            let giftChance = 0;
+            if (affinityLevel >= 5) giftChance = 0.30; // 30% (約3回に1回)
+            if (affinityLevel >= 6) giftChance = 0.35; // 35% (約3回に1回)
+            if (affinityLevel >= 7) giftChance = 0.45; // 45% (約2回に1回)
+            if (affinityLevel >= 8) giftChance = 0.55; // 55% (約2回に1回)
+            if (affinityLevel >= 9) giftChance = 0.65; // 65% (約2回に1回)
+            if (affinityLevel >= 10) giftChance = 0.75; // 75% (4回に3回)
+            
+            console.log(`🎲 ${birdName}(好感度${affinityLevel}) 贈り物チャンス: ${(giftChance * 100).toFixed(0)}%`);
+            
+            // ランダムチェック
+            const roll = Math.random();
+            console.log(`🎯 ロール結果: ${(roll * 100).toFixed(1)}% (必要: ${(giftChance * 100).toFixed(0)}%以下)`);
+            
+            if (roll > giftChance) {
+                console.log(`❌ 贈り物なし (${(roll * 100).toFixed(1)}% > ${(giftChance * 100).toFixed(0)}%)`);
+                return null;
+            }
+            
+            // エリアに応じた贈り物を選択
+            const areaGifts = GIFT_CATEGORIES[area] || [];
+            const commonGifts = GIFT_CATEGORIES.共通;
+            const allGifts = [...areaGifts, ...commonGifts];
+            
+            const selectedGift = allGifts[Math.floor(Math.random() * allGifts.length)];
+            
+            // インベントリに追加
+            await sheetsManager.logGiftInventory(
+                userId,
+                userName,
+                selectedGift,
+                1,
+                `${birdName}からの贈り物(好感度${affinityLevel})`,
+                guildId
+            );
+            
+            console.log(`🎁 ${birdName}が${userName}に${selectedGift}をプレゼント！`);
+            
+            return {
+                giftName: selectedGift,
+                message: this.generateGiftMessage(birdName, selectedGift, area)
+            };
+            
+        } catch (error) {
+            console.error('鳥からの贈り物チェックエラー:', error);
+            return null;
+        }
+    },
+
+    // 🆕 贈り物メッセージ生成
+    generateGiftMessage(birdName, giftName, area) {
+        const messages = {
+            森林: [
+                `${birdName}が森で見つけた${giftName}をあなたにプレゼントしました！`,
+                `${birdName}が${giftName}を見つけて、嬉しそうにあなたに差し出しています。`,
+                `森の奥で${birdName}が発見した${giftName}。あなたへの感謝の気持ちです。`
+            ],
+            草原: [
+                `${birdName}が草原で${giftName}を見つけて、あなたにくれました！`,
+                `${birdName}が${giftName}をくちばしにくわえて、あなたの前に置きました。`,
+                `風に吹かれる草原で、${birdName}が${giftName}を見つけて贈ってくれました。`
+            ],
+            水辺: [
+                `${birdName}が水辺で拾った${giftName}をあなたにプレゼント！`,
+                `${birdName}が清らかな水辺で見つけた${giftName}。大切な友達への贈り物です。`,
+                `波打ち際で${birdName}が発見した${giftName}。あなたとの絆の証です。`
+            ]
+        };
+        
+        const areaMessages = messages[area] || messages.森林;
+        return areaMessages[Math.floor(Math.random() * areaMessages.length)];
+    },
+
+    // 🆕 贈り物通知の送信
+    async sendBirdGiftNotification(interaction, birdName, giftInfo) {
+        try {
+            const embed = new EmbedBuilder()
+                .setTitle('🎁 鳥からの贈り物！')
+                .setDescription(giftInfo.message)
+                .addFields({
+                    name: '🎊 受け取った贈り物',
+                    value: `${this.getGiftEmojiFromName(giftInfo.giftName)} **${giftInfo.giftName}**`,
+                    inline: false
+                })
+                .setColor(0x87CEEB)
+                .setFooter({ text: `${birdName}からの心のこもった贈り物です` })
+                .setTimestamp();
+
+            setTimeout(() => {
+                interaction.followUp({ embeds: [embed] });
+            }, 4000); // 4秒後に送信
+
+        } catch (error) {
+            console.error('鳥からの贈り物通知エラー:', error);
+        }
+    },
+
+    // 🆕 贈り物名から絵文字取得
+    getGiftEmojiFromName(giftName) {
+        if (giftName.includes('どんぐり')) return '🌰';
+        if (giftName.includes('羽根') || giftName.includes('羽')) return '🪶';
+        if (giftName.includes('花')) return '🌸';
+        if (giftName.includes('石')) return '💎';
+        if (giftName.includes('種')) return '🌱';
+        if (giftName.includes('枝')) return '🌿';
+        if (giftName.includes('葉')) return '🍃';
+        if (giftName.includes('貝')) return '🐚';
+        if (giftName.includes('真珠')) return '🦪';
+        if (giftName.includes('水晶')) return '💎';
+        if (giftName.includes('鈴')) return '🔔';
+        if (giftName.includes('クローバー')) return '🍀';
+        return '🎁';
     },
 
     // 🆕 改良版好感度MAX通知（レベル5から）
