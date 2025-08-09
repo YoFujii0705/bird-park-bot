@@ -1,7 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const birdData = require('../utils/birdData');
 const logger = require('../utils/logger');
-const sheetsManager = require('../../config/sheets'); // 🆕 追加
+const sheetsManager = require('../../config/sheets');
+const achievementHelper = require('../utils/achievementHelper'); // 🆕 追加
 
 // 🆕 贈り物カテゴリ定義
 const GIFT_CATEGORIES = {
@@ -105,6 +106,20 @@ module.exports = {
                 interaction.guild.id
             );
 
+            // 🆕 称号チェック & 通知
+            setTimeout(async () => {
+                const newAchievements = await achievementHelper.checkAndNotifyAchievements(
+                    interaction,
+                    interaction.user.id,
+                    interaction.user.username,
+                    guildId
+                );
+                
+                if (newAchievements.length > 0) {
+                    console.log(`🏆 ${interaction.user.username}が${newAchievements.length}個の称号を獲得しました`);
+                }
+            }, 1500); // 1.5秒後に称号チェック
+
             this.checkForSpecialEvents(birdInfo, food, preference, interaction, guildId);
 
             // 🆕 好感度MAXになった場合の贈り物通知
@@ -198,7 +213,6 @@ module.exports = {
         
         return levelRequirements[targetLevel] || 999;
     },
-
 
     // 🆕 改良版好感度MAX通知（レベル5から）
     async sendAffinityMaxNotification(interaction, birdName, area) {
@@ -437,8 +451,8 @@ module.exports = {
                 affinityText += '\n🎁 贈り物可能！';
             } else if (affinityResult.newLevel >= 4) {
                 affinityText += '\n🎁 もうすぐ贈り物可能！';
-        　  } else if (affinityResult.newLevel >= 3) {  
-  　　　　　　　　 affinityText += '\n🎁 あと少しで贈り物可能！';
+            } else if (affinityResult.newLevel >= 3) {  
+                affinityText += '\n🎁 あと少しで贈り物可能！';
             }
             
             embed.addFields({
