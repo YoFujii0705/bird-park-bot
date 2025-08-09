@@ -1,4 +1,5 @@
 // 🌟 人間主語の思い出システム
+const { EmbedBuilder } = require('discord.js'); // 🔧 追加
 
 // 思い出の種類とパターン
 const MEMORY_PATTERNS = {
