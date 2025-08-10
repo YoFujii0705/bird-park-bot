@@ -1179,6 +1179,397 @@ class ZooManager {
         return results;
     }
 
+    // ===========================================
+    // 🆕 Phase 3: 詳細なイベント機能
+    // ===========================================
+
+    /**
+     * 気温連動イベント生成
+     */
+    async createTemperatureEvent(allBirds) {
+        try {
+            if (!this.weatherManager) {
+                console.log('⚠️ WeatherManager利用不可、気温イベントをスキップします');
+                return null;
+            }
+
+            const weather = await this.weatherManager.getCurrentWeather();
+            const temp = weather.temperature;
+            
+            if (temp === null) {
+                console.log('⚠️ 気温データ取得不可、気温イベントをスキップします');
+                return null;
+            }
+
+            const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+
+            let tempEvent = '';
+            let tempCategory = '';
+
+            if (temp < 0) {
+                tempCategory = '氷点下';
+                tempEvent = `🥶 氷点下の寒さ(${temp}°C)、${bird.name}が羽を大きく膨らませて寒さをしのいでいます`;
+            } else if (temp < 5) {
+                tempCategory = '厳寒';
+                tempEvent = `❄️ とても寒い日(${temp}°C)、${bird.name}が仲間と寄り添って暖を取っています`;
+            } else if (temp < 10) {
+                tempCategory = '寒冷';
+                tempEvent = `🌨️ 寒い日(${temp}°C)、${bird.name}が暖かい場所を探しています`;
+            } else if (temp < 15) {
+                tempCategory = '涼しい';
+                tempEvent = `🌤️ 涼しい日(${temp}°C)、${bird.name}が活発に動き回っています`;
+            } else if (temp < 20) {
+                tempCategory = '快適';
+                tempEvent = `😊 過ごしやすい気温(${temp}°C)、${bird.name}が心地よさそうに過ごしています`;
+            } else if (temp < 25) {
+                tempCategory = '暖かい';
+                tempEvent = `🌞 暖かい日(${temp}°C)、${bird.name}が気持ちよさそうに日向ぼっこしています`;
+            } else if (temp < 30) {
+                tempCategory = '温暖';
+                tempEvent = `☀️ 温かい日(${temp}°C)、${bird.name}が活発に飛び回っています`;
+            } else if (temp < 35) {
+                tempCategory = '暑い';
+                tempEvent = `🔥 暑い日(${temp}°C)、${bird.name}が木陰で涼しさを求めています`;
+            } else {
+                tempCategory = '酷暑';
+                tempEvent = `🌡️ 酷暑の日(${temp}°C)、${bird.name}が日陰でじっと暑さをしのいでいます`;
+            }
+
+            return {
+                type: `気温イベント(${tempCategory})`,
+                content: tempEvent,
+                relatedBird: bird.name,
+                temperature: temp,
+                category: tempCategory
+            };
+
+        } catch (error) {
+            console.error('気温イベント生成エラー:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 長期滞在イベント生成
+     */
+    async createLongStayEvent(guildId, allBirds) {
+        const longStayBirds = this.getLongStayBirds(guildId);
+        
+        if (longStayBirds.length === 0) {
+            console.log('🏡 長期滞在鳥がいないため、長期滞在イベントをスキップします');
+            return null;
+        }
+
+        const bird = longStayBirds[Math.floor(Math.random() * longStayBirds.length)];
+        const now = new Date();
+        const stayDays = Math.floor((now - bird.entryTime) / (1000 * 60 * 60 * 24));
+
+        const longStayEvents = [
+            `🏡 ${bird.name}がこの鳥類園に来てから${stayDays}日が経ちました。すっかり家族のようです`,
+            `🌟 長期滞在中の${bird.name}が、この場所をとても気に入っているようです(${stayDays}日目)`,
+            `💖 ${bird.name}が${stayDays}日間も滞在して、みんなの人気者になっています`,
+            `🎉 ${bird.name}の長期滞在記録更新中！${stayDays}日目の今日も元気です`,
+            `🏠 ${bird.name}がこの鳥類園を第二の故郷のように感じているようです(${stayDays}日目)`,
+            `⭐ ${stayDays}日間滞在している${bird.name}が、新入りの鳥たちの良いお手本になっています`,
+            `🌈 長期滞在の${bird.name}が、この場所の特別な魅力を教えてくれているようです`,
+            `🎯 ${bird.name}が${stayDays}日間の滞在で、園内の隠れスポットを全て知り尽くしているようです`,
+            `🤝 ${bird.name}が長期滞在の先輩として、新しい鳥たちを温かく迎えています`,
+            `📚 ${stayDays}日間の滞在で、${bird.name}がこの園の歴史の生き証人になっています`
+        ];
+
+        const eventContent = longStayEvents[Math.floor(Math.random() * longStayEvents.length)];
+
+        return {
+            type: `長期滞在イベント(${stayDays}日目)`,
+            content: eventContent,
+            relatedBird: bird.name,
+            stayDays: stayDays
+        };
+    }
+
+    /**
+     * 風速連動イベント生成
+     */
+    async createWindEvent(allBirds) {
+        try {
+            if (!this.weatherManager) {
+                console.log('⚠️ WeatherManager利用不可、風速イベントをスキップします');
+                return null;
+            }
+
+            const weather = await this.weatherManager.getCurrentWeather();
+            const windSpeed = weather.windSpeed;
+            
+            if (windSpeed === null || windSpeed === undefined) {
+                console.log('⚠️ 風速データ取得不可、風速イベントをスキップします');
+                return null;
+            }
+
+            const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+
+            let windEvent = '';
+            let windCategory = '';
+
+            if (windSpeed < 1) {
+                windCategory = '無風';
+                windEvent = `🍃 無風の静かな日、${bird.name}が穏やかに羽を休めています`;
+            } else if (windSpeed < 3) {
+                windCategory = 'そよ風';
+                windEvent = `🌿 そよ風が心地よく、${bird.name}が優雅に羽を広げています`;
+            } else if (windSpeed < 7) {
+                windCategory = '軽風';
+                windEvent = `🌾 軽やかな風に乗って、${bird.name}が楽しそうに飛び回っています`;
+            } else if (windSpeed < 12) {
+                windCategory = '軟風';
+                windEvent = `🌸 程よい風を感じて、${bird.name}が気持ちよさそうに過ごしています`;
+            } else if (windSpeed < 20) {
+                windCategory = '強風';
+                windEvent = `💨 強い風の中、${bird.name}がしっかりと枝につかまっています`;
+            } else {
+                windCategory = '暴風';
+                windEvent = `🌪️ 激しい風の中、${bird.name}が安全な場所に避難しています`;
+            }
+
+            return {
+                type: `風速イベント(${windCategory})`,
+                content: windEvent,
+                relatedBird: bird.name,
+                windSpeed: windSpeed,
+                category: windCategory
+            };
+
+        } catch (error) {
+            console.error('風速イベント生成エラー:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 湿度連動イベント生成
+     */
+    async createHumidityEvent(allBirds) {
+        try {
+            if (!this.weatherManager) {
+                console.log('⚠️ WeatherManager利用不可、湿度イベントをスキップします');
+                return null;
+            }
+
+            const weather = await this.weatherManager.getCurrentWeather();
+            const humidity = weather.humidity;
+            
+            if (humidity === null || humidity === undefined) {
+                console.log('⚠️ 湿度データ取得不可、湿度イベントをスキップします');
+                return null;
+            }
+
+            const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+
+            let humidityEvent = '';
+            let humidityCategory = '';
+
+            if (humidity < 30) {
+                humidityCategory = '乾燥';
+                humidityEvent = `🏜️ 乾燥した空気の中、${bird.name}が水を求めて動き回っています`;
+            } else if (humidity < 50) {
+                humidityCategory = '快適';
+                humidityEvent = `😌 心地よい湿度で、${bird.name}が快適に過ごしています`;
+            } else if (humidity < 70) {
+                humidityCategory = 'やや高湿度';
+                humidityEvent = `💧 少し湿った空気の中、${bird.name}が涼しげに過ごしています`;
+            } else if (humidity < 85) {
+                humidityCategory = '高湿度';
+                humidityEvent = `🌫️ 湿度の高い日、${bird.name}が水浴びを楽しんでいます`;
+            } else {
+                humidityCategory = '多湿';
+                humidityEvent = `💦 とても湿った空気の中、${bird.name}が涼しい場所を探しています`;
+            }
+
+            return {
+                type: `湿度イベント(${humidityCategory})`,
+                content: humidityEvent,
+                relatedBird: bird.name,
+                humidity: humidity,
+                category: humidityCategory
+            };
+
+        } catch (error) {
+            console.error('湿度イベント生成エラー:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 群れイベント生成（同じ種類の鳥が複数いる場合）
+     */
+    async createFlockEvent(allBirds) {
+        // 同じ種類の鳥を集計
+        const birdCounts = {};
+        allBirds.forEach(bird => {
+            birdCounts[bird.name] = (birdCounts[bird.name] || 0) + 1;
+        });
+
+        // 2羽以上いる種類を抽出
+        const flockSpecies = Object.entries(birdCounts).filter(([name, count]) => count >= 2);
+        
+        if (flockSpecies.length === 0) {
+            console.log('🐦 群れを形成できる鳥がいないため、群れイベントをスキップします');
+            return null;
+        }
+
+        const [speciesName, count] = flockSpecies[Math.floor(Math.random() * flockSpecies.length)];
+
+        const flockEvents = [
+            `🐦‍⬛ ${count}羽の${speciesName}たちが美しい群れを作っています`,
+            `🌟 ${speciesName}の群れが息の合った飛行を披露しています`,
+            `🎵 ${count}羽の${speciesName}たちが合唱しているようです`,
+            `🤝 ${speciesName}たちが群れで仲良く餌を探しています`,
+            `💫 ${speciesName}の群れが同期して羽ばたく美しい光景が見られます`,
+            `🔄 ${count}羽の${speciesName}たちが群れで移動しています`,
+            `🎭 ${speciesName}たちが群れで遊んでいる様子が微笑ましいです`,
+            `🌈 ${speciesName}の群れが虹のような美しい編隊を組んでいます`,
+            `🎪 ${count}羽の${speciesName}たちが群れでアクロバット飛行を披露しています`,
+            `💝 ${speciesName}たちが群れで互いを気遣い合っています`
+        ];
+
+        const eventContent = flockEvents[Math.floor(Math.random() * flockEvents.length)];
+
+        return {
+            type: `群れイベント(${speciesName} ${count}羽)`,
+            content: eventContent,
+            relatedBird: speciesName,
+            flockSize: count
+        };
+    }
+
+    /**
+     * エリア間移動イベント生成
+     */
+    async createAreaMovementEvent(guildId) {
+        const zooState = this.getZooState(guildId);
+        const areas = ['森林', '草原', '水辺'];
+        const sourceArea = areas[Math.floor(Math.random() * areas.length)];
+        const targetArea = areas.filter(area => area !== sourceArea)[Math.floor(Math.random() * 2)];
+        
+        const sourceBirds = zooState[sourceArea];
+        if (sourceBirds.length === 0) {
+            console.log('🚶 移動可能な鳥がいないため、エリア間移動イベントをスキップします');
+            return null;
+        }
+
+        const bird = sourceBirds[Math.floor(Math.random() * sourceBirds.length)];
+
+        const movementEvents = [
+            `🚶 ${bird.name}が${sourceArea}エリアから${targetArea}エリアへ散歩に出かけました`,
+            `👀 ${bird.name}が${targetArea}エリアの様子を見に行っています`,
+            `🌍 ${bird.name}が${sourceArea}エリアを離れて${targetArea}エリアを探索中です`,
+            `🎯 ${bird.name}が${targetArea}エリアで新しい発見をしに行きました`,
+            `🤝 ${bird.name}が${targetArea}エリアの仲間に挨拶をしに行っています`,
+            `🔍 ${bird.name}が${sourceArea}エリアから${targetArea}エリアへ冒険に出発しました`,
+            `💫 ${bird.name}が${targetArea}エリアの美しい景色を見に行っています`,
+            `🎪 ${bird.name}が${sourceArea}エリアと${targetArea}エリアを行き来して楽しんでいます`,
+            `🌟 ${bird.name}が${targetArea}エリアで新しい体験をしようとしています`,
+            `🎭 ${bird.name}が${sourceArea}エリアから${targetArea}エリアへお出かけ中です`
+        ];
+
+        const eventContent = movementEvents[Math.floor(Math.random() * movementEvents.length)];
+
+        return {
+            type: `エリア間移動イベント(${sourceArea}→${targetArea})`,
+            content: eventContent,
+            relatedBird: bird.name,
+            sourceArea: sourceArea,
+            targetArea: targetArea
+        };
+    }
+
+    // ===========================================
+    // 🆕 Phase 3: テスト・統合機能
+    // ===========================================
+
+    /**
+     * Phase 3機能のテスト実行
+     */
+    async testPhase3Functions(guildId) {
+        console.log('🧪 Phase 3 詳細イベント機能テスト開始...');
+        
+        const results = {
+            timestamp: new Date().toISOString(),
+            tests: {}
+        };
+        
+        try {
+            const allBirds = this.getAllBirds(guildId);
+            if (allBirds.length === 0) {
+                results.overall = { success: false, message: '鳥がいないためテストできません' };
+                return results;
+            }
+
+            // 1. 気温イベントテスト
+            console.log('📍 気温イベントテスト...');
+            const tempEvent = await this.createTemperatureEvent(allBirds);
+            results.tests.temperatureEvent = {
+                success: true,
+                result: tempEvent,
+                message: tempEvent ? `成功: ${tempEvent.type}` : 'WeatherManager利用不可またはエラー'
+            };
+
+            // 2. 長期滞在イベントテスト
+            console.log('📍 長期滞在イベントテスト...');
+            const longStayEvent = await this.createLongStayEvent(guildId, allBirds);
+            results.tests.longStayEvent = {
+                success: true,
+                result: longStayEvent,
+                message: longStayEvent ? `成功: ${longStayEvent.type}` : '長期滞在鳥がいないためスキップ'
+            };
+
+            // 3. 風速イベントテスト
+            console.log('📍 風速イベントテスト...');
+            const windEvent = await this.createWindEvent(allBirds);
+            results.tests.windEvent = {
+                success: true,
+                result: windEvent,
+                message: windEvent ? `成功: ${windEvent.type}` : 'WeatherManager利用不可またはエラー'
+            };
+
+            // 4. 湿度イベントテスト
+            console.log('📍 湿度イベントテスト...');
+            const humidityEvent = await this.createHumidityEvent(allBirds);
+            results.tests.humidityEvent = {
+                success: true,
+                result: humidityEvent,
+                message: humidityEvent ? `成功: ${humidityEvent.type}` : 'WeatherManager利用不可またはエラー'
+            };
+
+            // 5. 群れイベントテスト
+            console.log('📍 群れイベントテスト...');
+            const flockEvent = await this.createFlockEvent(allBirds);
+            results.tests.flockEvent = {
+                success: true,
+                result: flockEvent,
+                message: flockEvent ? `成功: ${flockEvent.type}` : '群れを形成できる鳥がいないためスキップ'
+            };
+
+            // 6. エリア間移動イベントテスト
+            console.log('📍 エリア間移動イベントテスト...');
+            const movementEvent = await this.createAreaMovementEvent(guildId);
+            results.tests.movementEvent = {
+                success: true,
+                result: movementEvent,
+                message: movementEvent ? `成功: ${movementEvent.type}` : '移動可能な鳥がいないためスキップ'
+            };
+
+            console.log('✅ Phase 3 詳細イベント機能テスト完了');
+            results.overall = { success: true, message: 'すべての詳細イベントテストが完了しました' };
+
+        } catch (error) {
+            console.error('❌ Phase 3 テストエラー:', error);
+            results.overall = { success: false, message: `テスト中にエラーが発生: ${error.message}` };
+        }
+
+        return results;
+    }
+
+
 // ===========================================
     // 見学鳥管理システム
     // ===========================================
