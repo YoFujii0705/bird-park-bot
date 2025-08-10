@@ -39,6 +39,16 @@ module.exports = {
         )
         .addSubcommand(subcommand =>
     subcommand
+        .setName('test_all_phases')
+        .setDescription('全Phase（1-4）の統合テスト')
+)
+.addSubcommand(subcommand =>
+    subcommand
+        .setName('event_stats')
+        .setDescription('詳細なイベント統計を表示')
+)
+        .addSubcommand(subcommand =>
+    subcommand
         .setName('test_phase3')
         .setDescription('Phase 3機能（詳細イベント）をテスト')
 )
@@ -205,7 +215,60 @@ module.exports = {
     
     await interaction.editReply({ embeds: [phase3Embed] });
     break;
+case 'test_all_phases':
+    await interaction.deferReply({ ephemeral: true });
+    
+    console.log('🧪 全Phase統合テスト実行開始...');
+    const allPhasesResults = await zooManager.testAllPhases(guildId);
+    
+    const summaryEmbed = new EmbedBuilder()
+        .setTitle('🧪 全Phase統合テスト結果')
+        .setColor(allPhasesResults.overall.success ? 0x00ff00 : 0xff0000)
+        .setDescription(allPhasesResults.overall.message)
+        .addFields(
+            { name: '📋 Phase 1', value: allPhasesResults.overall.summary.phase1Success ? '✅ 成功' : '❌ 失敗', inline: true },
+            { name: '🎪 Phase 2', value: allPhasesResults.overall.summary.phase2Success ? '✅ 成功' : '❌ 失敗', inline: true },
+            { name: '🔧 Phase 3', value: allPhasesResults.overall.summary.phase3Success ? '✅ 成功' : '❌ 失敗', inline: true },
+            { name: '🚀 システム統合', value: allPhasesResults.overall.summary.systemIntegrationSuccess ? '✅ 成功' : '❌ 失敗', inline: true },
+            { name: '🎲 ランダムイベント', value: allPhasesResults.overall.summary.randomEventSuccess ? '✅ 成功' : '❌ 失敗', inline: true }
+        )
+        .setTimestamp();
+    
+    await interaction.editReply({ embeds: [summaryEmbed] });
+    break;
 
+case 'event_stats':
+    const eventStats = zooManager.getEventStatistics(guildId);
+    
+    const statsEmbed = new EmbedBuilder()
+        .setTitle('📊 詳細イベント統計')
+        .setColor(0x3498db)
+        .addFields(
+            { name: '📈 総イベント数', value: `${eventStats.total}件`, inline: true },
+            { name: '⏰ 過去24時間', value: `${eventStats.recent24h}件`, inline: true },
+            { name: '📅 過去7日間', value: `${eventStats.recent7days}件`, inline: true },
+            { name: '🐦 鳥の総数', value: `${eventStats.birdStatus.total}羽`, inline: true },
+            { name: '🏡 長期滞在鳥', value: `${eventStats.birdStatus.longStay}羽`, inline: true },
+            { name: '👥 見学鳥', value: `${eventStats.birdStatus.visitors}羽`, inline: true },
+            { name: '⏰ 現在の時間帯', value: `${eventStats.systemStatus.timeSlot.emoji} ${eventStats.systemStatus.timeSlot.name}`, inline: true },
+            { name: '🌙 月齢', value: `${eventStats.systemStatus.moonPhase.emoji} ${eventStats.systemStatus.moonPhase.name}`, inline: true },
+            { name: '🍂 季節', value: `${eventStats.systemStatus.season.emoji} ${eventStats.systemStatus.season.detail}`, inline: true }
+        )
+        .setTimestamp();
+    
+    // よく発生するイベントタイプTop 5を表示
+    const topEventTypes = Object.entries(eventStats.byType)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([type, count]) => `${type}: ${count}件`)
+        .join('\n');
+    
+    if (topEventTypes) {
+        statsEmbed.addFields({ name: '🏆 よく発生するイベント Top5', value: topEventTypes, inline: false });
+    }
+    
+    await interaction.reply({ embeds: [statsEmbed], ephemeral: true });
+    break;
 case 'generate_event':
     await interaction.deferReply({ ephemeral: true });
     
