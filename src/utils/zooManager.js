@@ -5,18 +5,20 @@ const fs = require('fs');
 const path = require('path');
 const LunarPhase = require('lunarphase-js'); // 🆕 月齢ライブラリ
 
+// 🔧 コンストラクタの修正部分（既存のコンストラクタに追加）
 class ZooManager {
     constructor() {
-        this.serverZoos = new Map(); // Map<サーバーID, 鳥類園データ>
+        // 既存のコンストラクタ内容...
+        this.serverZoos = new Map();
         this.recentlyLeftBirds = new Map();
         this.isInitialized = false;
         this.isProcessing = false;
         this.scheduledTasks = [];
         this.dataPath = './data/zoos/';
-
-        // 🆕 新しい依存関係
-        this.weatherManager = require('./weatherManager');
-        this.sheetsManager = require('./sheetsManager');
+        
+        // 🆕 Phase 1で必要な依存関係（安全に初期化）
+        this.weatherManager = this.safeRequire('./weatherManager');
+        this.sheetsManager = this.safeRequire('./sheetsManager');
         
         // 🆕 時間帯定義（JST基準）
         this.timeSlots = {
@@ -61,11 +63,29 @@ class ZooManager {
             '12-31': { name: '大晦日', emoji: '🎆', message: '一年を締めくくる特別な日' }
         };
 
-        
-        // データディレクトリを作成
         this.ensureDataDirectory();
     }
 
+// 🆕 安全なrequire（モジュールが存在しない場合はnullを返す）
+    safeRequire(modulePath) {
+        try {
+            return require(modulePath);
+        } catch (error) {
+            console.warn(`⚠️ モジュール ${modulePath} が見つかりません。一部機能が制限されます。`);
+            return null;
+        }
+    }
+
+    // 🆕 月齢ライブラリの安全な読み込み
+    safeRequireLunarPhase() {
+        try {
+            return require('lunarphase-js');
+        } catch (error) {
+            console.warn('⚠️ lunarphase-js が見つかりません。簡易月齢計算を使用します。');
+            return null;
+        }
+    }
+    
     // データディレクトリ確保
     ensureDataDirectory() {
         if (!fs.existsSync(this.dataPath)) {
@@ -309,12 +329,11 @@ class ZooManager {
     }
 
     // ===========================================
-    //  時間・月齢・季節取得
+    // 🆕 Phase 1: 基本機能 - 時間・月齢・季節取得
     // ===========================================
 
     /**
      * 現在の時間帯を取得（JST基準）
-     * @returns {Object} 時間帯情報
      */
     getCurrentTimeSlot() {
         const now = new Date();
@@ -325,7 +344,6 @@ class ZooManager {
         
         for (const [key, slot] of Object.entries(this.timeSlots)) {
             if (key === 'sleep') {
-                // 就寝時間は22-5時（日跨ぎ）
                 if (hour >= slot.start || hour < slot.end) {
                     console.log(`⏰ 判定結果: ${slot.name} (${slot.start}:00-${slot.end}:00)`);
                     return { key, ...slot };
@@ -344,40 +362,44 @@ class ZooManager {
 
     /**
      * 現在の月齢を取得
-     * @returns {Object} 月齢情報
      */
     getCurrentMoonPhase() {
-        try {
-            const today = new Date();
-            const lunarPhase = LunarPhase.Moon.lunarPhase(today);
-            const phaseName = LunarPhase.Moon.lunarPhaseEmoji(today, {
-                'New': 'New',
-                'Waxing Crescent': 'Waxing Crescent', 
-                'First Quarter': 'First Quarter',
-                'Waxing Gibbous': 'Waxing Gibbous',
-                'Full': 'Full',
-                'Waning Gibbous': 'Waning Gibbous',
-                'Last Quarter': 'Last Quarter',
-                'Waning Crescent': 'Waning Crescent'
-            });
-            
-            // ライブラリから返される英語名を日本語の月齢情報にマッピング
-            const moonInfo = this.moonPhases[phaseName] || this.moonPhases['New'];
-            
-            console.log(`🌙 月齢: ${moonInfo.name} (${phaseName})`);
-            
-            return {
-                key: phaseName.replace(' ', '_').toLowerCase(),
-                englishName: phaseName,
-                ...moonInfo,
-                lunarAge: lunarPhase
-            };
-            
-        } catch (error) {
-            console.error('月齢取得エラー:', error);
-            // フォールバック: 簡易計算
-            return this.getSimpleMoonPhase();
+        const LunarPhase = this.safeRequireLunarPhase();
+        
+        if (LunarPhase) {
+            try {
+                const today = new Date();
+                const lunarPhase = LunarPhase.Moon.lunarPhase(today);
+                const phaseName = LunarPhase.Moon.lunarPhaseEmoji(today, {
+                    'New': 'New',
+                    'Waxing Crescent': 'Waxing Crescent', 
+                    'First Quarter': 'First Quarter',
+                    'Waxing Gibbous': 'Waxing Gibbous',
+                    'Full': 'Full',
+                    'Waning Gibbous': 'Waning Gibbous',
+                    'Last Quarter': 'Last Quarter',
+                    'Waning Crescent': 'Waning Crescent'
+                });
+                
+                const moonInfo = this.moonPhases[phaseName] || this.moonPhases['New'];
+                
+                console.log(`🌙 月齢(ライブラリ): ${moonInfo.name} (${phaseName})`);
+                
+                return {
+                    key: phaseName.replace(' ', '_').toLowerCase(),
+                    englishName: phaseName,
+                    ...moonInfo,
+                    lunarAge: lunarPhase,
+                    source: 'library'
+                };
+                
+            } catch (error) {
+                console.error('月齢ライブラリエラー:', error);
+            }
         }
+        
+        // フォールバック: 簡易計算
+        return this.getSimpleMoonPhase();
     }
 
     /**
@@ -385,9 +407,9 @@ class ZooManager {
      */
     getSimpleMoonPhase() {
         const now = new Date();
-        const knownNewMoon = new Date('2024-01-11'); // 基準となる新月日
+        const knownNewMoon = new Date('2024-01-11');
         const daysDiff = Math.floor((now - knownNewMoon) / (1000 * 60 * 60 * 24));
-        const moonCycle = 29.53; // 月の周期
+        const moonCycle = 29.53;
         const phase = (daysDiff % moonCycle) / moonCycle;
         
         let moonPhase;
@@ -405,19 +427,18 @@ class ZooManager {
             moonPhase = { key: 'waning_crescent', englishName: 'Waning Crescent', ...this.moonPhases['Waning Crescent'] };
         }
         
+        moonPhase.source = 'simple_calculation';
         console.log(`🌙 月齢(簡易計算): ${moonPhase.name}`);
         return moonPhase;
     }
 
     /**
      * 現在の季節情報を取得（月別詳細）
-     * @returns {Object} 季節情報
      */
     getCurrentSeason() {
         const now = new Date();
         const month = now.getMonth() + 1;
         
-        // 月ごとの詳細な季節分け
         const seasonDetails = {
             1: { season: '冬', detail: '厳冬', emoji: '❄️', description: '寒さが最も厳しい時期' },
             2: { season: '冬', detail: '晩冬', emoji: '🌨️', description: '春の気配を感じ始める時期' },
@@ -441,7 +462,6 @@ class ZooManager {
 
     /**
      * 特別な日（記念日）を取得
-     * @returns {Object|null} 記念日情報
      */
     getSpecialDay() {
         const now = new Date();
@@ -466,24 +486,26 @@ class ZooManager {
 
     /**
      * 鳥が夜行性かどうかをチェック
-     * @param {string} birdName - 鳥の名前
-     * @returns {Promise<boolean>} 夜行性かどうか
      */
     async isNocturnalBird(birdName) {
         try {
             console.log(`🔍 夜行性チェック開始: ${birdName}`);
             
-            // まずSheetsから鳥データを取得
-            const birds = await this.sheetsManager.getBirds();
-            const bird = birds.find(b => b.名前 === birdName);
-            
-            if (bird && bird.夜行性) {
-                const isNocturnal = bird.夜行性 === 'TRUE' || bird.夜行性 === '1' || bird.夜行性 === 'はい';
-                console.log(`🔍 Sheets判定: ${birdName} -> ${isNocturnal ? '夜行性' : '昼行性'} (値: ${bird.夜行性})`);
-                return isNocturnal;
+            // SheetsManagerが利用可能な場合のみシートをチェック
+            if (this.sheetsManager) {
+                const birds = await this.sheetsManager.getBirds();
+                const bird = birds.find(b => b.名前 === birdName);
+                
+                if (bird && bird.夜行性) {
+                    const isNocturnal = bird.夜行性 === 'TRUE' || bird.夜行性 === '1' || bird.夜行性 === 'はい';
+                    console.log(`🔍 Sheets判定: ${birdName} -> ${isNocturnal ? '夜行性' : '昼行性'} (値: ${bird.夜行性})`);
+                    return isNocturnal;
+                }
+                
+                console.log(`⚠️ Sheetsにデータがない、フォールバック判定: ${birdName}`);
+            } else {
+                console.log(`⚠️ SheetsManager利用不可、フォールバック判定: ${birdName}`);
             }
-            
-            console.log(`⚠️ Sheetsにデータがない、フォールバック判定: ${birdName}`);
             
             // フォールバック: コード内判定
             const nocturnalKeywords = [
@@ -514,8 +536,6 @@ class ZooManager {
 
     /**
      * 夜行性の鳥がいるかチェック
-     * @param {Array} allBirds - 全ての鳥のリスト
-     * @returns {Promise<boolean>} 夜行性の鳥がいるかどうか
      */
     async hasNocturnalBirds(allBirds) {
         for (const bird of allBirds) {
@@ -534,8 +554,6 @@ class ZooManager {
 
     /**
      * 長期滞在の鳥を取得（7日以上滞在）
-     * @param {string} guildId - サーバーID
-     * @returns {Array} 長期滞在の鳥のリスト
      */
     getLongStayBirds(guildId) {
         const allBirds = this.getAllBirds(guildId);
@@ -561,8 +579,6 @@ class ZooManager {
 
     /**
      * 鳥の滞在日数を計算
-     * @param {Object} bird - 鳥オブジェクト
-     * @returns {number} 滞在日数
      */
     getBirdStayDays(bird) {
         const now = new Date();
@@ -575,8 +591,7 @@ class ZooManager {
     // ===========================================
 
     /**
-     * 現在のシステム状態を取得（デバッグ用）
-     * @returns {Object} システム状態
+     * 現在のシステム状態を取得
      */
     getSystemStatus() {
         const timeSlot = this.getCurrentTimeSlot();
@@ -590,14 +605,17 @@ class ZooManager {
             moonPhase: moonPhase,
             season: season,
             specialDay: specialDay,
-            isNightTime: timeSlot.key === 'sleep'
+            isNightTime: timeSlot.key === 'sleep',
+            capabilities: {
+                weatherManager: !!this.weatherManager,
+                sheetsManager: !!this.sheetsManager,
+                lunarPhase: moonPhase.source === 'library'
+            }
         };
     }
 
     /**
      * 鳥類園の詳細状態を取得
-     * @param {string} guildId - サーバーID
-     * @returns {Object} 鳥類園の詳細状態
      */
     getZooDetailedStatus(guildId) {
         const allBirds = this.getAllBirds(guildId);
@@ -624,8 +642,6 @@ class ZooManager {
 
     /**
      * Phase 1機能のテスト実行
-     * @param {string} guildId - サーバーID
-     * @returns {Object} テスト結果
      */
     async testPhase1Functions(guildId) {
         console.log('🧪 Phase 1 機能テスト開始...');
@@ -651,7 +667,7 @@ class ZooManager {
             results.tests.moonPhase = {
                 success: true,
                 result: moonPhase,
-                message: `現在の月齢: ${moonPhase.name}`
+                message: `現在の月齢: ${moonPhase.name} (${moonPhase.source})`
             };
             
             // 3. 季節テスト
@@ -716,6 +732,7 @@ class ZooManager {
         
         return results;
     }
+
 
 // ===========================================
     // 見学鳥管理システム
