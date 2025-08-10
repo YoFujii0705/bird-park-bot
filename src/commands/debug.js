@@ -37,6 +37,11 @@ module.exports = {
                         .setRequired(false)
                 )
         )
+        .addSubcommand(subcommand =>
+    subcommand
+        .setName('test_phase3')
+        .setDescription('Phase 3機能（詳細イベント）をテスト')
+)
         // 🆕 Phase 1テストコマンドを追加
         .addSubcommand(subcommand =>
             subcommand
@@ -176,6 +181,29 @@ module.exports = {
         .setFooter({ text: 'Phase 2テスト完了' });
     
     await interaction.editReply({ embeds: [phase2Embed] });
+    break;
+
+                    case 'test_phase3':
+    await interaction.deferReply({ ephemeral: true });
+    
+    console.log('🧪 Phase 3テスト実行開始...');
+    const phase3Results = await zooManager.testPhase3Functions(guildId);
+    
+    const phase3Embed = new EmbedBuilder()
+        .setTitle('🧪 Phase 3 詳細イベント機能テスト結果')
+        .setColor(phase3Results.overall.success ? 0x00ff00 : 0xff0000)
+        .setDescription(phase3Results.overall.message)
+        .addFields(
+            { name: '🌡️ 気温イベント', value: `${phase3Results.tests.temperatureEvent.success ? '✅' : '❌'} ${phase3Results.tests.temperatureEvent.message}`, inline: false },
+            { name: '🏡 長期滞在イベント', value: `${phase3Results.tests.longStayEvent.success ? '✅' : '❌'} ${phase3Results.tests.longStayEvent.message}`, inline: false },
+            { name: '💨 風速イベント', value: `${phase3Results.tests.windEvent.success ? '✅' : '❌'} ${phase3Results.tests.windEvent.message}`, inline: false },
+            { name: '💧 湿度イベント', value: `${phase3Results.tests.humidityEvent.success ? '✅' : '❌'} ${phase3Results.tests.humidityEvent.message}`, inline: false },
+            { name: '🐦‍⬛ 群れイベント', value: `${phase3Results.tests.flockEvent.success ? '✅' : '❌'} ${phase3Results.tests.flockEvent.message}`, inline: false },
+            { name: '🚶 移動イベント', value: `${phase3Results.tests.movementEvent.success ? '✅' : '❌'} ${phase3Results.tests.movementEvent.message}`, inline: false }
+        )
+        .setTimestamp();
+    
+    await interaction.editReply({ embeds: [phase3Embed] });
     break;
 
 case 'generate_event':
