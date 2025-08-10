@@ -39,6 +39,16 @@ module.exports = {
         )
         .addSubcommand(subcommand =>
     subcommand
+        .setName('test_flyover')
+        .setDescription('通過イベント（渡り鳥・群れ）をテスト')
+)
+.addSubcommand(subcommand =>
+    subcommand
+        .setName('generate_flyover')
+        .setDescription('通過イベントを強制生成（テスト用）')
+)
+        .addSubcommand(subcommand =>
+    subcommand
         .setName('test_weather')
         .setDescription('WeatherManager機能をテスト')
 )
@@ -245,6 +255,73 @@ case 'test_all_phases':
         .setTimestamp();
     
     await interaction.editReply({ embeds: [summaryEmbed] });
+    break;
+                    case 'test_flyover':
+    await interaction.deferReply({ ephemeral: true });
+    
+    const allBirdsForTest = zooManager.getAllBirds(guildId);
+    if (allBirdsForTest.length === 0) {
+        await interaction.editReply({ content: '❌ 鳥がいないためテストできません。' });
+        break;
+    }
+    
+    // 通過イベントを強制的に生成（確率無視）
+    let flyoverEvent = await zooManager.createFlyoverEvent(allBirdsForTest);
+    
+    // 通常の通過イベントが生成されない場合、特別イベントを試行
+    if (!flyoverEvent) {
+        flyoverEvent = await zooManager.createSpecialFlyoverEvent(allBirdsForTest);
+    }
+    
+    if (flyoverEvent) {
+        await zooManager.addEvent(guildId, flyoverEvent.type, flyoverEvent.content, flyoverEvent.relatedBird);
+        
+        const flyoverEmbed = new EmbedBuilder()
+            .setTitle('🌟 通過イベントテスト結果')
+            .setColor(0xffd700)
+            .addFields(
+                { name: 'イベントタイプ', value: flyoverEvent.type, inline: false },
+                { name: '見送り鳥', value: flyoverEvent.relatedBird, inline: true },
+                { name: '通過鳥', value: flyoverEvent.passingBird || '特別イベント', inline: true },
+                { name: '群れサイズ', value: flyoverEvent.flockSize ? `${flyoverEvent.flockSize}羽` : '1羽', inline: true },
+                { name: '内容', value: flyoverEvent.content, inline: false }
+            )
+            .setTimestamp();
+        
+        if (flyoverEvent.season) {
+            flyoverEmbed.addFields({ name: '季節', value: flyoverEvent.season, inline: true });
+        }
+        
+        await interaction.editReply({ embeds: [flyoverEmbed] });
+    } else {
+        await interaction.editReply({ content: '⚠️ 通過イベントを生成できませんでした（条件が満たされていない可能性があります）' });
+    }
+    break;
+
+case 'generate_flyover':
+    // 確率を無視して必ず通過イベントを生成
+    await interaction.deferReply({ ephemeral: true });
+    
+    const testBirds = zooManager.getAllBirds(guildId);
+    if (testBirds.length === 0) {
+        await interaction.editReply({ content: '❌ 鳥がいないためテストできません。' });
+        break;
+    }
+    
+    // 元の確率制限を一時的に無効化して生成
+    const originalRandom = Math.random;
+    Math.random = () => 0.1; // 15%以下になるよう固定
+    
+    const forcedFlyover = await zooManager.createFlyoverEvent(testBirds);
+    
+    Math.random = originalRandom; // 元に戻す
+    
+    if (forcedFlyover) {
+        await zooManager.addEvent(guildId, forcedFlyover.type, forcedFlyover.content, forcedFlyover.relatedBird);
+        await interaction.editReply({ content: `✨ **レア通過イベント発生！**\n\n${forcedFlyover.content}` });
+    } else {
+        await interaction.editReply({ content: '❌ 通過イベントの生成に失敗しました' });
+    }
     break;
                     case 'test_weather':
     await interaction.deferReply({ ephemeral: true });
