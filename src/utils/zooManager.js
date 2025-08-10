@@ -733,6 +733,451 @@ class ZooManager {
         return results;
     }
 
+    // ===========================================
+    // 🆕 Phase 2: 新しいイベント生成機能
+    // ===========================================
+
+    /**
+     * 時間帯イベント生成
+     */
+    async createTimeBasedEvent(allBirds) {
+        const timeSlot = this.getCurrentTimeSlot();
+        const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+        
+        const timeEvents = {
+            dawn: [
+                `${timeSlot.emoji} 夜明けと共に、${bird.name}が美しい朝の歌を奏でています`,
+                `${timeSlot.emoji} 朝日に照らされて、${bird.name}の羽が金色に輝いています`,
+                `${timeSlot.emoji} 早朝の清々しい空気を、${bird.name}が深く吸い込んでいます`,
+                `${timeSlot.emoji} 夜明けの静寂の中、${bird.name}が優雅に羽ばたいています`,
+                `${timeSlot.emoji} 朝霧の中から${bird.name}が現れて、新しい一日を迎えています`
+            ],
+            morning: [
+                `${timeSlot.emoji} 爽やかな朝、${bird.name}が活発に動き回っています`,
+                `${timeSlot.emoji} 朝の光を浴びて、${bird.name}が元気よく鳴いています`,
+                `${timeSlot.emoji} 朝食を求めて、${bird.name}が餌を探し始めました`,
+                `${timeSlot.emoji} 朝のさえずりで、${bird.name}が仲間とコミュニケーションを取っています`,
+                `${timeSlot.emoji} 朝露に濡れた草を、${bird.name}が歩いています`
+            ],
+            noon: [
+                `${timeSlot.emoji} 昼下がり、${bird.name}がのんびりと過ごしています`,
+                `${timeSlot.emoji} 暖かい昼間の陽だまりで、${bird.name}が気持ちよさそうにしています`,
+                `${timeSlot.emoji} お昼時、${bird.name}が木陰で休憩しています`,
+                `${timeSlot.emoji} 昼間の賑やかな時間を、${bird.name}が楽しんでいます`,
+                `${timeSlot.emoji} 午後の暖かい日差しの中、${bird.name}が羽繕いをしています`
+            ],
+            evening: [
+                `${timeSlot.emoji} 夕暮れ時、${bird.name}が美しい夕日を眺めています`,
+                `${timeSlot.emoji} 夕焼け空を背景に、${bird.name}が幻想的に舞っています`,
+                `${timeSlot.emoji} 一日の終わりに、${bird.name}が仲間と夕べの歌を歌っています`,
+                `${timeSlot.emoji} 夕方の涼しい風を、${bird.name}が羽で感じています`,
+                `${timeSlot.emoji} 夕暮れの静けさの中、${bird.name}が穏やかに過ごしています`
+            ],
+            night: [
+                `${timeSlot.emoji} 夜の始まり、${bird.name}がねぐらの準備をしています`,
+                `${timeSlot.emoji} 夜風に羽を揺らしながら、${bird.name}が静かに佇んでいます`,
+                `${timeSlot.emoji} 星空の下で、${bird.name}が美しい夜の歌を奏でています`,
+                `${timeSlot.emoji} 夜の静寂を楽しみながら、${bird.name}が月を見上げています`,
+                `${timeSlot.emoji} 夜の帳が降りる中、${bird.name}が安らかに過ごしています`
+            ]
+        };
+
+        const events = timeEvents[timeSlot.key] || timeEvents.noon;
+        const eventContent = events[Math.floor(Math.random() * events.length)];
+
+        return {
+            type: `時間帯イベント(${timeSlot.name})`,
+            content: eventContent,
+            relatedBird: bird.name,
+            timeSlot: timeSlot
+        };
+    }
+
+    /**
+     * 夜行性専用イベント生成
+     */
+    async createNocturnalSpecificEvent(allBirds) {
+        const nocturnalBirds = [];
+        
+        for (const bird of allBirds) {
+            if (await this.isNocturnalBird(bird.name)) {
+                nocturnalBirds.push(bird);
+            }
+        }
+
+        if (nocturnalBirds.length === 0) {
+            console.log('🦉 夜行性の鳥がいないため、夜行性イベントはスキップします');
+            return null;
+        }
+
+        const bird = nocturnalBirds[Math.floor(Math.random() * nocturnalBirds.length)];
+
+        const nocturnalEvents = [
+            `🦉 夜の王者${bird.name}が、鋭い目で辺りを見回しています`,
+            `🦉 ${bird.name}が月光を頼りに、静かに獲物を探しています`,
+            `🦉 夜の森で${bird.name}が、完全な静寂の中を飛び回っています`,
+            `🦉 暗闇の中、${bird.name}が夜行性の本能を発揮しています`,
+            `🦉 ${bird.name}が夜の世界で自由自在に活動しています`,
+            `🦉 月明かりの下、${bird.name}が威厳に満ちた姿を見せています`,
+            `🦉 夜の静寂を破らずに、${bird.name}が音もなく移動しています`,
+            `🦉 ${bird.name}が夜の番人として、辺りを警戒しています`,
+            `🦉 星空の下で、${bird.name}が夜の美しさを堪能しています`,
+            `🦉 ${bird.name}が夜の冷たい空気を感じながら活動しています`
+        ];
+
+        return {
+            type: '夜行性専用イベント',
+            content: nocturnalEvents[Math.floor(Math.random() * nocturnalEvents.length)],
+            relatedBird: bird.name,
+            isNocturnal: true
+        };
+    }
+
+    /**
+     * 天気連動イベント生成
+     */
+    async createWeatherBasedEvent(allBirds) {
+        try {
+            if (!this.weatherManager) {
+                console.log('⚠️ WeatherManager利用不可、天気イベントをスキップします');
+                return null;
+            }
+
+            const weather = await this.weatherManager.getCurrentWeather();
+            const behavior = this.weatherManager.getBirdBehavior ? 
+                this.weatherManager.getBirdBehavior(weather.condition) : null;
+            
+            // WeatherManagerにgetWeatherEmojiメソッドがない場合のフォールバック
+            const emoji = this.weatherManager.getWeatherEmoji ? 
+                this.weatherManager.getWeatherEmoji(weather.condition) : 
+                this.getWeatherEmojiFallback(weather.condition);
+            
+            const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+            
+            const weatherEvents = {
+                sunny: [
+                    `${emoji} 晴天の下、${bird.name}が羽を広げて日光浴を楽しんでいます`,
+                    `${emoji} 暖かい日差しに誘われて、${bird.name}が活発に動き回っています`,
+                    `${emoji} 青空を背景に、${bird.name}が美しく舞っています`,
+                    `${emoji} 太陽の光で${bird.name}の羽が金色に輝いています`,
+                    `${emoji} 晴れた空に向かって、${bird.name}が嬉しそうに鳴いています`
+                ],
+                rainy: [
+                    `${emoji} 雨音を聞きながら、${bird.name}が軒下で静かに過ごしています`,
+                    `${emoji} 雨粒が葉っぱに当たる音を、${bird.name}が興味深そうに聞いています`,
+                    `${emoji} 雨宿り中の${bird.name}が、雨上がりを待ちわびているようです`,
+                    `${emoji} 小雨の中、${bird.name}が濡れないよう上手に移動しています`,
+                    `${emoji} 雨で潤った空気を、${bird.name}が深く吸い込んでいます`
+                ],
+                cloudy: [
+                    `${emoji} 曇り空の下、${bird.name}が穏やかに過ごしています`,
+                    `${emoji} 雲の隙間から差す光を、${bird.name}が見上げています`,
+                    `${emoji} 涼しい曇り空を、${bird.name}が気持ちよさそうに眺めています`,
+                    `${emoji} 時々雲が動くのを、${bird.name}が不思議そうに見つめています`
+                ],
+                snowy: [
+                    `${emoji} 雪景色の中、${bird.name}が美しく映えています`,
+                    `${emoji} 舞い散る雪を、${bird.name}が興味深そうに見上げています`,
+                    `${emoji} 雪の結晶を羽で受け止めて、${bird.name}が遊んでいます`,
+                    `${emoji} 雪化粧した木々の間を、${bird.name}が優雅に移動しています`
+                ],
+                stormy: [
+                    `${emoji} 嵐の中、${bird.name}が安全な場所で身を寄せ合っています`,
+                    `${emoji} 強風に負けじと、${bird.name}がしっかりと枝にとまっています`,
+                    `${emoji} 嵐が去るのを、${bird.name}が辛抱強く待っています`
+                ],
+                foggy: [
+                    `${emoji} 霧に包まれた幻想的な中を、${bird.name}がゆっくりと移動しています`,
+                    `${emoji} 霧の向こうから${bird.name}の美しいシルエットが浮かび上がります`,
+                    `${emoji} 霧の静寂の中で、${bird.name}が神秘的な雰囲気を醸し出しています`
+                ]
+            };
+
+            const events = weatherEvents[weather.condition] || weatherEvents.cloudy;
+            const eventContent = events[Math.floor(Math.random() * events.length)];
+
+            return {
+                type: `天気イベント(${weather.description})`,
+                content: eventContent,
+                relatedBird: bird.name,
+                weather: weather
+            };
+
+        } catch (error) {
+            console.error('天気連動イベント生成エラー:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 天気絵文字のフォールバック
+     */
+    getWeatherEmojiFallback(condition) {
+        const emojis = {
+            sunny: '☀️',
+            rainy: '🌧️',
+            cloudy: '☁️',
+            snowy: '❄️',
+            stormy: '⛈️',
+            foggy: '🌫️',
+            unknown: '❓'
+        };
+        return emojis[condition] || emojis.unknown;
+    }
+
+    /**
+     * 季節イベント生成（月別詳細版）
+     */
+    async createSeasonalEvent(allBirds) {
+        const seasonInfo = this.getCurrentSeason();
+        const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+        
+        // 月別の詳細なイベント
+        const monthlyEvents = {
+            1: [ // 厳冬
+                `${seasonInfo.emoji} 厳しい寒さの中、${bird.name}が羽を膨らませて暖を取っています`,
+                `${seasonInfo.emoji} 雪景色が美しい中、${bird.name}が凛とした姿を見せています`,
+                `${seasonInfo.emoji} 冬の澄んだ空気の中、${bird.name}が清々しく過ごしています`
+            ],
+            2: [ // 晩冬
+                `${seasonInfo.emoji} 春の気配を感じて、${bird.name}が少し活発になってきました`,
+                `${seasonInfo.emoji} 梅の香りに誘われて、${bird.name}が嬉しそうにしています`,
+                `${seasonInfo.emoji} 日差しが暖かくなり、${bird.name}が春を待ちわびているようです`
+            ],
+            3: [ // 早春
+                `${seasonInfo.emoji} 桜のつぼみを見つけて、${bird.name}が春の到来を喜んでいます`,
+                `${seasonInfo.emoji} 暖かい春風を受けて、${bird.name}が嬉しそうに羽ばたいています`,
+                `${seasonInfo.emoji} 新芽が出始めた木々で、${bird.name}が春の歌を奏でています`
+            ],
+            4: [ // 盛春
+                `${seasonInfo.emoji} 満開の桜と一緒に、${bird.name}が美しく舞っています`,
+                `${seasonInfo.emoji} 花々に囲まれて、${bird.name}が幸せそうに過ごしています`,
+                `${seasonInfo.emoji} 春の盛りを感じて、${bird.name}が活発に動き回っています`
+            ],
+            5: [ // 晩春
+                `${seasonInfo.emoji} 新緑の美しさに、${bird.name}が見とれています`,
+                `${seasonInfo.emoji} 青葉若葉の中で、${bird.name}が爽やかに過ごしています`,
+                `${seasonInfo.emoji} 緑豊かな季節を、${bird.name}が心から楽しんでいます`
+            ],
+            6: [ // 初夏
+                `${seasonInfo.emoji} 初夏の爽やかな風を、${bird.name}が羽で感じています`,
+                `${seasonInfo.emoji} 青空の下で、${bird.name}が元気いっぱいに活動しています`,
+                `${seasonInfo.emoji} 梅雨入り前の美しい季節を、${bird.name}が満喫しています`
+            ],
+            7: [ // 盛夏
+                `${seasonInfo.emoji} 夏の暑さを避けて、${bird.name}が木陰で涼んでいます`,
+                `${seasonInfo.emoji} 夏の青空の下、${bird.name}が力強く飛んでいます`,
+                `${seasonInfo.emoji} 暑い夏の日、${bird.name}が水浴びを楽しんでいます`
+            ],
+            8: [ // 晩夏
+                `${seasonInfo.emoji} 夏の終わりを感じて、${bird.name}が少し寂しそうです`,
+                `${seasonInfo.emoji} 夕涼みを楽しむように、${bird.name}が静かに過ごしています`,
+                `${seasonInfo.emoji} 夏の思い出を胸に、${bird.name}が穏やかにしています`
+            ],
+            9: [ // 初秋
+                `${seasonInfo.emoji} 涼しい風を感じて、${bird.name}が秋の到来を喜んでいます`,
+                `${seasonInfo.emoji} 虫の音に耳を傾けて、${bird.name}が秋を感じています`,
+                `${seasonInfo.emoji} 秋の気配に、${bird.name}が心地よさそうにしています`
+            ],
+            10: [ // 中秋
+                `${seasonInfo.emoji} 紅葉の美しさに、${bird.name}が見とれています`,
+                `${seasonInfo.emoji} 色づいた葉っぱの中で、${bird.name}が美しく映えています`,
+                `${seasonInfo.emoji} 秋の深まりを感じて、${bird.name}が静かに過ごしています`
+            ],
+            11: [ // 晩秋
+                `${seasonInfo.emoji} 落ち葉の絨毯の上を、${bird.name}が歩いています`,
+                `${seasonInfo.emoji} 秋の終わりを感じて、${bird.name}が物思いにふけっています`,
+                `${seasonInfo.emoji} 冬支度を始めるように、${bird.name}が準備をしています`
+            ],
+            12: [ // 初冬
+                `${seasonInfo.emoji} 初冬の寒さに、${bird.name}が身を寄せ合っています`,
+                `${seasonInfo.emoji} 冬の始まりを感じて、${bird.name}が静かに過ごしています`,
+                `${seasonInfo.emoji} 年の瀬の慌ただしさの中、${bird.name}が穏やかにしています`
+            ]
+        };
+
+        const month = new Date().getMonth() + 1;
+        const events = monthlyEvents[month];
+        const eventContent = events[Math.floor(Math.random() * events.length)];
+
+        return {
+            type: `季節イベント(${seasonInfo.detail})`,
+            content: eventContent,
+            relatedBird: bird.name,
+            season: seasonInfo
+        };
+    }
+
+    /**
+     * 記念日・特別な日イベント生成
+     */
+    async createSpecialDayEvent(allBirds) {
+        const specialDay = this.getSpecialDay();
+        if (!specialDay) {
+            console.log('🎉 今日は特別な日ではないため、記念日イベントはスキップします');
+            return null;
+        }
+
+        const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+
+        const specialDayEvents = {
+            '元日': `${specialDay.emoji} ${specialDay.name}の特別な朝、${bird.name}が新年の希望を込めて美しく鳴いています`,
+            '節分': `${specialDay.emoji} ${specialDay.name}の日、${bird.name}が邪気を払うかのように力強く羽ばたいています`,
+            'バレンタインデー': `${specialDay.emoji} ${specialDay.name}、${bird.name}が愛情深い鳴き声で仲間への愛を表現しています`,
+            'ひな祭り': `${specialDay.emoji} ${specialDay.name}の日、${bird.name}が雅な雰囲気の中で優雅に舞っています`,
+            '春分の日': `${specialDay.emoji} ${specialDay.name}、${bird.name}が昼と夜の平衡を感じているようです`,
+            'こどもの日': `${specialDay.emoji} ${specialDay.name}、${bird.name}が子供たちの健やかな成長を願っているようです`,
+            '愛鳥週間開始': `${specialDay.emoji} ${specialDay.name}、${bird.name}が特別に美しい姿を見せています`,
+            '七夕': `${specialDay.emoji} ${specialDay.name}の夜、${bird.name}が星空に向かって願い事をしているようです`,
+            'ハロウィン': `${specialDay.emoji} ${specialDay.name}の夜、${bird.name}が魔法にかかったように神秘的に舞っています`,
+            'クリスマス': `${specialDay.emoji} ${specialDay.name}の聖なる夜、${bird.name}が天使のように美しく羽ばたいています`,
+            '大晦日': `${specialDay.emoji} ${specialDay.name}、${bird.name}が一年の感謝を込めて特別な歌を奏でています`
+        };
+
+        const eventContent = specialDayEvents[specialDay.name] || 
+            `${specialDay.emoji} ${specialDay.name}の特別な日、${bird.name}がお祝いの気持ちを込めて美しく舞っています`;
+
+        return {
+            type: `記念日イベント(${specialDay.name})`,
+            content: eventContent,
+            relatedBird: bird.name,
+            specialDay: specialDay
+        };
+    }
+
+    /**
+     * 月齢イベント生成
+     */
+    async createMoonPhaseEvent(allBirds) {
+        const moonPhase = this.getCurrentMoonPhase();
+        const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+
+        const moonEvents = {
+            new: [
+                `${moonPhase.emoji} ${moonPhase.name}の夜、${bird.name}が新しい始まりを感じているようです`,
+                `${moonPhase.emoji} 暗い夜空の下で、${bird.name}が静寂を楽しんでいます`,
+                `${moonPhase.emoji} ${moonPhase.name}の神秘的な夜、${bird.name}が特別な力を感じているようです`
+            ],
+            waxing_crescent: [
+                `${moonPhase.emoji} ${moonPhase.name}の夜、${bird.name}が成長の兆しを感じているようです`,
+                `${moonPhase.emoji} 細い月の光に照らされて、${bird.name}が美しく輝いています`,
+                `${moonPhase.emoji} ${moonPhase.name}の優しい光の下で、${bird.name}が穏やかに過ごしています`
+            ],
+            first_quarter: [
+                `${moonPhase.emoji} ${moonPhase.name}の夜、${bird.name}が調和の美しさを感じているようです`,
+                `${moonPhase.emoji} 半月の光に照らされて、${bird.name}が静かに佇んでいます`,
+                `${moonPhase.emoji} ${moonPhase.name}の安定した光の下で、${bird.name}が安らいでいます`
+            ],
+            full: [
+                `${moonPhase.emoji} ${moonPhase.name}の夜、${bird.name}が月光に照らされて神々しく見えます`,
+                `${moonPhase.emoji} 明るい月の下で、${bird.name}が特別な美しさを放っています`,
+                `${moonPhase.emoji} ${moonPhase.name}の力強い光を受けて、${bird.name}が活力に満ちています`
+            ],
+            waning_gibbous: [
+                `${moonPhase.emoji} ${moonPhase.name}の夜、${bird.name}が静かに思索にふけっています`,
+                `${moonPhase.emoji} 欠けゆく月を見上げて、${bird.name}が物思いにふけっているようです`,
+                `${moonPhase.emoji} ${moonPhase.name}の落ち着いた夜、${bird.name}が安らかに過ごしています`
+            ]
+        };
+
+        // moonPhase.keyに基づいてイベントを選択
+        const events = moonEvents[moonPhase.key] || moonEvents.new;
+        const eventContent = events[Math.floor(Math.random() * events.length)];
+
+        return {
+            type: `月齢イベント(${moonPhase.name})`,
+            content: eventContent,
+            relatedBird: bird.name,
+            moonPhase: moonPhase
+        };
+    }
+
+    // ===========================================
+    // 🆕 Phase 2: イベント統合・テスト機能
+    // ===========================================
+
+    /**
+     * Phase 2機能のテスト実行
+     */
+    async testPhase2Functions(guildId) {
+        console.log('🧪 Phase 2 イベント機能テスト開始...');
+        
+        const results = {
+            timestamp: new Date().toISOString(),
+            tests: {}
+        };
+        
+        try {
+            const allBirds = this.getAllBirds(guildId);
+            if (allBirds.length === 0) {
+                results.overall = { success: false, message: '鳥がいないためテストできません' };
+                return results;
+            }
+
+            // 1. 時間帯イベントテスト
+            console.log('📍 時間帯イベントテスト...');
+            const timeEvent = await this.createTimeBasedEvent(allBirds);
+            results.tests.timeBasedEvent = {
+                success: !!timeEvent,
+                result: timeEvent,
+                message: timeEvent ? `成功: ${timeEvent.type}` : '失敗: イベント生成できず'
+            };
+
+            // 2. 夜行性イベントテスト
+            console.log('📍 夜行性イベントテスト...');
+            const nocturnalEvent = await this.createNocturnalSpecificEvent(allBirds);
+            results.tests.nocturnalEvent = {
+                success: true, // nullでも正常動作
+                result: nocturnalEvent,
+                message: nocturnalEvent ? `成功: ${nocturnalEvent.type}` : '夜行性の鳥がいないためスキップ'
+            };
+
+            // 3. 天気イベントテスト
+            console.log('📍 天気イベントテスト...');
+            const weatherEvent = await this.createWeatherBasedEvent(allBirds);
+            results.tests.weatherEvent = {
+                success: true, // nullでも正常動作
+                result: weatherEvent,
+                message: weatherEvent ? `成功: ${weatherEvent.type}` : 'WeatherManager利用不可またはエラー'
+            };
+
+            // 4. 季節イベントテスト
+            console.log('📍 季節イベントテスト...');
+            const seasonEvent = await this.createSeasonalEvent(allBirds);
+            results.tests.seasonEvent = {
+                success: !!seasonEvent,
+                result: seasonEvent,
+                message: seasonEvent ? `成功: ${seasonEvent.type}` : '失敗: イベント生成できず'
+            };
+
+            // 5. 記念日イベントテスト
+            console.log('📍 記念日イベントテスト...');
+            const specialEvent = await this.createSpecialDayEvent(allBirds);
+            results.tests.specialDayEvent = {
+                success: true, // nullでも正常動作
+                result: specialEvent,
+                message: specialEvent ? `成功: ${specialEvent.type}` : '今日は特別な日ではないためスキップ'
+            };
+
+            // 6. 月齢イベントテスト
+            console.log('📍 月齢イベントテスト...');
+            const moonEvent = await this.createMoonPhaseEvent(allBirds);
+            results.tests.moonPhaseEvent = {
+                success: !!moonEvent,
+                result: moonEvent,
+                message: moonEvent ? `成功: ${moonEvent.type}` : '失敗: イベント生成できず'
+            };
+
+            console.log('✅ Phase 2 イベント機能テスト完了');
+            results.overall = { success: true, message: 'すべてのイベントテストが完了しました' };
+
+        } catch (error) {
+            console.error('❌ Phase 2 テストエラー:', error);
+            results.overall = { success: false, message: `テスト中にエラーが発生: ${error.message}` };
+        }
+
+        return results;
+    }
 
 // ===========================================
     // 見学鳥管理システム
