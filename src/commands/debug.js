@@ -58,6 +58,32 @@ module.exports = {
                 .setName('nocturnal_check')
                 .setDescription('園内の夜行性の鳥をチェック')
         )
+        // debug.js に追加するPhase 2テストコマンド
+
+// 既存のサブコマンドに以下を追加
+.addSubcommand(subcommand =>
+    subcommand
+        .setName('test_phase2')
+        .setDescription('Phase 2機能（新しいイベント）をテスト')
+)
+.addSubcommand(subcommand =>
+    subcommand
+        .setName('generate_event')
+        .setDescription('指定したタイプのイベントを手動生成')
+        .addStringOption(option =>
+            option.setName('event_type')
+                .setDescription('生成するイベントのタイプ')
+                .setRequired(true)
+                .addChoices(
+                    { name: '時間帯イベント', value: 'time_based' },
+                    { name: '夜行性イベント', value: 'nocturnal' },
+                    { name: '天気イベント', value: 'weather' },
+                    { name: '季節イベント', value: 'seasonal' },
+                    { name: '記念日イベント', value: 'special_day' },
+                    { name: '月齢イベント', value: 'moon_phase' }
+                )
+        )
+)
         .addSubcommand(subcommand =>
     subcommand
         .setName('simple_test')
@@ -103,6 +129,132 @@ module.exports = {
                     
                     await interaction.reply({ content: statusText, ephemeral: true });
                     break;
+
+                    case 'test_phase2':
+    await interaction.deferReply({ ephemeral: true });
+    
+    console.log('🧪 Phase 2テスト実行開始...');
+    const phase2Results = await zooManager.testPhase2Functions(guildId);
+    
+    const phase2Embed = new EmbedBuilder()
+        .setTitle('🧪 Phase 2 イベント機能テスト結果')
+        .setColor(phase2Results.overall.success ? 0x00ff00 : 0xff0000)
+        .setDescription(phase2Results.overall.message)
+        .addFields(
+            { 
+                name: '⏰ 時間帯イベント', 
+                value: `${phase2Results.tests.timeBasedEvent.success ? '✅' : '❌'} ${phase2Results.tests.timeBasedEvent.message}`, 
+                inline: false 
+            },
+            { 
+                name: '🦉 夜行性イベント', 
+                value: `${phase2Results.tests.nocturnalEvent.success ? '✅' : '❌'} ${phase2Results.tests.nocturnalEvent.message}`, 
+                inline: false 
+            },
+            { 
+                name: '🌤️ 天気イベント', 
+                value: `${phase2Results.tests.weatherEvent.success ? '✅' : '❌'} ${phase2Results.tests.weatherEvent.message}`, 
+                inline: false 
+            },
+            { 
+                name: '🍂 季節イベント', 
+                value: `${phase2Results.tests.seasonEvent.success ? '✅' : '❌'} ${phase2Results.tests.seasonEvent.message}`, 
+                inline: false 
+            },
+            { 
+                name: '🎉 記念日イベント', 
+                value: `${phase2Results.tests.specialDayEvent.success ? '✅' : '❌'} ${phase2Results.tests.specialDayEvent.message}`, 
+                inline: false 
+            },
+            { 
+                name: '🌙 月齢イベント', 
+                value: `${phase2Results.tests.moonPhaseEvent.success ? '✅' : '❌'} ${phase2Results.tests.moonPhaseEvent.message}`, 
+                inline: false 
+            }
+        )
+        .setTimestamp()
+        .setFooter({ text: 'Phase 2テスト完了' });
+    
+    await interaction.editReply({ embeds: [phase2Embed] });
+    break;
+
+case 'generate_event':
+    await interaction.deferReply({ ephemeral: true });
+    
+    const eventType = interaction.options.getString('event_type');
+    const birdsForEvent = zooManager.getAllBirds(guildId);
+    
+    if (birdsForEvent.length === 0) {
+        await interaction.editReply({ content: '❌ 鳥がいないためイベントを生成できません。' });
+        break;
+    }
+    
+    try {
+        let event = null;
+        
+        switch (eventType) {
+            case 'time_based':
+                event = await zooManager.createTimeBasedEvent(birdsForEvent);
+                break;
+            case 'nocturnal':
+                event = await zooManager.createNocturnalSpecificEvent(birdsForEvent);
+                break;
+            case 'weather':
+                event = await zooManager.createWeatherBasedEvent(birdsForEvent);
+                break;
+            case 'seasonal':
+                event = await zooManager.createSeasonalEvent(birdsForEvent);
+                break;
+            case 'special_day':
+                event = await zooManager.createSpecialDayEvent(birdsForEvent);
+                break;
+            case 'moon_phase':
+                event = await zooManager.createMoonPhaseEvent(birdsForEvent);
+                break;
+        }
+        
+        if (event) {
+            // 実際にイベントを追加
+            await zooManager.addEvent(guildId, event.type, event.content, event.relatedBird);
+            
+            const eventEmbed = new EmbedBuilder()
+                .setTitle('🎪 イベント生成成功')
+                .setColor(0x00ff00)
+                .addFields(
+                    { name: 'イベントタイプ', value: event.type, inline: false },
+                    { name: '関連する鳥', value: event.relatedBird, inline: true },
+                    { name: '内容', value: event.content, inline: false }
+                )
+                .setTimestamp();
+            
+            // 追加情報があれば表示
+            if (event.timeSlot) {
+                eventEmbed.addFields({ name: '時間帯', value: `${event.timeSlot.emoji} ${event.timeSlot.name}`, inline: true });
+            }
+            if (event.moonPhase) {
+                eventEmbed.addFields({ name: '月齢', value: `${event.moonPhase.emoji} ${event.moonPhase.name}`, inline: true });
+            }
+            if (event.season) {
+                eventEmbed.addFields({ name: '季節', value: `${event.season.emoji} ${event.season.detail}`, inline: true });
+            }
+            if (event.weather) {
+                eventEmbed.addFields({ name: '天気', value: `${event.weather.description} (${event.weather.temperature}°C)`, inline: true });
+            }
+            
+            await interaction.editReply({ embeds: [eventEmbed] });
+        } else {
+            await interaction.editReply({ 
+                content: `⚠️ ${eventType}イベントを生成できませんでした。\n（条件が満たされていない可能性があります）` 
+            });
+        }
+        
+    } catch (error) {
+        console.error('イベント生成エラー:', error);
+        await interaction.editReply({ 
+            content: `❌ イベント生成中にエラーが発生しました: ${error.message}` 
+        });
+    }
+    break;
 
                 case 'visitor_check':
                     await interaction.deferReply({ ephemeral: true });
