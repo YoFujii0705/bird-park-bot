@@ -822,7 +822,23 @@ class ZooManager {
             `🦉 夜の静寂を破らずに、${bird.name}が音もなく移動しています`,
             `🦉 ${bird.name}が夜の番人として、辺りを警戒しています`,
             `🦉 星空の下で、${bird.name}が夜の美しさを堪能しています`,
-            `🦉 ${bird.name}が夜の冷たい空気を感じながら活動しています`
+            `🦉 ${bird.name}が夜の冷たい空気を感じながら活動しています`,
+             `🦉${bird.name}が夜の闇の中で静かに活動しています🦉`,
+            `🦉${bird.name}が夜の獲物を探しているようです`,
+           `🦉${bird.name}が暗闇の中を器用に飛び回っています`,
+           `🦉${bird.name}が夜の世界の王者のように堂々としています`,
+           `🦉${bird.name}が月明かりを頼りに狩りの準備をしています`,
+           `🦉${bird.name}が夜の静寂の中で鋭い目を光らせています`,
+           `🦉${bird.name}が夜の森の番人として佇んでいます`,
+           `🦉${bird.name}が夜の世界で本領を発揮して活動しています`,
+           `🦉${bird.name}が暗闇を縫って静かに移動しています`,
+           `🦉${bird.name}が夜の獲物の気配を鋭く察知しています`,
+           `🦉${bird.name}が月明かりを利用して狩りをしています`,
+          `🦉${bird.name}が夜の森の音を全て聞き分けているようです`,
+          `🦉${bird.name}が完全な静寂の中を音もなく飛び回っています`,
+         `🦉${bird.name}が夜の王者としての威厳を示しています`,
+         `🦉${bird.name}が暗闇の中で獲物を待ち伏せています`,
+         `🦉${bird.name}が夜の冷たい空気を羽で感じながら活動しています`
         ];
 
         return {
@@ -1569,6 +1585,192 @@ class ZooManager {
         return results;
     }
 
+    /**
+     * 昼間のイベント生成
+     */
+    async generateDaytimeEvent(eventType, allBirds, guildId) {
+        switch (eventType) {
+            case 'weather_based':
+                return await this.createWeatherBasedEvent(allBirds);
+            case 'time_based':
+                return await this.createTimeBasedEvent(allBirds);
+            case 'seasonal':
+                return await this.createSeasonalEvent(allBirds);
+            case 'special_day':
+                return await this.createSpecialDayEvent(allBirds);
+            case 'temperature':
+                return await this.createTemperatureEvent(allBirds);
+            case 'wind':
+                return await this.createWindEvent(allBirds);
+            case 'humidity':
+                return await this.createHumidityEvent(allBirds);
+            case 'long_stay':
+                return await this.createLongStayEvent(guildId, allBirds);
+            case 'flock':
+                return await this.createFlockEvent(allBirds);
+            case 'area_movement':
+                return await this.createAreaMovementEvent(guildId);
+            case 'interaction':
+                return this.createInteractionEvent(allBirds);
+            case 'discovery':
+                return this.createDiscoveryEvent(allBirds);
+            default:
+                return await this.createEvent(eventType, allBirds);
+        }
+    }
+
+    // ===========================================
+    // 🆕 Phase 4: 包括的な統計・分析機能
+    // ===========================================
+
+    /**
+     * イベント統計情報取得
+     */
+    getEventStatistics(guildId) {
+        const zooState = this.getZooState(guildId);
+        const events = zooState.events || [];
+        
+        const stats = {
+            total: events.length,
+            byType: {},
+            recent24h: 0,
+            recent7days: 0,
+            systemStatus: this.getSystemStatus(),
+            birdStatus: {
+                total: this.getAllBirds(guildId).length,
+                longStay: this.getLongStayBirds(guildId).length,
+                visitors: zooState.visitors?.length || 0
+            }
+        };
+
+        // タイプ別統計
+        events.forEach(event => {
+            stats.byType[event.type] = (stats.byType[event.type] || 0) + 1;
+        });
+
+        // 時間範囲別統計
+        const now = new Date();
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        stats.recent24h = events.filter(event => 
+            event.timestamp && new Date(event.timestamp) > oneDayAgo
+        ).length;
+
+        stats.recent7days = events.filter(event => 
+            event.timestamp && new Date(event.timestamp) > sevenDaysAgo
+        ).length;
+
+        return stats;
+    }
+
+    /**
+     * 手動でのイベント生成（管理者用）
+     */
+    async manualGenerateEvent(guildId, eventType = null) {
+        const allBirds = this.getAllBirds(guildId);
+        if (allBirds.length === 0) {
+            return { success: false, message: '鳥がいません' };
+        }
+
+        let event = null;
+
+        if (eventType) {
+            console.log(`🎪 手動イベント生成: ${eventType}`);
+            event = await this.generateDaytimeEvent(eventType, allBirds, guildId);
+        } else {
+            console.log(`🎪 手動ランダムイベント生成`);
+            await this.generateRandomEvent(guildId);
+            return { success: true, message: 'ランダムイベントを生成しました' };
+        }
+
+        if (event) {
+            await this.addEvent(guildId, event.type, event.content, event.relatedBird);
+            return { 
+                success: true, 
+                message: `${event.type}を生成しました`,
+                event: event
+            };
+        } else {
+            return { 
+                success: false, 
+                message: `${eventType}イベントを生成できませんでした（条件が満たされていない可能性があります）`
+            };
+        }
+    }
+
+    // ===========================================
+    // 🆕 Phase 4: 最終テスト機能
+    // ===========================================
+
+    /**
+     * 全Phase統合テスト
+     */
+    async testAllPhases(guildId) {
+        console.log('🧪 全Phase統合テスト開始...');
+        
+        const results = {
+            timestamp: new Date().toISOString(),
+            phases: {}
+        };
+
+        try {
+            // Phase 1テスト
+            console.log('📍 Phase 1テスト実行...');
+            results.phases.phase1 = await this.testPhase1Functions(guildId);
+
+            // Phase 2テスト
+            console.log('📍 Phase 2テスト実行...');
+            results.phases.phase2 = await this.testPhase2Functions(guildId);
+
+            // Phase 3テスト
+            console.log('📍 Phase 3テスト実行...');
+            results.phases.phase3 = await this.testPhase3Functions(guildId);
+
+            // システム全体のテスト
+            console.log('📍 システム統合テスト実行...');
+            const systemStatus = this.getSystemStatus();
+            const eventStats = this.getEventStatistics(guildId);
+            
+            results.systemIntegration = {
+                success: true,
+                systemStatus: systemStatus,
+                eventStatistics: eventStats,
+                message: '全システムが正常に動作しています'
+            };
+
+            // ランダムイベント生成テスト
+            console.log('📍 ランダムイベント生成テスト...');
+            const manualEventResult = await this.manualGenerateEvent(guildId);
+            results.randomEventTest = {
+                success: manualEventResult.success,
+                result: manualEventResult,
+                message: manualEventResult.message
+            };
+
+            console.log('✅ 全Phase統合テスト完了');
+            results.overall = { 
+                success: true, 
+                message: '全ての機能が正常にテストされました',
+                summary: {
+                    phase1Success: results.phases.phase1.overall.success,
+                    phase2Success: results.phases.phase2.overall.success,
+                    phase3Success: results.phases.phase3.overall.success,
+                    systemIntegrationSuccess: results.systemIntegration.success,
+                    randomEventSuccess: results.randomEventTest.success
+                }
+            };
+
+        } catch (error) {
+            console.error('❌ 全Phase統合テストエラー:', error);
+            results.overall = { 
+                success: false, 
+                message: `統合テスト中にエラーが発生: ${error.message}` 
+            };
+        }
+
+        return results;
+    }
 
 // ===========================================
     // 見学鳥管理システム
@@ -2137,40 +2339,96 @@ class ZooManager {
     // ===========================================
 
     // 自動管理開始
+    /**
+     * 改良された自動管理開始
+     */
     startAutomaticManagement() {
-        console.log('🔄 全サーバー鳥類園の自動管理を開始...');
+        console.log('🔄 改良された全サーバー鳥類園の自動管理を開始...');
         
-        // 鳥の入れ替え（30分に1回チェック）
+        // 🔧 鳥の入れ替え（30分に1回チェック）
         const migrationTask = cron.schedule('*/30 * * * *', async () => {
             for (const guildId of this.serverZoos.keys()) {
                 await this.checkBirdMigration(guildId);
             }
         }, { scheduled: false });
 
-        // 活動更新（30分に1回）
+        // 🔧 活動更新（30分に1回）
         const activityTask = cron.schedule('*/30 * * * *', async () => {
             for (const guildId of this.serverZoos.keys()) {
                 await this.updateBirdActivities(guildId);
             }
         }, { scheduled: false });
 
-        // 空腹通知（15分に1回チェック）
+        // 🔧 空腹通知（15分に1回チェック）
         const hungerTask = cron.schedule('*/15 * * * *', async () => {
             for (const guildId of this.serverZoos.keys()) {
                 await this.checkHungerStatus(guildId);
             }
         }, { scheduled: false });
 
-        // 自動保存（10分に1回）
+        // 🔧 自動保存（10分に1回）
         const saveTask = cron.schedule('*/10 * * * *', async () => {
             await this.saveAllServerZoos();
         }, { scheduled: false });
 
-        // ランダムイベント（2時間に1回）
-        const eventTask = cron.schedule('0 */2 * * *', async () => {
+        // 🆕 改良されたランダムイベント（45分に1回、確率80%）
+        const eventTask = cron.schedule('*/45 * * * *', async () => {
             for (const guildId of this.serverZoos.keys()) {
-                if (Math.random() < 0.7) {
+                if (Math.random() < 0.8) {
                     await this.generateRandomEvent(guildId);
+                }
+            }
+        }, { scheduled: false });
+
+        // 🆕 特別な時間帯のイベント（6, 12, 18, 22時に実行、確率60%）
+        const specialTimeTask = cron.schedule('0 6,12,18,22 * * *', async () => {
+            for (const guildId of this.serverZoos.keys()) {
+                if (Math.random() < 0.6) {
+                    const allBirds = this.getAllBirds(guildId);
+                    if (allBirds.length > 0) {
+                        const event = await this.createTimeBasedEvent(allBirds);
+                        if (event) {
+                            await this.addEvent(guildId, event.type, event.content, event.relatedBird);
+                            console.log(`⏰ サーバー ${guildId} で特別時間帯イベント発生: ${event.type}`);
+                        }
+                    }
+                }
+            }
+        }, { scheduled: false });
+
+        // 🆕 記念日チェック（毎日0時に実行）
+        const specialDayTask = cron.schedule('0 0 * * *', async () => {
+            const specialDay = this.getSpecialDay();
+            if (specialDay) {
+                console.log(`🎉 今日は${specialDay.name}です！記念日イベントを増やします`);
+                
+                for (const guildId of this.serverZoos.keys()) {
+                    const allBirds = this.getAllBirds(guildId);
+                    if (allBirds.length > 0) {
+                        const event = await this.createSpecialDayEvent(allBirds);
+                        if (event) {
+                            await this.addEvent(guildId, event.type, event.content, event.relatedBird);
+                            console.log(`🎊 サーバー ${guildId} で記念日イベント発生: ${event.type}`);
+                        }
+                    }
+                }
+            }
+        }, { scheduled: false });
+
+        // 🆕 夜行性専用イベント（深夜1時に実行、確率40%）
+        const nocturnalTask = cron.schedule('0 1 * * *', async () => {
+            for (const guildId of this.serverZoos.keys()) {
+                if (Math.random() < 0.4) {
+                    const allBirds = this.getAllBirds(guildId);
+                    const hasNocturnal = await this.hasNocturnalBirds(allBirds);
+                    
+                    if (hasNocturnal) {
+                        const event = await this.createNocturnalSpecificEvent(allBirds);
+                        if (event) {
+                            await this.addEvent(guildId, event.type, event.content, event.relatedBird);
+                            console.log(`🦉 サーバー ${guildId} で夜行性イベント発生: ${event.type}`);
+                        }
+                    }
                 }
             }
         }, { scheduled: false });
@@ -2181,10 +2439,16 @@ class ZooManager {
         hungerTask.start();
         saveTask.start();
         eventTask.start();
+        specialTimeTask.start();
+        specialDayTask.start();
+        nocturnalTask.start();
 
-        this.scheduledTasks = [migrationTask, activityTask, hungerTask, saveTask, eventTask];
+        this.scheduledTasks = [
+            migrationTask, activityTask, hungerTask, saveTask, 
+            eventTask, specialTimeTask, specialDayTask, nocturnalTask
+        ];
         
-        console.log('✅ 自動管理タスクを開始しました');
+        console.log('✅ 改良された自動管理タスクを開始しました（8個のタスク）');
     }
 
     // 🔧 修正版: 鳥の移動チェック（見学鳥チェック付き）
@@ -2729,8 +2993,6 @@ async createNightEvent(eventType, allBirds) {
             return this.createDreamEvent(allBirds);
         case 'night_watch':
             return this.createNightWatchEvent(allBirds);
-        case 'nocturnal':
-            return this.createNocturnalEvent(allBirds);
         default:
             return null;
     }
@@ -2822,39 +3084,6 @@ createNightWatchEvent(allBirds) {
         relatedBird: bird.name
     };
 }
-
-// 夜間イベント: 夜行性の活動
-createNocturnalEvent(allBirds) {
-    // フクロウなど夜行性の鳥がいる場合の特別イベント
-    const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
-    
-    const nocturnalEvents = [
-        `${bird.name}が夜の闇の中で静かに活動しています🦉`,
-        `${bird.name}が夜の獲物を探しているようです`,
-        `${bird.name}が暗闇の中を器用に飛び回っています`,
-        `${bird.name}が夜の世界の王者のように堂々としています`,
-        `${bird.name}が月明かりを頼りに狩りの準備をしています`,
-        `${bird.name}が夜の静寂の中で鋭い目を光らせています`,
-        `${bird.name}が夜の森の番人として佇んでいます`,
-        `${bird.name}が夜の世界で本領を発揮して活動しています`,
-        `${bird.name}が暗闇を縫って静かに移動しています`,
-        `${bird.name}が夜の獲物の気配を鋭く察知しています`,
-        `${bird.name}が月明かりを利用して狩りをしています`,
-        `${bird.name}が夜の森の音を全て聞き分けているようです`,
-        `${bird.name}が完全な静寂の中を音もなく飛び回っています`,
-        `${bird.name}が夜の王者としての威厳を示しています`,
-        `${bird.name}が暗闇の中で獲物を待ち伏せています`,
-        `${bird.name}が夜の冷たい空気を羽で感じながら活動しています`
-        
-    ];
-
-    return {
-        type: '夜行性の活動',
-        content: nocturnalEvents[Math.floor(Math.random() * nocturnalEvents.length)],
-        relatedBird: bird.name
-    };
-}
-
 
     // 夜間判定
     isSleepTime() {
@@ -2957,40 +3186,84 @@ async checkHungerStatus(guildId) {
     }
 }
 
-    // ランダムイベント生成
+     /**
+     * 包括的なランダムイベント生成（全Phase統合版）
+     */
     async generateRandomEvent(guildId) {
-    try {
-        const zooState = this.getZooState(guildId);
-        if (!zooState.isInitialized) return;
+        try {
+            const zooState = this.getZooState(guildId);
+            if (!zooState.isInitialized) return;
 
-        const allBirds = this.getAllBirds(guildId);
-        if (allBirds.length === 0) return;
+            const allBirds = this.getAllBirds(guildId);
+            if (allBirds.length === 0) return;
 
-        let event;
-        
-        // 夜間かどうかで異なるイベントを生成
-        if (this.isSleepTime()) {
-            // 夜間イベント（22時〜7時）
-            const nightEventTypes = ['sleep', 'dream', 'night_watch', 'nocturnal'];
-            const eventType = nightEventTypes[Math.floor(Math.random() * nightEventTypes.length)];
-            event = await this.createNightEvent(eventType, allBirds);
-            console.log(`🌙 サーバー ${guildId} で夜間イベント発生: ${eventType}`);
-        } else {
-            // 昼間イベント（7時〜22時）
-            const dayEventTypes = ['interaction', 'discovery', 'weather', 'special'];
-            const eventType = dayEventTypes[Math.floor(Math.random() * dayEventTypes.length)];
-            event = await this.createEvent(eventType, allBirds);
-            console.log(`☀️ サーバー ${guildId} で昼間イベント発生: ${eventType}`);
+            const timeSlot = this.getCurrentTimeSlot();
+            let event = null;
+
+            console.log(`🎪 サーバー ${guildId} でランダムイベント生成開始 (${timeSlot.name})`);
+
+            // 夜間の場合（就寝時間：22:00-5:00）
+            if (timeSlot.key === 'sleep') {
+                const nightEventTypes = ['sleep', 'dream', 'night_watch', 'moon_phase'];
+                
+                // 夜行性の鳥がいる場合、夜行性イベントも追加
+                const hasNocturnalBirds = await this.hasNocturnalBirds(allBirds);
+                if (hasNocturnalBirds) {
+                    nightEventTypes.push('nocturnal_specific', 'nocturnal_specific'); // 確率を上げる
+                }
+                
+                const eventType = nightEventTypes[Math.floor(Math.random() * nightEventTypes.length)];
+                console.log(`🌙 夜間イベントタイプ: ${eventType}`);
+                
+                switch (eventType) {
+                    case 'nocturnal_specific':
+                        event = await this.createNocturnalSpecificEvent(allBirds);
+                        break;
+                    case 'moon_phase':
+                        event = await this.createMoonPhaseEvent(allBirds);
+                        break;
+                    default:
+                        event = await this.createNightEvent(eventType, allBirds);
+                }
+            } else {
+                // 昼間の場合（5:00-22:00）
+                const dayEventTypes = [
+                    'interaction', 'discovery', 'weather_based', 'time_based', 
+                    'seasonal', 'temperature', 'wind', 'humidity',
+                    'flock', 'area_movement', 'long_stay'
+                ];
+                
+                // 特別な日がある場合、記念日イベントの確率を上げる
+                const specialDay = this.getSpecialDay();
+                if (specialDay) {
+                    dayEventTypes.push('special_day', 'special_day', 'special_day'); // 3倍の確率
+                    console.log(`🎉 今日は${specialDay.name}です！記念日イベントの確率アップ`);
+                }
+                
+                // 長期滞在の鳥がいる場合、長期滞在イベントの確率を上げる
+                const longStayBirds = this.getLongStayBirds(guildId);
+                if (longStayBirds.length > 0) {
+                    dayEventTypes.push('long_stay', 'long_stay'); // 2倍の確率
+                    console.log(`🏡 ${longStayBirds.length}羽の長期滞在鳥がいます！長期滞在イベントの確率アップ`);
+                }
+                
+                const eventType = dayEventTypes[Math.floor(Math.random() * dayEventTypes.length)];
+                console.log(`☀️ 昼間イベントタイプ: ${eventType}`);
+                
+                event = await this.generateDaytimeEvent(eventType, allBirds, guildId);
+            }
+            
+            if (event) {
+                await this.addEvent(guildId, event.type, event.content, event.relatedBird);
+                console.log(`✅ サーバー ${guildId} でイベント発生: ${event.type} - ${event.relatedBird}`);
+            } else {
+                console.log(`⚠️ サーバー ${guildId} でイベントが生成されませんでした`);
+            }
+
+        } catch (error) {
+            console.error(`❌ サーバー ${guildId} のランダムイベント生成エラー:`, error);
         }
-        
-        if (event) {
-            await this.addEvent(guildId, event.type, event.content, event.relatedBird);
-        }
-
-    } catch (error) {
-        console.error(`サーバー ${guildId} のランダムイベント生成エラー:`, error);
     }
-}
 }
 
 module.exports = new ZooManager();
