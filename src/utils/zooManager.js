@@ -63,6 +63,26 @@ class ZooManager {
             '12-31': { name: '大晦日', emoji: '🎆', message: '一年を締めくくる特別な日' }
         };
 
+        // 🆕 通過する可能性がある鳥のデータ
+        this.migratoryBirds = [
+            // 渡り鳥
+            { name: 'ツバメ', type: 'migratory', description: '春の訪れを告げる' },
+            { name: 'ハクチョウ', type: 'migratory', description: '優雅に空を舞う' },
+            { name: 'ガン', type: 'migratory', description: 'V字編隊で飛ぶ' },
+            { name: 'ツル', type: 'migratory', description: '美しい鳴き声を響かせながら' },
+            { name: 'チョウゲンボウ', type: 'migratory', description: '鋭い眼光で下を見つめながら' },
+            { name: 'ヒバリ', type: 'migratory', description: '高らかに歌いながら' },
+            { name: 'ムクドリ', type: 'flock', description: '大群で空を埋め尽くしながら' },
+            { name: 'カラス', type: 'flock', description: '賢そうな様子で' },
+            { name: 'スズメ', type: 'flock', description: 'にぎやかにさえずりながら' },
+            { name: 'ヒヨドリ', type: 'flock', description: '活発に動き回りながら' },
+            // 季節限定
+            { name: 'アマツバメ', type: 'migratory', season: 'summer', description: '夏空を縦横無尽に駆け抜けながら' },
+            { name: 'オオハクチョウ', type: 'migratory', season: 'winter', description: '厳かな姿で' },
+            { name: 'マガン', type: 'migratory', season: 'autumn', description: '秋空に響く鳴き声と共に' },
+            { name: 'ナベヅル', type: 'migratory', season: 'winter', description: '威厳ある姿で' }
+        ];
+
         this.ensureDataDirectory();
     }
 
@@ -1772,6 +1792,259 @@ class ZooManager {
         return results;
     }
 
+    // ===========================================
+    // 🆕 通過イベント（渡り鳥・群れ）システム
+    // ===========================================
+
+    /**
+     * 通過イベント生成（レアイベント）
+     */
+    async createFlyoverEvent(allBirds) {
+        // 通過イベントの発生確率は低く設定（レア感を演出）
+        if (Math.random() > 0.15) { // 15%の確率でのみ生成を試行
+            console.log('🌟 通過イベント: 確率により発生しませんでした');
+            return null;
+        }
+
+        const season = this.getCurrentSeason();
+        const timeSlot = this.getCurrentTimeSlot();
+        
+        // 夜間（就寝時間）は通過イベントを発生させない
+        if (timeSlot.key === 'sleep') {
+            console.log('🌙 夜間のため通過イベントはスキップします');
+            return null;
+        }
+
+        // 季節に適した鳥を選択
+        const availableBirds = this.migratoryBirds.filter(bird => {
+            if (!bird.season) return true; // 季節指定なしは常に利用可能
+            
+            const currentSeason = season.season;
+            return (
+                (bird.season === 'spring' && currentSeason === '春') ||
+                (bird.season === 'summer' && currentSeason === '夏') ||
+                (bird.season === 'autumn' && currentSeason === '秋') ||
+                (bird.season === 'winter' && currentSeason === '冬')
+            );
+        });
+
+        if (availableBirds.length === 0) {
+            console.log('🌟 季節に適した通過鳥がいません');
+            return null;
+        }
+
+        const passingBird = availableBirds[Math.floor(Math.random() * availableBirds.length)];
+        
+        // 園内の鳥から見送り役をランダム選択
+        const witnesseBird = allBirds[Math.floor(Math.random() * allBirds.length)];
+        
+        // 通過イベントの種類を決定
+        const eventType = Math.random() < 0.6 ? 'single' : 'flock'; // 60%で単体、40%で群れ
+        
+        return await this.generateFlyoverEventContent(passingBird, witnesseBird, eventType, season, timeSlot);
+    }
+
+    /**
+     * 通過イベントの内容生成
+     */
+    async generateFlyoverEventContent(passingBird, witnessBird, eventType, season, timeSlot) {
+        const isFlockBird = passingBird.type === 'flock' || eventType === 'flock';
+        const flockSize = isFlockBird ? this.generateFlockSize(passingBird.name) : 1;
+        
+        let eventContent = '';
+        
+        if (isFlockBird && flockSize > 1) {
+            // 群れの通過イベント
+            const flockEvents = [
+                `✨ ${flockSize}羽の${passingBird.name}たちの群れが鳥類園の上空を通過中です！${witnessBird.name}が見送っています`,
+                `🌟 ${passingBird.name}の大群（${flockSize}羽）が青空を横切っていきます。${witnessBird.name}が興味深そうに見上げています`,
+                `⭐ 空の向こうから${passingBird.name}たちの群れ（${flockSize}羽）がやってきました！${witnessBird.name}が羨ましそうに眺めています`,
+                `💫 ${flockSize}羽の${passingBird.name}たちが${passingBird.description}${timeSlot.emoji}の空を駆け抜けていきます。${witnessBird.name}も一緒に飛びたそうです`,
+                `🌈 ${passingBird.name}の美しい編隊（${flockSize}羽）が園の上を優雅に通過。${witnessBird.name}が感動しているようです`,
+                `🎪 ${flockSize}羽の${passingBird.name}たちが空中ショーのような飛行を披露！${witnessBird.name}が拍手しているかのようです`,
+                `🎭 ${passingBird.name}の群れ（${flockSize}羽）が${season.emoji}の空に美しい軌跡を描いて去っていきます。${witnessBird.name}が名残惜しそうに見送っています`
+            ];
+            
+            eventContent = flockEvents[Math.floor(Math.random() * flockEvents.length)];
+            
+        } else {
+            // 単体の通過イベント
+            const singleEvents = [
+                `✨ 一羽の${passingBird.name}が鳥類園の上空を通過していきます。${witnessBird.name}が見上げて挨拶しています`,
+                `🌟 ${passingBird.name}が${passingBird.description}園の上を飛んでいきました。${witnessBird.name}が羨ましそうに見ています`,
+                `⭐ 風に乗った${passingBird.name}が園の空を横切っていきます。${witnessBird.name}が「いってらっしゃい」と言っているようです`,
+                `💫 ${passingBird.name}が${timeSlot.emoji}の空を自由に飛んでいく姿を、${witnessBird.name}が憧れの眼差しで見つめています`,
+                `🌈 優雅な${passingBird.name}が通り過ぎていきます。${witnessBird.name}が「また来てね」と手を振っているようです`,
+                `🎪 ${passingBird.name}が${season.detail}の空に美しい弧を描いて飛んでいきます。${witnessBird.name}が感嘆しています`,
+                `🎭 ${passingBird.name}が${passingBird.description}空の彼方へ消えていきました。${witnessBird.name}が長い間見送っています`
+            ];
+            
+            eventContent = singleEvents[Math.floor(Math.random() * singleEvents.length)];
+        }
+
+        return {
+            type: isFlockBird ? `通過イベント(${passingBird.name}の群れ)` : `通過イベント(${passingBird.name})`,
+            content: eventContent,
+            relatedBird: `${witnessBird.name} (見送り)`,
+            passingBird: passingBird.name,
+            isRareEvent: true,
+            flockSize: isFlockBird ? flockSize : 1,
+            season: season.detail,
+            timeSlot: timeSlot.name
+        };
+    }
+
+    /**
+     * 群れのサイズを生成
+     */
+    generateFlockSize(birdName) {
+        const flockSizes = {
+            'ムクドリ': () => Math.floor(Math.random() * 100) + 50,  // 50-150羽
+            'カラス': () => Math.floor(Math.random() * 20) + 10,     // 10-30羽
+            'スズメ': () => Math.floor(Math.random() * 30) + 20,     // 20-50羽
+            'ヒヨドリ': () => Math.floor(Math.random() * 15) + 10,   // 10-25羽
+            'ツバメ': () => Math.floor(Math.random() * 25) + 15,     // 15-40羽
+            'ガン': () => Math.floor(Math.random() * 30) + 20,       // 20-50羽
+            'ハクチョウ': () => Math.floor(Math.random() * 10) + 5,  // 5-15羽
+            'default': () => Math.floor(Math.random() * 20) + 10     // 10-30羽
+        };
+
+        const sizeGenerator = flockSizes[birdName] || flockSizes['default'];
+        return sizeGenerator();
+    }
+
+    /**
+     * 季節による渡り鳥の通過頻度調整
+     */
+    getSeasonalMigrationBonus() {
+        const season = this.getCurrentSeason();
+        const month = new Date().getMonth() + 1;
+        
+        // 渡りの季節（春・秋）は通過イベントの確率を上げる
+        const migrationSeasons = {
+            3: 1.5,  // 3月 - 春の渡り開始
+            4: 2.0,  // 4月 - 春の渡りピーク
+            5: 1.8,  // 5月 - 春の渡り終盤
+            9: 1.8,  // 9月 - 秋の渡り開始
+            10: 2.0, // 10月 - 秋の渡りピーク
+            11: 1.5  // 11月 - 秋の渡り終盤
+        };
+        
+        return migrationSeasons[month] || 1.0;
+    }
+
+    /**
+     * 特別な通過イベント（記念日・特別な天気の日）
+     */
+    async createSpecialFlyoverEvent(allBirds) {
+        const specialDay = this.getSpecialDay();
+        const weather = this.weatherManager ? await this.weatherManager.getCurrentWeather() : null;
+        
+        // 特別な日の特別な通過イベント
+        if (specialDay) {
+            return await this.createHolidayFlyoverEvent(allBirds, specialDay);
+        }
+        
+        // 特別な天気の通過イベント
+        if (weather && (weather.condition === 'sunny' || weather.condition === 'stormy')) {
+            return await this.createWeatherFlyoverEvent(allBirds, weather);
+        }
+        
+        return null;
+    }
+
+    /**
+     * 記念日の特別通過イベント
+     */
+    async createHolidayFlyoverEvent(allBirds, specialDay) {
+        const witnessBird = allBirds[Math.floor(Math.random() * allBirds.length)];
+        
+        const holidayEvents = {
+            '元日': `🎍 新年を祝うかのように、ツルたちの群れが鳥類園の上空を舞っています。${witnessBird.name}が新年の挨拶をしているようです`,
+            'こどもの日': `🎏 こどもの日の空に、ツバメたちの群れが元気よく飛び回っています。${witnessBird.name}が子供たちの成長を願っているようです`,
+            '七夕': `🎋 七夕の夜空に、ハクチョウたちが星に向かって飛んでいきます。${witnessBird.name}が願い事をしているようです`,
+            'クリスマス': `🎄 クリスマスの特別な日に、美しい鳥たちの群れが聖なる空を舞っています。${witnessBird.name}がクリスマスの奇跡を感じているようです`
+        };
+        
+        const eventContent = holidayEvents[specialDay.name] || 
+            `${specialDay.emoji} ${specialDay.name}の特別な日に、祝福するような鳥たちの群れが空を舞っています。${witnessBird.name}が特別な日を感じているようです`;
+        
+        return {
+            type: `特別通過イベント(${specialDay.name})`,
+            content: eventContent,
+            relatedBird: `${witnessBird.name} (見送り)`,
+            isRareEvent: true,
+            isSpecialDay: true,
+            holiday: specialDay.name
+        };
+    }
+
+    /**
+     * 天気による特別通過イベント
+     */
+    async createWeatherFlyoverEvent(allBirds, weather) {
+        const witnessBird = allBirds[Math.floor(Math.random() * allBirds.length)];
+        const emoji = this.weatherManager.getWeatherEmoji(weather.condition);
+        
+        const weatherEvents = {
+            sunny: [
+                `${emoji} 快晴の青空に、鳥たちの群れが美しい編隊を組んで飛んでいます。${witnessBird.name}が青空の美しさに見とれています`,
+                `${emoji} 太陽の光を浴びて、渡り鳥たちの羽が金色に輝いています。${witnessBird.name}が眩しそうに見上げています`
+            ],
+            stormy: [
+                `${emoji} 嵐の合間を縫って、勇敢な鳥たちが空を駆け抜けていきます。${witnessBird.name}が心配そうに見守っています`,
+                `${emoji} 激しい風の中を、力強く飛ぶ鳥たちの群れが通過していきます。${witnessBird.name}が勇気をもらっているようです`
+            ]
+        };
+        
+        const events = weatherEvents[weather.condition];
+        if (!events) return null;
+        
+        const eventContent = events[Math.floor(Math.random() * events.length)];
+        
+        return {
+            type: `天気通過イベント(${weather.condition})`,
+            content: eventContent,
+            relatedBird: `${witnessBird.name} (見送り)`,
+            isRareEvent: true,
+            weather: weather.condition
+        };
+    }
+
+    /**
+     * 昼間のイベント生成（通過イベント対応版）
+     */
+    async generateDaytimeEventWithFlyover(eventType, allBirds, guildId) {
+        switch (eventType) {
+            case 'flyover':
+                return await this.createFlyoverEvent(allBirds);
+            case 'special_flyover':
+                return await this.createSpecialFlyoverEvent(allBirds);
+            case 'weather_based':
+                return await this.createWeatherBasedEvent(allBirds);
+            case 'time_based':
+                return await this.createTimeBasedEvent(allBirds);
+            case 'seasonal':
+                return await this.createSeasonalEvent(allBirds);
+            case 'special_day':
+                return await this.createSpecialDayEvent(allBirds);
+            case 'temperature':
+                return await this.createTemperatureEvent(allBirds);
+            case 'wind':
+                return await this.createWindEvent(allBirds);
+            case 'humidity':
+                return await this.createHumidityEvent(allBirds);
+            case 'long_stay':
+                return await this.createLongStayEvent(guildId, allBirds);
+            case 'interaction':
+                return this.createInteractionEvent(allBirds);
+            case 'discovery':
+                return this.createDiscoveryEvent(allBirds);
+            default:
+                return await this.createEvent(eventType, allBirds);
+        }
+    }
+
 // ===========================================
     // 見学鳥管理システム
     // ===========================================
@@ -3189,6 +3462,9 @@ async checkHungerStatus(guildId) {
      /**
      * 包括的なランダムイベント生成（全Phase統合版）
      */
+    /**
+     * 改良されたランダムイベント生成（通過イベント追加版）
+     */
     async generateRandomEvent(guildId) {
         try {
             const zooState = this.getZooState(guildId);
@@ -3202,14 +3478,13 @@ async checkHungerStatus(guildId) {
 
             console.log(`🎪 サーバー ${guildId} でランダムイベント生成開始 (${timeSlot.name})`);
 
-            // 夜間の場合（就寝時間：22:00-5:00）
+            // 夜間の場合
             if (timeSlot.key === 'sleep') {
                 const nightEventTypes = ['sleep', 'dream', 'night_watch', 'moon_phase'];
                 
-                // 夜行性の鳥がいる場合、夜行性イベントも追加
                 const hasNocturnalBirds = await this.hasNocturnalBirds(allBirds);
                 if (hasNocturnalBirds) {
-                    nightEventTypes.push('nocturnal_specific', 'nocturnal_specific'); // 確率を上げる
+                    nightEventTypes.push('nocturnal_specific', 'nocturnal_specific');
                 }
                 
                 const eventType = nightEventTypes[Math.floor(Math.random() * nightEventTypes.length)];
@@ -3226,36 +3501,46 @@ async checkHungerStatus(guildId) {
                         event = await this.createNightEvent(eventType, allBirds);
                 }
             } else {
-                // 昼間の場合（5:00-22:00）
+                // 昼間の場合 - 通過イベントを追加
                 const dayEventTypes = [
                     'interaction', 'discovery', 'weather_based', 'time_based', 
                     'seasonal', 'temperature', 'wind', 'humidity',
-                    'flock', 'area_movement', 'long_stay'
+                    'flyover', 'special_flyover', 'long_stay' // 🆕 通過イベント追加
                 ];
                 
-                // 特別な日がある場合、記念日イベントの確率を上げる
-                const specialDay = this.getSpecialDay();
-                if (specialDay) {
-                    dayEventTypes.push('special_day', 'special_day', 'special_day'); // 3倍の確率
-                    console.log(`🎉 今日は${specialDay.name}です！記念日イベントの確率アップ`);
+                // 渡りの季節ボーナス
+                const migrationBonus = this.getSeasonalMigrationBonus();
+                if (migrationBonus > 1.0) {
+                    // 渡りの季節は通過イベントの確率を上げる
+                    dayEventTypes.push('flyover', 'special_flyover');
+                    console.log(`🦅 渡りの季節です！通過イベントの確率アップ (${migrationBonus}x)`);
                 }
                 
-                // 長期滞在の鳥がいる場合、長期滞在イベントの確率を上げる
+                const specialDay = this.getSpecialDay();
+                if (specialDay) {
+                    dayEventTypes.push('special_day', 'special_day', 'special_flyover');
+                    console.log(`🎉 今日は${specialDay.name}です！`);
+                }
+                
                 const longStayBirds = this.getLongStayBirds(guildId);
                 if (longStayBirds.length > 0) {
-                    dayEventTypes.push('long_stay', 'long_stay'); // 2倍の確率
-                    console.log(`🏡 ${longStayBirds.length}羽の長期滞在鳥がいます！長期滞在イベントの確率アップ`);
+                    dayEventTypes.push('long_stay', 'long_stay');
                 }
                 
                 const eventType = dayEventTypes[Math.floor(Math.random() * dayEventTypes.length)];
                 console.log(`☀️ 昼間イベントタイプ: ${eventType}`);
                 
-                event = await this.generateDaytimeEvent(eventType, allBirds, guildId);
+                event = await this.generateDaytimeEventWithFlyover(eventType, allBirds, guildId);
             }
             
             if (event) {
                 await this.addEvent(guildId, event.type, event.content, event.relatedBird);
-                console.log(`✅ サーバー ${guildId} でイベント発生: ${event.type} - ${event.relatedBird}`);
+                
+                if (event.isRareEvent) {
+                    console.log(`⭐ サーバー ${guildId} でレアイベント発生: ${event.type} - ${event.relatedBird}`);
+                } else {
+                    console.log(`✅ サーバー ${guildId} でイベント発生: ${event.type} - ${event.relatedBird}`);
+                }
             } else {
                 console.log(`⚠️ サーバー ${guildId} でイベントが生成されませんでした`);
             }
