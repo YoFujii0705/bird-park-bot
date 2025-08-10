@@ -39,6 +39,16 @@ module.exports = {
         )
         .addSubcommand(subcommand =>
     subcommand
+        .setName('test_weather')
+        .setDescription('WeatherManager機能をテスト')
+)
+.addSubcommand(subcommand =>
+    subcommand
+        .setName('weather_info')
+        .setDescription('現在の詳細天気情報を表示')
+)
+        .addSubcommand(subcommand =>
+    subcommand
         .setName('test_all_phases')
         .setDescription('全Phase（1-4）の統合テスト')
 )
@@ -235,6 +245,47 @@ case 'test_all_phases':
         .setTimestamp();
     
     await interaction.editReply({ embeds: [summaryEmbed] });
+    break;
+                    case 'test_weather':
+    await interaction.deferReply({ ephemeral: true });
+    
+    const weatherResults = await zooManager.weatherManager.testWeatherManager();
+    
+    const weatherEmbed = new EmbedBuilder()
+        .setTitle('🌤️ WeatherManager テスト結果')
+        .setColor(weatherResults.overall.success ? 0x00ff00 : 0xff0000)
+        .setDescription(weatherResults.overall.message)
+        .addFields(
+            { name: '⚙️ 設定確認', value: `${weatherResults.tests.configuration.success ? '✅' : '❌'} ${weatherResults.tests.configuration.message}`, inline: false },
+            { name: '🌤️ 天気取得', value: `${weatherResults.tests.weatherFetch.success ? '✅' : '❌'} ${weatherResults.tests.weatherFetch.message}`, inline: false },
+            { name: '📊 詳細情報', value: `${weatherResults.tests.detailedWeather.success ? '✅' : '❌'} ${weatherResults.tests.detailedWeather.message}`, inline: false },
+            { name: '🏷️ 分類機能', value: `${weatherResults.tests.categorization.success ? '✅' : '❌'} ${weatherResults.tests.categorization.message}`, inline: false }
+        )
+        .setTimestamp();
+    
+    await interaction.editReply({ embeds: [weatherEmbed] });
+    break;
+
+case 'weather_info':
+    await interaction.deferReply({ ephemeral: true });
+    
+    const detailedWeather = await zooManager.weatherManager.getDetailedWeather();
+    
+    const infoEmbed = new EmbedBuilder()
+        .setTitle('🌤️ 現在の詳細天気情報')
+        .setColor(0x87ceeb)
+        .addFields(
+            { name: '🌡️ 気温', value: `${detailedWeather.temperature}°C (${detailedWeather.temperatureInfo.category})`, inline: true },
+            { name: '☁️ 天気', value: `${detailedWeather.emoji} ${detailedWeather.description}`, inline: true },
+            { name: '💧 湿度', value: `${detailedWeather.humidity}% (${detailedWeather.humidityInfo.category})`, inline: true },
+            { name: '💨 風速', value: `${detailedWeather.windSpeed}m/s (${detailedWeather.windInfo.category})`, inline: true },
+            { name: '📍 場所', value: `${detailedWeather.cityName}, ${detailedWeather.country}`, inline: true },
+            { name: '📊 データソース', value: detailedWeather.source === 'api' ? 'OpenWeatherMap API' : 'フォールバック', inline: true },
+            { name: '🐦 鳥への影響', value: `気分: ${detailedWeather.birdBehavior.mood}\n${detailedWeather.birdBehavior.selectedDescription}`, inline: false }
+        )
+        .setTimestamp(detailedWeather.timestamp);
+    
+    await interaction.editReply({ embeds: [infoEmbed] });
     break;
 
 case 'event_stats':
