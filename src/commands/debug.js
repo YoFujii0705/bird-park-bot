@@ -59,6 +59,11 @@ module.exports = {
                 .setDescription('園内の夜行性の鳥をチェック')
         )
         .addSubcommand(subcommand =>
+    subcommand
+        .setName('simple_test')
+        .setDescription('最小限の動作テスト')
+　　　　　)
+        .addSubcommand(subcommand =>
             subcommand
                 .setName('long_stay_check')
                 .setDescription('長期滞在鳥をチェック')
@@ -197,6 +202,53 @@ module.exports = {
                     
                     await interaction.editReply({ embeds: [testEmbed] });
                     break;
+                    case 'simple_test':
+    try {
+        console.log('🧪 簡単テスト開始...');
+        
+        // 1. 基本的な時間取得テスト
+        const now = new Date();
+        const jstTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Tokyo"}));
+        
+        let testResult = `**🧪 簡単テスト結果**\n\n`;
+        testResult += `✅ 現在時刻: ${jstTime.toLocaleString('ja-JP')}\n`;
+        testResult += `✅ サーバーID: ${guildId}\n`;
+        
+        // 2. zooManagerの基本動作テスト
+        const allBirds = zooManager.getAllBirds(guildId);
+        testResult += `✅ 鳥の数: ${allBirds.length}羽\n`;
+        
+        // 3. timeSlots定義の確認
+        if (zooManager.timeSlots) {
+            testResult += `✅ 時間帯定義: 利用可能\n`;
+            testResult += `✅ 定義済み時間帯数: ${Object.keys(zooManager.timeSlots).length}\n`;
+        } else {
+            testResult += `❌ 時間帯定義: 利用不可\n`;
+        }
+        // 4. getCurrentTimeSlotメソッドの確認
+        if (typeof zooManager.getCurrentTimeSlot === 'function') {
+            testResult += `✅ getCurrentTimeSlot: メソッド利用可能\n`;
+            
+            try {
+                const timeSlot = zooManager.getCurrentTimeSlot();
+                testResult += `✅ 時間帯取得成功: ${timeSlot.name}\n`;
+            } catch (error) {
+                testResult += `❌ 時間帯取得エラー: ${error.message}\n`;
+            }
+        } else {
+            testResult += `❌ getCurrentTimeSlot: メソッド利用不可\n`;
+        }
+        
+        await interaction.reply({ content: testResult, ephemeral: true });
+        
+    } catch (error) {
+        console.error('簡単テストエラー:', error);
+        await interaction.reply({ 
+            content: `❌ 簡単テストでエラーが発生しました: ${error.message}\n\nスタック:\n\`\`\`${error.stack}\`\`\``, 
+            ephemeral: true 
+        });
+    }
+    break;
 
                 case 'system_status':
                     const systemStatus = zooManager.getSystemStatus();
