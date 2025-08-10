@@ -3,6 +3,7 @@ const logger = require('./logger');
 const cron = require('node-cron');
 const fs = require('fs');
 const path = require('path');
+const LunarPhase = require('lunarphase-js'); // 🆕 月齢ライブラリ
 
 class ZooManager {
     constructor() {
@@ -12,6 +13,54 @@ class ZooManager {
         this.isProcessing = false;
         this.scheduledTasks = [];
         this.dataPath = './data/zoos/';
+
+        // 🆕 新しい依存関係
+        this.weatherManager = require('./weatherManager');
+        this.sheetsManager = require('./sheetsManager');
+        
+        // 🆕 時間帯定義（JST基準）
+        this.timeSlots = {
+            dawn: { start: 5, end: 7, name: '早朝', emoji: '🌅' },
+            morning: { start: 7, end: 11, name: '朝', emoji: '🌄' },
+            noon: { start: 11, end: 15, name: '昼', emoji: '🏞️' },
+            evening: { start: 15, end: 19, name: '夕', emoji: '🌇' },
+            night: { start: 19, end: 22, name: '夜', emoji: '🌃' },
+            sleep: { start: 22, end: 5, name: '就寝時間', emoji: '🌙' }
+        };
+
+        // 🆕 月齢定義
+        this.moonPhases = {
+            'New': { name: '新月', emoji: '🌑' },
+            'Waxing Crescent': { name: '三日月', emoji: '🌒' },
+            'First Quarter': { name: '上弦の月', emoji: '🌓' },
+            'Waxing Gibbous': { name: '十三夜月', emoji: '🌔' },
+            'Full': { name: '満月', emoji: '🌕' },
+            'Waning Gibbous': { name: '寝待月', emoji: '🌖' },
+            'Last Quarter': { name: '下弦の月', emoji: '🌗' },
+            'Waning Crescent': { name: '二十六夜月', emoji: '🌘' }
+        };
+
+        // 🆕 記念日定義
+        this.specialDays = {
+            '1-1': { name: '元日', emoji: '🎍', message: '新年の特別な日' },
+            '1-2': { name: '初夢の日', emoji: '💭', message: '初夢を見る特別な日' },
+            '2-3': { name: '節分', emoji: '👹', message: '邪気を払う日' },
+            '2-14': { name: 'バレンタインデー', emoji: '💝', message: '愛を伝える日' },
+            '3-3': { name: 'ひな祭り', emoji: '🎎', message: '女の子の健やかな成長を願う日' },
+            '3-21': { name: '春分の日', emoji: '🌸', message: '昼と夜の長さが等しくなる日' },
+            '4-1': { name: 'エイプリルフール', emoji: '🃏', message: 'いたずらな気分の日' },
+            '4-29': { name: '昭和の日', emoji: '🌿', message: '自然に親しむ日' },
+            '5-5': { name: 'こどもの日', emoji: '🎏', message: '子供の健やかな成長を願う日' },
+            '5-10': { name: '愛鳥週間開始', emoji: '🐦', message: '鳥たちを大切にする週間の始まり' },
+            '7-7': { name: '七夕', emoji: '🎋', message: '願いが叶う特別な夜' },
+            '8-11': { name: '山の日', emoji: '⛰️', message: '山に親しむ日' },
+            '9-23': { name: '秋分の日', emoji: '🍂', message: '秋の深まりを感じる日' },
+            '10-31': { name: 'ハロウィン', emoji: '🎃', message: '魔法にかかった特別な夜' },
+            '11-15': { name: '七五三', emoji: '👘', message: '成長を祝う日' },
+            '12-25': { name: 'クリスマス', emoji: '🎄', message: '聖なる夜' },
+            '12-31': { name: '大晦日', emoji: '🎆', message: '一年を締めくくる特別な日' }
+        };
+
         
         // データディレクトリを作成
         this.ensureDataDirectory();
@@ -257,6 +306,415 @@ class ZooManager {
         
         this.scheduledTasks = [];
         console.log('✅ 鳥類園管理システムのシャットダウン完了');
+    }
+
+    // ===========================================
+    //  時間・月齢・季節取得
+    // ===========================================
+
+    /**
+     * 現在の時間帯を取得（JST基準）
+     * @returns {Object} 時間帯情報
+     */
+    getCurrentTimeSlot() {
+        const now = new Date();
+        const jstTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Tokyo"}));
+        const hour = jstTime.getHours();
+        
+        console.log(`🕐 現在時刻(JST): ${jstTime.getHours()}:${jstTime.getMinutes().toString().padStart(2, '0')}`);
+        
+        for (const [key, slot] of Object.entries(this.timeSlots)) {
+            if (key === 'sleep') {
+                // 就寝時間は22-5時（日跨ぎ）
+                if (hour >= slot.start || hour < slot.end) {
+                    console.log(`⏰ 判定結果: ${slot.name} (${slot.start}:00-${slot.end}:00)`);
+                    return { key, ...slot };
+                }
+            } else {
+                if (hour >= slot.start && hour < slot.end) {
+                    console.log(`⏰ 判定結果: ${slot.name} (${slot.start}:00-${slot.end}:00)`);
+                    return { key, ...slot };
+                }
+            }
+        }
+        
+        console.log(`⚠️ 時間帯判定失敗: ${hour}時`);
+        return { key: 'unknown', start: 0, end: 24, name: '不明', emoji: '❓' };
+    }
+
+    /**
+     * 現在の月齢を取得
+     * @returns {Object} 月齢情報
+     */
+    getCurrentMoonPhase() {
+        try {
+            const today = new Date();
+            const lunarPhase = LunarPhase.Moon.lunarPhase(today);
+            const phaseName = LunarPhase.Moon.lunarPhaseEmoji(today, {
+                'New': 'New',
+                'Waxing Crescent': 'Waxing Crescent', 
+                'First Quarter': 'First Quarter',
+                'Waxing Gibbous': 'Waxing Gibbous',
+                'Full': 'Full',
+                'Waning Gibbous': 'Waning Gibbous',
+                'Last Quarter': 'Last Quarter',
+                'Waning Crescent': 'Waning Crescent'
+            });
+            
+            // ライブラリから返される英語名を日本語の月齢情報にマッピング
+            const moonInfo = this.moonPhases[phaseName] || this.moonPhases['New'];
+            
+            console.log(`🌙 月齢: ${moonInfo.name} (${phaseName})`);
+            
+            return {
+                key: phaseName.replace(' ', '_').toLowerCase(),
+                englishName: phaseName,
+                ...moonInfo,
+                lunarAge: lunarPhase
+            };
+            
+        } catch (error) {
+            console.error('月齢取得エラー:', error);
+            // フォールバック: 簡易計算
+            return this.getSimpleMoonPhase();
+        }
+    }
+
+    /**
+     * 簡易月齢計算（フォールバック用）
+     */
+    getSimpleMoonPhase() {
+        const now = new Date();
+        const knownNewMoon = new Date('2024-01-11'); // 基準となる新月日
+        const daysDiff = Math.floor((now - knownNewMoon) / (1000 * 60 * 60 * 24));
+        const moonCycle = 29.53; // 月の周期
+        const phase = (daysDiff % moonCycle) / moonCycle;
+        
+        let moonPhase;
+        if (phase < 0.125 || phase >= 0.875) {
+            moonPhase = { key: 'new', englishName: 'New', ...this.moonPhases['New'] };
+        } else if (phase >= 0.125 && phase < 0.25) {
+            moonPhase = { key: 'waxing_crescent', englishName: 'Waxing Crescent', ...this.moonPhases['Waxing Crescent'] };
+        } else if (phase >= 0.25 && phase < 0.375) {
+            moonPhase = { key: 'first_quarter', englishName: 'First Quarter', ...this.moonPhases['First Quarter'] };
+        } else if (phase >= 0.375 && phase < 0.625) {
+            moonPhase = { key: 'full', englishName: 'Full', ...this.moonPhases['Full'] };
+        } else if (phase >= 0.625 && phase < 0.75) {
+            moonPhase = { key: 'waning_gibbous', englishName: 'Waning Gibbous', ...this.moonPhases['Waning Gibbous'] };
+        } else {
+            moonPhase = { key: 'waning_crescent', englishName: 'Waning Crescent', ...this.moonPhases['Waning Crescent'] };
+        }
+        
+        console.log(`🌙 月齢(簡易計算): ${moonPhase.name}`);
+        return moonPhase;
+    }
+
+    /**
+     * 現在の季節情報を取得（月別詳細）
+     * @returns {Object} 季節情報
+     */
+    getCurrentSeason() {
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        
+        // 月ごとの詳細な季節分け
+        const seasonDetails = {
+            1: { season: '冬', detail: '厳冬', emoji: '❄️', description: '寒さが最も厳しい時期' },
+            2: { season: '冬', detail: '晩冬', emoji: '🌨️', description: '春の気配を感じ始める時期' },
+            3: { season: '春', detail: '早春', emoji: '🌸', description: '桜が咲き始める美しい時期' },
+            4: { season: '春', detail: '盛春', emoji: '🌺', description: '花々が満開となる華やかな時期' },
+            5: { season: '春', detail: '晩春', emoji: '🌿', description: '新緑が美しく輝く時期' },
+            6: { season: '夏', detail: '初夏', emoji: '☀️', description: '爽やかな風が心地よい時期' },
+            7: { season: '夏', detail: '盛夏', emoji: '🌞', description: '暑さが最も厳しい時期' },
+            8: { season: '夏', detail: '晩夏', emoji: '🌻', description: '夏の終わりを感じる時期' },
+            9: { season: '秋', detail: '初秋', emoji: '🍂', description: '涼しい風が心地よい時期' },
+            10: { season: '秋', detail: '中秋', emoji: '🍁', description: '紅葉が美しく色づく時期' },
+            11: { season: '秋', detail: '晩秋', emoji: '🥀', description: '落ち葉が舞い散る時期' },
+            12: { season: '冬', detail: '初冬', emoji: '🌨️', description: '寒さが増してくる時期' }
+        };
+        
+        const seasonInfo = seasonDetails[month];
+        console.log(`🍂 季節: ${seasonInfo.detail} (${seasonInfo.season})`);
+        
+        return seasonInfo;
+    }
+
+    /**
+     * 特別な日（記念日）を取得
+     * @returns {Object|null} 記念日情報
+     */
+    getSpecialDay() {
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        const day = now.getDate();
+        const dayKey = `${month}-${day}`;
+        
+        const specialDay = this.specialDays[dayKey] || null;
+        
+        if (specialDay) {
+            console.log(`🎉 今日は特別な日: ${specialDay.name}`);
+        } else {
+            console.log(`📅 今日は通常の日です (${month}/${day})`);
+        }
+        
+        return specialDay;
+    }
+
+    // ===========================================
+    // 🆕 Phase 1: 夜行性チェック機能
+    // ===========================================
+
+    /**
+     * 鳥が夜行性かどうかをチェック
+     * @param {string} birdName - 鳥の名前
+     * @returns {Promise<boolean>} 夜行性かどうか
+     */
+    async isNocturnalBird(birdName) {
+        try {
+            console.log(`🔍 夜行性チェック開始: ${birdName}`);
+            
+            // まずSheetsから鳥データを取得
+            const birds = await this.sheetsManager.getBirds();
+            const bird = birds.find(b => b.名前 === birdName);
+            
+            if (bird && bird.夜行性) {
+                const isNocturnal = bird.夜行性 === 'TRUE' || bird.夜行性 === '1' || bird.夜行性 === 'はい';
+                console.log(`🔍 Sheets判定: ${birdName} -> ${isNocturnal ? '夜行性' : '昼行性'} (値: ${bird.夜行性})`);
+                return isNocturnal;
+            }
+            
+            console.log(`⚠️ Sheetsにデータがない、フォールバック判定: ${birdName}`);
+            
+            // フォールバック: コード内判定
+            const nocturnalKeywords = [
+                'フクロウ', 'みみずく', 'コノハズク', 'アオバズク', 
+                'ヨタカ', 'ゴイサギ', 'トラフズク', 'コミミズク', 'シマフクロウ'
+            ];
+            
+            const isNocturnalFallback = nocturnalKeywords.some(keyword => birdName.includes(keyword));
+            console.log(`🔍 フォールバック判定: ${birdName} -> ${isNocturnalFallback ? '夜行性' : '昼行性'}`);
+            
+            return isNocturnalFallback;
+            
+        } catch (error) {
+            console.error(`❌ 夜行性チェックエラー (${birdName}):`, error);
+            
+            // エラー時はフォールバック判定のみ
+            const nocturnalKeywords = [
+                'フクロウ', 'みみずく', 'コノハズク', 'アオバズク', 
+                'ヨタカ', 'ゴイサギ', 'トラフズク', 'コミミズク', 'シマフクロウ'
+            ];
+            
+            const isNocturnalFallback = nocturnalKeywords.some(keyword => birdName.includes(keyword));
+            console.log(`🔍 エラー時フォールバック: ${birdName} -> ${isNocturnalFallback ? '夜行性' : '昼行性'}`);
+            
+            return isNocturnalFallback;
+        }
+    }
+
+    /**
+     * 夜行性の鳥がいるかチェック
+     * @param {Array} allBirds - 全ての鳥のリスト
+     * @returns {Promise<boolean>} 夜行性の鳥がいるかどうか
+     */
+    async hasNocturnalBirds(allBirds) {
+        for (const bird of allBirds) {
+            if (await this.isNocturnalBird(bird.name)) {
+                console.log(`🦉 夜行性の鳥発見: ${bird.name}`);
+                return true;
+            }
+        }
+        console.log(`🌅 夜行性の鳥はいません`);
+        return false;
+    }
+
+    // ===========================================
+    // 🆕 Phase 1: 長期滞在チェック機能
+    // ===========================================
+
+    /**
+     * 長期滞在の鳥を取得（7日以上滞在）
+     * @param {string} guildId - サーバーID
+     * @returns {Array} 長期滞在の鳥のリスト
+     */
+    getLongStayBirds(guildId) {
+        const allBirds = this.getAllBirds(guildId);
+        const now = new Date();
+        const longStayThreshold = 7 * 24 * 60 * 60 * 1000; // 7日
+        
+        const longStayBirds = allBirds.filter(bird => {
+            const stayDuration = now - bird.entryTime;
+            return stayDuration >= longStayThreshold;
+        });
+        
+        console.log(`🏡 サーバー ${guildId} の長期滞在鳥: ${longStayBirds.length}羽`);
+        
+        if (longStayBirds.length > 0) {
+            longStayBirds.forEach(bird => {
+                const stayDays = Math.floor((now - bird.entryTime) / (1000 * 60 * 60 * 24));
+                console.log(`  📍 ${bird.name}: ${stayDays}日滞在中 (${bird.area}エリア)`);
+            });
+        }
+        
+        return longStayBirds;
+    }
+
+    /**
+     * 鳥の滞在日数を計算
+     * @param {Object} bird - 鳥オブジェクト
+     * @returns {number} 滞在日数
+     */
+    getBirdStayDays(bird) {
+        const now = new Date();
+        const stayDuration = now - bird.entryTime;
+        return Math.floor(stayDuration / (1000 * 60 * 60 * 24));
+    }
+
+    // ===========================================
+    // 🆕 Phase 1: システム情報取得機能
+    // ===========================================
+
+    /**
+     * 現在のシステム状態を取得（デバッグ用）
+     * @returns {Object} システム状態
+     */
+    getSystemStatus() {
+        const timeSlot = this.getCurrentTimeSlot();
+        const moonPhase = this.getCurrentMoonPhase();
+        const season = this.getCurrentSeason();
+        const specialDay = this.getSpecialDay();
+        
+        return {
+            timestamp: new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }),
+            timeSlot: timeSlot,
+            moonPhase: moonPhase,
+            season: season,
+            specialDay: specialDay,
+            isNightTime: timeSlot.key === 'sleep'
+        };
+    }
+
+    /**
+     * 鳥類園の詳細状態を取得
+     * @param {string} guildId - サーバーID
+     * @returns {Object} 鳥類園の詳細状態
+     */
+    getZooDetailedStatus(guildId) {
+        const allBirds = this.getAllBirds(guildId);
+        const longStayBirds = this.getLongStayBirds(guildId);
+        const systemStatus = this.getSystemStatus();
+        
+        return {
+            ...systemStatus,
+            guildId: guildId,
+            totalBirds: allBirds.length,
+            longStayBirds: longStayBirds.length,
+            birdDistribution: {
+                森林: this.getZooState(guildId).森林.length,
+                草原: this.getZooState(guildId).草原.length,
+                水辺: this.getZooState(guildId).水辺.length
+            },
+            visitors: this.getZooState(guildId).visitors?.length || 0
+        };
+    }
+
+    // ===========================================
+    // 🆕 Phase 1: テスト・デバッグ機能
+    // ===========================================
+
+    /**
+     * Phase 1機能のテスト実行
+     * @param {string} guildId - サーバーID
+     * @returns {Object} テスト結果
+     */
+    async testPhase1Functions(guildId) {
+        console.log('🧪 Phase 1 機能テスト開始...');
+        
+        const results = {
+            timestamp: new Date().toISOString(),
+            tests: {}
+        };
+        
+        try {
+            // 1. 時間帯テスト
+            console.log('📍 時間帯テスト...');
+            const timeSlot = this.getCurrentTimeSlot();
+            results.tests.timeSlot = {
+                success: true,
+                result: timeSlot,
+                message: `現在の時間帯: ${timeSlot.name}`
+            };
+            
+            // 2. 月齢テスト
+            console.log('📍 月齢テスト...');
+            const moonPhase = this.getCurrentMoonPhase();
+            results.tests.moonPhase = {
+                success: true,
+                result: moonPhase,
+                message: `現在の月齢: ${moonPhase.name}`
+            };
+            
+            // 3. 季節テスト
+            console.log('📍 季節テスト...');
+            const season = this.getCurrentSeason();
+            results.tests.season = {
+                success: true,
+                result: season,
+                message: `現在の季節: ${season.detail}`
+            };
+            
+            // 4. 記念日テスト
+            console.log('📍 記念日テスト...');
+            const specialDay = this.getSpecialDay();
+            results.tests.specialDay = {
+                success: true,
+                result: specialDay,
+                message: specialDay ? `今日は${specialDay.name}です` : '今日は通常の日です'
+            };
+            
+            // 5. 夜行性チェックテスト
+            console.log('📍 夜行性チェックテスト...');
+            const allBirds = this.getAllBirds(guildId);
+            if (allBirds.length > 0) {
+                const testBird = allBirds[0];
+                const isNocturnal = await this.isNocturnalBird(testBird.name);
+                const hasNocturnal = await this.hasNocturnalBirds(allBirds);
+                
+                results.tests.nocturnalCheck = {
+                    success: true,
+                    result: { testBird: testBird.name, isNocturnal, hasNocturnal },
+                    message: `${testBird.name}は${isNocturnal ? '夜行性' : '昼行性'}、園内に夜行性の鳥は${hasNocturnal ? 'います' : 'いません'}`
+                };
+            } else {
+                results.tests.nocturnalCheck = {
+                    success: false,
+                    result: null,
+                    message: '鳥がいないためテストできません'
+                };
+            }
+            
+            // 6. 長期滞在テスト
+            console.log('📍 長期滞在テスト...');
+            const longStayBirds = this.getLongStayBirds(guildId);
+            results.tests.longStayCheck = {
+                success: true,
+                result: longStayBirds.map(bird => ({
+                    name: bird.name,
+                    area: bird.area,
+                    stayDays: this.getBirdStayDays(bird)
+                })),
+                message: `長期滞在鳥: ${longStayBirds.length}羽`
+            };
+            
+            console.log('✅ Phase 1 機能テスト完了');
+            results.overall = { success: true, message: 'すべてのテストが完了しました' };
+            
+        } catch (error) {
+            console.error('❌ Phase 1 テストエラー:', error);
+            results.overall = { success: false, message: `テスト中にエラーが発生: ${error.message}` };
+        }
+        
+        return results;
     }
 
 // ===========================================
