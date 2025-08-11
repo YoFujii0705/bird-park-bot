@@ -566,11 +566,11 @@ module.exports = {
             }
             
             // 贈り物解放通知
-            if (affinityResult.newLevel >= 5) {
+            if (affinityResult.newLevel >= 3) {
                 affinityText += '\n🎁 贈り物可能！';
-            } else if (affinityResult.newLevel >= 4) {
+            } else if (affinityResult.newLevel >= 2) {
                 affinityText += '\n🎁 もうすぐ贈り物可能！';
-            } else if (affinityResult.newLevel >= 3) {  
+            } else if (affinityResult.newLevel >= 1) {  
                 affinityText += '\n🎁 あと少しで贈り物可能！';
             }
             
