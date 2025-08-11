@@ -22,10 +22,10 @@ module.exports = {
             // 鳥が鳥類園にいるかチェック
             const zooManager = require('../utils/zooManager');
             const birdInfo = this.findBirdInZoo(birdName, guildId);
-            
             if (!birdInfo) {
-                await interaction.editReply({
-                    content: `🔍 "${birdName}" は現在この鳥類園にいないようです。\n\`/zoo view\` で現在いる鳥を確認してください。`
+                await interaction.reply({
+                    content: `🔍 "${birdName}" は現在この鳥類園にいないようです。\n\`/zoo view\` で現在いる鳥を確認してください。`,
+                    ephemeral: true
                 });
                 return;
             }
