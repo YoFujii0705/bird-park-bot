@@ -92,23 +92,34 @@ module.exports = {
                 });
             }
 
-            // 好感度情報を追加（上位3名）
+            // 好感度情報を追加（上位3名、重複排除）
             if (allAffinities.length > 0) {
-                const topAffinities = allAffinities
+                // ユーザーIDで重複排除し、最高レベルのみ保持
+                const uniqueAffinities = {};
+                allAffinities.forEach(affinity => {
+                    const userId = affinity.userId;
+                    if (!uniqueAffinities[userId] || uniqueAffinities[userId].level < affinity.level) {
+                        uniqueAffinities[userId] = affinity;
+                    }
+                });
+
+                const topAffinities = Object.values(uniqueAffinities)
                     .sort((a, b) => b.level - a.level || b.feedCount - a.feedCount)
                     .slice(0, 3);
                 
-                const affinityText = topAffinities.map((affinity, index) => {
-                    const medal = ['🥇', '🥈', '🥉'][index];
-                    const hearts = '💖'.repeat(affinity.level) + '🤍'.repeat(Math.max(0, 10 - affinity.level));
-                    return `${medal} **${affinity.userName}** - Lv.${affinity.level}\n${hearts}`;
-                }).join('\n\n');
+                if (topAffinities.length > 0) {
+                    const affinityText = topAffinities.map((affinity, index) => {
+                        const medal = ['🥇', '🥈', '🥉'][index];
+                        const hearts = '💖'.repeat(affinity.level) + '🤍'.repeat(Math.max(0, 10 - affinity.level));
+                        return `${medal} **${affinity.userName}** - Lv.${affinity.level}\n${hearts}`;
+                    }).join('\n\n');
 
-                embed.addFields({
-                    name: '💝 親しい人たち',
-                    value: affinityText,
-                    inline: false
-                });
+                    embed.addFields({
+                        name: '💝 親しい人たち',
+                        value: affinityText,
+                        inline: false
+                    });
+                }
             }
 
             // 特別な状態やメモリー情報があれば追加
@@ -157,6 +168,22 @@ module.exports = {
             }
         }
         return null;
+    },
+
+    // 鳥データベースから詳細情報を取得
+    async getBirdDetails(birdName) {
+        try {
+            const birdData = require('../utils/birdData');
+            if (!birdData.initialized) {
+                await birdData.initialize();
+            }
+            
+            const allBirds = birdData.getAllBirds();
+            return allBirds.find(bird => bird.名前 === birdName);
+        } catch (error) {
+            console.error('鳥詳細情報取得エラー:', error);
+            return null;
+        }
     },
 
     // 全ユーザーの好感度情報を取得
