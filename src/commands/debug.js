@@ -101,6 +101,98 @@ module.exports = {
         .setName('test_phase2')
         .setDescription('Phase 2機能（新しいイベント）をテスト')
 )
+        // debug.js の SlashCommandBuilder に以下のサブコマンドを追加
+
+.addSubcommand(subcommand =>
+    subcommand
+        .setName('set_affinity')
+        .setDescription('👹 悪魔のコマンド：好感度を強制設定')
+        .addStringOption(option =>
+            option.setName('bird_name')
+                .setDescription('対象の鳥の名前')
+                .setRequired(true)
+        )
+        .addUserOption(option =>
+            option.setName('target_user')
+                .setDescription('対象ユーザー（省略時は実行者）')
+                .setRequired(false)
+        )
+        .addIntegerOption(option =>
+            option.setName('level')
+                .setDescription('設定する好感度レベル（0-10）')
+                .setRequired(false)
+                .setMinValue(0)
+                .setMaxValue(10)
+        )
+        .addNumberOption(option =>
+            option.setName('feed_count')
+                .setDescription('餌やり回数（省略時は自動計算）')
+                .setRequired(false)
+                .setMinValue(0)
+        )
+)
+.addSubcommand(subcommand =>
+    subcommand
+        .setName('set_bond_level')
+        .setDescription('👹 超悪魔のコマンド：絆レベルを強制設定')
+        .addStringOption(option =>
+            option.setName('bird_name')
+                .setDescription('対象の鳥の名前')
+                .setRequired(true)
+        )
+        .addUserOption(option =>
+            option.setName('target_user')
+                .setDescription('対象ユーザー（省略時は実行者）')
+                .setRequired(false)
+        )
+        .addIntegerOption(option =>
+            option.setName('bond_level')
+                .setDescription('設定する絆レベル（1以上）')
+                .setRequired(true)
+                .setMinValue(1)
+        )
+        .addNumberOption(option =>
+            option.setName('bond_feed_count')
+                .setDescription('絆餌やり回数（省略時は自動計算）')
+                .setRequired(false)
+                .setMinValue(0)
+        )
+)
+.addSubcommand(subcommand =>
+    subcommand
+        .setName('max_all_affinity')
+        .setDescription('👹 破滅のコマンド：全ての鳥との好感度をMAXに')
+        .addUserOption(option =>
+            option.setName('target_user')
+                .setDescription('対象ユーザー（省略時は実行者）')
+                .setRequired(false)
+        )
+)
+.addSubcommand(subcommand =>
+    subcommand
+        .setName('reset_affinity')
+        .setDescription('🔄 好感度リセット：指定鳥との好感度を0に')
+        .addStringOption(option =>
+            option.setName('bird_name')
+                .setDescription('対象の鳥の名前')
+                .setRequired(true)
+        )
+        .addUserOption(option =>
+            option.setName('target_user')
+                .setDescription('対象ユーザー（省略時は実行者）')
+                .setRequired(false)
+        )
+)
+.addSubcommand(subcommand =>
+    subcommand
+        .setName('affinity_status')
+        .setDescription('📊 好感度・絆レベル状況確認')
+        .addUserOption(option =>
+            option.setName('target_user')
+                .setDescription('対象ユーザー（省略時は実行者）')
+                .setRequired(false)
+        )
+)
 .addSubcommand(subcommand =>
     subcommand
         .setName('generate_event')
@@ -234,6 +326,278 @@ module.exports = {
         .setTimestamp();
     
     await interaction.editReply({ embeds: [phase3Embed] });
+    break;
+                    // debug.js の execute関数のswitch文に以下のケースを追加
+
+case 'set_affinity':
+    await interaction.deferReply({ ephemeral: true });
+    
+    try {
+        const birdName = interaction.options.getString('bird_name');
+        const targetUser = interaction.options.getUser('target_user') || interaction.user;
+        const level = interaction.options.getInteger('level') || 10; // デフォルトはMAX
+        let feedCount = interaction.options.getNumber('feed_count');
+        
+        // 餌やり回数が指定されていない場合は自動計算
+        if (feedCount === null) {
+            feedCount = this.calculateRequiredFeedsForLevel(level);
+        }
+        
+        // sheetsManagerに直接記録
+        const sheetsManager = require('../../config/sheets');
+        await sheetsManager.logAffinity(
+            targetUser.id, 
+            targetUser.username, 
+            birdName, 
+            level, 
+            feedCount, 
+            guildId
+        );
+        
+        const embed = new EmbedBuilder()
+            .setTitle('👹 悪魔のコマンド実行完了')
+            .setColor(0xff0000)
+            .addFields(
+                { name: '🐦 対象の鳥', value: birdName, inline: true },
+                { name: '👤 対象ユーザー', value: targetUser.username, inline: true },
+                { name: '💖 設定レベル', value: `${level}/10`, inline: true },
+                { name: '🍽️ 餌やり回数', value: `${feedCount}回`, inline: true },
+                { name: '⚠️ 注意', value: '不正な方法で好感度を設定しました', inline: false }
+            )
+            .setFooter({ text: '管理者専用デバッグコマンド' })
+            .setTimestamp();
+        
+        await interaction.editReply({ embeds: [embed] });
+        
+    } catch (error) {
+        console.error('好感度設定エラー:', error);
+        await interaction.editReply({ 
+            content: `❌ 好感度設定に失敗しました: ${error.message}` 
+        });
+    }
+    break;
+
+case 'set_bond_level':
+    await interaction.deferReply({ ephemeral: true });
+    
+    try {
+        const birdName = interaction.options.getString('bird_name');
+        const targetUser = interaction.options.getUser('target_user') || interaction.user;
+        const bondLevel = interaction.options.getInteger('bond_level');
+        let bondFeedCount = interaction.options.getNumber('bond_feed_count');
+        
+        // まず好感度を10に設定（絆レベルの前提条件）
+        const sheetsManager = require('../../config/sheets');
+        await sheetsManager.logAffinity(
+            targetUser.id, 
+            targetUser.username, 
+            birdName, 
+            10, 
+            56, // レベル10に必要な回数
+            guildId
+        );
+        
+        // 絆餌やり回数が指定されていない場合は自動計算
+        if (bondFeedCount === null) {
+            bondFeedCount = this.calculateRequiredFeedsForBondLevel(bondLevel);
+        }
+        
+        // 絆レベルを設定
+        await sheetsManager.logBondLevel(
+            targetUser.id,
+            targetUser.username,
+            birdName,
+            bondLevel,
+            bondFeedCount,
+            guildId
+        );
+        
+        // 絆レベル特典も付与
+        await this.grantBondLevelRewards(targetUser.id, targetUser.username, birdName, bondLevel, guildId);
+        
+        const embed = new EmbedBuilder()
+            .setTitle('👹 超悪魔のコマンド実行完了')
+            .setColor(0x8b0000)
+            .addFields(
+                { name: '🐦 対象の鳥', value: birdName, inline: true },
+                { name: '👤 対象ユーザー', value: targetUser.username, inline: true },
+                { name: '🔗 設定絆レベル', value: `${bondLevel}`, inline: true },
+                { name: '🍽️ 絆餌やり回数', value: `${bondFeedCount}回`, inline: true },
+                { name: '💖 好感度', value: '10/10 (自動設定)', inline: true },
+                { name: '🎁 特典', value: '絆レベル特典も自動付与', inline: true },
+                { name: '⚠️ 警告', value: '極めて不正な方法で絆レベルを設定しました', inline: false }
+            )
+            .setFooter({ text: '管理者専用超危険デバッグコマンド' })
+            .setTimestamp();
+        
+        await interaction.editReply({ embeds: [embed] });
+        
+    } catch (error) {
+        console.error('絆レベル設定エラー:', error);
+        await interaction.editReply({ 
+            content: `❌ 絆レベル設定に失敗しました: ${error.message}` 
+        });
+    }
+    break;
+
+case 'max_all_affinity':
+    await interaction.deferReply({ ephemeral: true });
+    
+    try {
+        const targetUser = interaction.options.getUser('target_user') || interaction.user;
+        
+        // 現在園内にいる全ての鳥を取得
+        const allBirds = zooManager.getAllBirds(guildId);
+        
+        if (allBirds.length === 0) {
+            await interaction.editReply({ content: '❌ 園内に鳥がいないため実行できません。' });
+            break;
+        }
+        
+        const sheetsManager = require('../../config/sheets');
+        const results = [];
+        
+        // 全ての鳥に対して好感度MAXを設定
+        for (const bird of allBirds) {
+            try {
+                await sheetsManager.logAffinity(
+                    targetUser.id,
+                    targetUser.username,
+                    bird.name,
+                    10,
+                    56, // レベル10に必要な回数
+                    guildId
+                );
+                results.push(`✅ ${bird.name} (${bird.area})`);
+            } catch (error) {
+                results.push(`❌ ${bird.name} (エラー)`);
+                console.error(`${bird.name}の好感度設定エラー:`, error);
+            }
+        }
+        
+        const embed = new EmbedBuilder()
+            .setTitle('👹 破滅のコマンド実行完了')
+            .setColor(0x000000)
+            .setDescription(`**${targetUser.username}** と園内全ての鳥の好感度をMAXに設定しました`)
+            .addFields(
+                { name: '📊 処理結果', value: results.join('\n'), inline: false },
+                { name: '⚠️ 大警告', value: '全ての鳥との絆を不正に最大化しました\nこれは現実では不可能です', inline: false }
+            )
+            .setFooter({ text: '破滅級デバッグコマンド - 管理者のみ使用可能' })
+            .setTimestamp();
+        
+        await interaction.editReply({ embeds: [embed] });
+        
+    } catch (error) {
+        console.error('全好感度MAX設定エラー:', error);
+        await interaction.editReply({ 
+            content: `❌ 全好感度MAX設定に失敗しました: ${error.message}` 
+        });
+    }
+    break;
+
+case 'reset_affinity':
+    await interaction.deferReply({ ephemeral: true });
+    
+    try {
+        const birdName = interaction.options.getString('bird_name');
+        const targetUser = interaction.options.getUser('target_user') || interaction.user;
+        
+        const sheetsManager = require('../../config/sheets');
+        
+        // 好感度を0にリセット
+        await sheetsManager.logAffinity(
+            targetUser.id,
+            targetUser.username,
+            birdName,
+            0,
+            0,
+            guildId
+        );
+        
+        const embed = new EmbedBuilder()
+            .setTitle('🔄 好感度リセット完了')
+            .setColor(0x808080)
+            .addFields(
+                { name: '🐦 対象の鳥', value: birdName, inline: true },
+                { name: '👤 対象ユーザー', value: targetUser.username, inline: true },
+                { name: '💔 新しい好感度', value: '0/10', inline: true },
+                { name: '📝 説明', value: '好感度と餌やり回数を0にリセットしました', inline: false }
+            )
+            .setTimestamp();
+        
+        await interaction.editReply({ embeds: [embed] });
+        
+    } catch (error) {
+        console.error('好感度リセットエラー:', error);
+        await interaction.editReply({ 
+            content: `❌ 好感度リセットに失敗しました: ${error.message}` 
+        });
+    }
+    break;
+
+case 'affinity_status':
+    await interaction.deferReply({ ephemeral: true });
+    
+    try {
+        const targetUser = interaction.options.getUser('target_user') || interaction.user;
+        
+        const sheetsManager = require('../../config/sheets');
+        
+        // 好感度情報を取得
+        const affinities = await sheetsManager.getUserAffinity(targetUser.id, guildId);
+        
+        // 絆レベル情報を取得
+        const bondLevels = await sheetsManager.getUserBondLevels(targetUser.id, guildId);
+        
+        if (Object.keys(affinities).length === 0) {
+            await interaction.editReply({ 
+                content: `📊 **${targetUser.username}の好感度状況**\n\nまだ鳥との好感度記録がありません。` 
+            });
+            break;
+        }
+        
+        const embed = new EmbedBuilder()
+            .setTitle(`📊 ${targetUser.username}の好感度・絆レベル状況`)
+            .setColor(0x3498db)
+            .setTimestamp();
+        
+        let statusText = '';
+        let maxAffinityCount = 0;
+        let bondLevelCount = 0;
+        
+        for (const [birdName, affinity] of Object.entries(affinities)) {
+            const hearts = '💖'.repeat(affinity.level) + '🤍'.repeat(10 - affinity.level);
+            statusText += `**${birdName}**\n`;
+            statusText += `${hearts} Lv.${affinity.level} (${affinity.feedCount}回)\n`;
+            
+            if (affinity.level >= 10) {
+                maxAffinityCount++;
+                
+                // 絆レベル情報があれば表示
+                if (bondLevels[birdName]) {
+                    const bond = bondLevels[birdName];
+                    statusText += `🔗 絆レベル: ${bond.bondLevel} (${bond.bondFeedCount}回)\n`;
+                    bondLevelCount++;
+                }
+            }
+            
+            statusText += '\n';
+        }
+        
+        embed.setDescription(statusText);
+        embed.addFields(
+            { name: '📈 統計', value: `好感度MAX: ${maxAffinityCount}羽\n絆レベル保持: ${bondLevelCount}羽`, inline: false }
+        );
+        
+        await interaction.editReply({ embeds: [embed] });
+        
+    } catch (error) {
+        console.error('好感度状況確認エラー:', error);
+        await interaction.editReply({ 
+            content: `❌ 好感度状況確認に失敗しました: ${error.message}` 
+        });
+    }
     break;
 case 'test_all_phases':
     await interaction.deferReply({ ephemeral: true });
@@ -747,4 +1111,94 @@ case 'generate_event':
             }
         }
     },
+
+    // debug.js の module.exports の最後（execute関数の後）に以下のヘルパー関数を追加
+
+    // 🧮 好感度レベルに必要な餌やり回数を計算
+    calculateRequiredFeedsForLevel(targetLevel) {
+        const levelRequirements = {
+            0: 0,
+            1: 2,      // レベル0→1: 2回
+            2: 4,      // レベル1→2: 2回追加 (累計4回)
+            3: 7,      // レベル2→3: 3回追加 (累計7回)
+            4: 11,     // レベル3→4: 4回追加 (累計11回)
+            5: 16,     // レベル4→5: 5回追加 (累計16回)
+            6: 22,     // レベル5→6: 6回追加 (累計22回)
+            7: 29,     // レベル6→7: 7回追加 (累計29回)
+            8: 37,     // レベル7→8: 8回追加 (累計37回)
+            9: 46,     // レベル8→9: 9回追加 (累計46回)
+            10: 56     // レベル9→10: 10回追加 (累計56回)
+        };
+        
+        return levelRequirements[targetLevel] || 0;
+    },
+
+    // 🔗 絆レベルに必要な餌やり回数を計算
+    calculateRequiredFeedsForBondLevel(targetBondLevel) {
+        if (targetBondLevel <= 0) return 0;
+        
+        let totalRequired = 0;
+        for (let level = 1; level <= targetBondLevel; level++) {
+            let requiredForThisLevel;
+            
+            if (level === 1) {
+                requiredForThisLevel = 15;
+            } else if (level === 2) {
+                requiredForThisLevel = 20;
+            } else if (level === 3) {
+                requiredForThisLevel = 25;
+            } else if (level === 4) {
+                requiredForThisLevel = 30;
+            } else {
+                // レベル5以降は5回ずつ増加
+                requiredForThisLevel = 30 + (level - 4) * 5;
+            }
+            
+            totalRequired += requiredForThisLevel;
+        }
+        
+        return totalRequired;
+    },
+
+    // 🎁 絆レベル特典を付与
+    async grantBondLevelRewards(userId, userName, birdName, bondLevel, guildId) {
+        try {
+            const sheetsManager = require('../../config/sheets');
+            
+            // きりのいいレベルで「写真」確定入手
+            const rewardLevels = [5, 10, 15, 20, 25, 30];
+            
+            for (const rewardLevel of rewardLevels) {
+                if (bondLevel >= rewardLevel) {
+                    const photoName = this.getBondLevelPhotoName(rewardLevel);
+                    
+                    // gifts_inventoryに写真を追加
+                    await sheetsManager.logGiftInventory(
+                        userId, userName, photoName, 1,
+                        `${birdName}との絆レベル${rewardLevel}達成特典（デバッグ付与）`,
+                        guildId
+                    );
+                }
+            }
+            
+            console.log(`🎁 ${userName}に絆レベル${bondLevel}までの特典を付与しました`);
+            
+        } catch (error) {
+            console.error('絆レベル特典付与エラー:', error);
+        }
+    },
+
+    // 📸 絆レベル別写真名取得
+    getBondLevelPhotoName(bondLevel) {
+        const photoNames = {
+            5: '深い絆の写真',
+            10: '魂の繋がりの写真',
+            15: '永遠の瞬間の写真',
+            20: '奇跡の写真',
+            25: '運命の写真',
+            30: '無限の絆の写真'
+        };
+        
+        return photoNames[bondLevel] || `絆レベル${bondLevel}の記念写真`;
+    }
 };
