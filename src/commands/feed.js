@@ -514,51 +514,73 @@ if (affinityResult) {
         affinityText += '\n🌟 好物ボーナス！(×1.5)';
     }
     
-    // 🆕 絆レベル表示（好感度MAX後）
-if (affinityResult.newLevel >= 10 && affinityResult.bondResult) {
-    const bondResult = affinityResult.bondResult;
-    
-    if (bondResult.isProcessing) {
-        // 処理中の場合
-        affinityText += `\n\n🔗 **絆システム起動！**`;
-        affinityText += `\n⏳ 絆レベル処理中...`;
-        affinityText += `\n好物餌やりで絆レベルが上がります！`;
-    } else {
-        // 通常の絆レベル表示
-        affinityText += `\n\n🔗 **絆レベル ${bondResult.newBondLevel}**`;
-        affinityText += `\n絆: ${bondResult.newBondFeedCount}回`;
-        
-        if (bondResult.bondLevelUp) {
-            affinityText += '\n✨ 絆レベルアップ！';
-        }
-        
-        // 次の絆レベルまでの進捗
-        if (bondResult.requiredForNextBond && bondResult.requiredForNextBond > 0) {
-            const remaining = bondResult.requiredForNextBond - bondResult.newBondFeedCount;
-            affinityText += `\n次の絆レベルまで: ${remaining.toFixed(1)}回`;
-        }
-        
-        // 絆レベル特典表示
-        if (bondResult.newBondLevel === 1) {
-            affinityText += '\n🏠 ネスト建設可能！';
-        } else if (bondResult.newBondLevel === 3) {
-            affinityText += '\n🚶 レア散歩ルート解放！';
-        } else if (bondResult.newBondLevel === 5) {
-            affinityText += '\n🌟 特別散歩ルート解放！';
-        } else if (bondResult.newBondLevel === 10) {
-            affinityText += '\n👑 最高級散歩ルート解放！';
-        }
-    }
-} else if (affinityResult.newLevel >= 10) {
-    affinityText += '\n\n🔗 **絆システム解放済み**';
-    affinityText += '\n好物餌やりで絆レベルが上がります！';
-} else {
-    // 次のレベルまでの進捗
-    if (affinityResult.requiredForNext) {
-        const remaining = affinityResult.requiredForNext - affinityResult.newFeedCount;
-        affinityText += `\n次のレベルまで: ${remaining.toFixed(1)}回`;
-    }
-}
+    // 💖 好感度情報表示（修正版）
+        if (affinityResult) {
+            const maxHearts = 10;
+            const hearts = '💖'.repeat(affinityResult.newLevel) + '🤍'.repeat(maxHearts - affinityResult.newLevel);
+            
+            let affinityText = `${hearts}\nLv.${affinityResult.newLevel}/10 (${affinityResult.newFeedCount}回)`;
+            
+            if (affinityResult.levelUp) {
+                affinityText += '\n✨ レベルアップ！';
+            }
+            
+            // 好物ボーナス表示
+            if (affinityResult.feedIncrement > 1) {
+                affinityText += '\n🌟 好物ボーナス！(×1.5)';
+            }
+            
+            // 🆕 絆レベル表示（修正版）
+            if (affinityResult.newLevel >= 10 && affinityResult.bondResult) {
+                const bondResult = affinityResult.bondResult;
+                
+                if (bondResult.error) {
+                    // エラーが発生した場合
+                    affinityText += `\n\n🔗 **絆システム**`;
+                    affinityText += `\n❌ 絆レベル処理でエラーが発生しました`;
+                    affinityText += `\n再度餌やりをお試しください`;
+                } else if (bondResult.isProcessing) {
+                    // 処理中の場合（この状態は基本的になくなる）
+                    affinityText += `\n\n🔗 **絆システム起動！**`;
+                    affinityText += `\n⏳ 絆レベル処理中...`;
+                    affinityText += `\n好物餌やりで絆レベルが上がります！`;
+                } else {
+                    // 通常の絆レベル表示
+                    affinityText += `\n\n🔗 **絆レベル ${bondResult.newBondLevel}**`;
+                    affinityText += `\n絆: ${bondResult.newBondFeedCount}回`;
+                    
+                    if (bondResult.bondLevelUp) {
+                        affinityText += '\n✨ 絆レベルアップ！';
+                    }
+                    
+                    // 次の絆レベルまでの進捗
+                    if (bondResult.requiredForNextBond && bondResult.requiredForNextBond > bondResult.newBondFeedCount) {
+                        const remaining = bondResult.requiredForNextBond - bondResult.newBondFeedCount;
+                        affinityText += `\n次の絆レベルまで: ${remaining.toFixed(1)}回`;
+                    }
+                    
+                    // 絆レベル特典表示
+                    if (bondResult.newBondLevel === 1) {
+                        affinityText += '\n🏠 ネスト建設可能！';
+                    } else if (bondResult.newBondLevel === 3) {
+                        affinityText += '\n🚶 レア散歩ルート解放！';
+                    } else if (bondResult.newBondLevel === 5) {
+                        affinityText += '\n🌟 特別散歩ルート解放！';
+                    } else if (bondResult.newBondLevel === 10) {
+                        affinityText += '\n👑 最高級散歩ルート解放！';
+                    }
+                }
+            } else if (affinityResult.newLevel >= 10) {
+                affinityText += '\n\n🔗 **絆システム解放済み**';
+                affinityText += '\n好物餌やりで絆レベルが上がります！';
+            } else {
+                // 次のレベルまでの進捗
+                if (affinityResult.requiredForNext) {
+                    const remaining = affinityResult.requiredForNext - affinityResult.newFeedCount;
+                    affinityText += `\n次のレベルまで: ${remaining.toFixed(1)}回`;
+                }
+            }
+            
     
     // 贈り物解放通知
     if (affinityResult.newLevel >= 3) {
@@ -593,7 +615,7 @@ if (affinityResult.newLevel >= 10 && affinityResult.bondResult) {
         return preference === 'favorite' && !bird.feedHistory.some(h => h.preference === 'favorite');
     },
 
-    // 💖 好感度処理メソッド（タイムアウト対策版）
+    // 💖 好感度処理メソッド（絆レベル表示修正版）
 async processAffinity(userId, userName, birdName, preference, serverId) {
     try {
         // 現在の好感度を取得
@@ -627,24 +649,26 @@ async processAffinity(userId, userName, birdName, preference, serverId) {
         // スプレッドシートに好感度記録
         await sheetsManager.logAffinity(userId, userName, birdName, newLevel, Math.round(newFeedCount * 10) / 10, serverId);
         
-        // 🆕 絆レベル処理を非同期で分離（タイムアウト対策）
+        // 🆕 絆レベル処理（修正版）
         let bondResult = null;
         if (newLevel >= 10) {
-            // 絆レベル処理を非同期で実行（await しない）
-            this.processBondLevelAsync(userId, userName, birdName, feedIncrement, serverId)
-                .catch(error => {
-                    console.error('非同期絆レベル処理エラー:', error);
-                });
-            
-            // 一時的な絆レベル情報を返す
-            bondResult = {
-                bondLevelUp: false,
-                newBondLevel: 0,
-                newBondFeedCount: feedIncrement,
-                previousBondLevel: 0,
-                requiredForNextBond: this.getRequiredFeedsForBondLevel(1),
-                isProcessing: true // 🆕 処理中フラグ
-            };
+            try {
+                // 🔧 修正: 同期的に絆レベル処理を実行
+                bondResult = await this.processBondLevel(userId, userName, birdName, feedIncrement, serverId);
+                console.log('🔗 絆レベル処理完了:', bondResult);
+            } catch (error) {
+                console.error('絆レベル処理エラー:', error);
+                // エラーの場合は処理中状態を返す
+                bondResult = {
+                    bondLevelUp: false,
+                    newBondLevel: 0,
+                    newBondFeedCount: feedIncrement,
+                    previousBondLevel: 0,
+                    requiredForNextBond: this.getRequiredFeedsForBondLevel(1),
+                    isProcessing: true,
+                    error: true
+                };
+            }
         }
         
         return {
@@ -663,10 +687,10 @@ async processAffinity(userId, userName, birdName, preference, serverId) {
     }
 },
 
-// 🆕 非同期絆レベル処理メソッド（修正版）
-async processBondLevelAsync(userId, userName, birdName, feedIncrement, serverId) {
+// 🆕 同期版絆レベル処理メソッド（修正版）
+async processBondLevel(userId, userName, birdName, feedIncrement, serverId) {
     try {
-        console.log(`🔗 非同期絆レベル処理開始 - ${birdName}, サーバー: ${serverId}`);
+        console.log(`🔗 絆レベル処理開始 - ${birdName}, サーバー: ${serverId}`);
         
         // 現在の絆レベルを取得
         const currentBond = await sheetsManager.getUserBondLevel(userId, birdName, serverId) || { 
@@ -712,20 +736,21 @@ async processBondLevelAsync(userId, userName, birdName, feedIncrement, serverId)
             serverId
         );
         
-        console.log(`🔗 非同期絆レベル処理完了 - ${birdName}: Lv.${newBondLevel}`);
+        console.log(`🔗 絆レベル処理完了 - ${birdName}: Lv.${newBondLevel}`);
         
         return {
             bondLevelUp,
             newBondLevel,
             newBondFeedCount: Math.round(newBondFeedCount * 10) / 10,
             previousBondLevel: currentBond.bondLevel,
-            requiredForNextBond: this.getRequiredFeedsForBondLevel(newBondLevel + 1)
+            requiredForNextBond: this.getRequiredFeedsForBondLevel(newBondLevel + 1),
+            isProcessing: false // 🔧 修正: 処理完了フラグ
         };
         
     } catch (error) {
-        console.error('非同期絆レベル処理エラー:', error);
+        console.error('絆レベル処理エラー:', error);
         console.error('エラースタック:', error.stack);
-        return null;
+        throw error; // エラーを上位に伝播
     }
 },
     
