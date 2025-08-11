@@ -561,11 +561,11 @@ if (affinityResult.newLevel >= 10 && affinityResult.bondResult) {
 }
     
     // 贈り物解放通知
-    if (affinityResult.newLevel >= 5) {
+    if (affinityResult.newLevel >= 3) {
         affinityText += '\n🎁 贈り物可能！';
-    } else if (affinityResult.newLevel >= 4) {
+    } else if (affinityResult.newLevel >= 2) {
         affinityText += '\n🎁 もうすぐ贈り物可能！';
-    } else if (affinityResult.newLevel >= 3) {  
+    } else if (affinityResult.newLevel >= 1) {  
         affinityText += '\n🎁 あと少しで贈り物可能！';
     }
     
@@ -972,16 +972,18 @@ getBondLevelPhotoName(bondLevel) {
     async checkBirdGiftToUser(interaction, userId, userName, birdName, affinityLevel, area, guildId) {
         try {
             // 好感度が5以上の場合のみ贈り物チャンス
-            if (affinityLevel < 5) return null;
+            if (affinityLevel < 3) return null;
             
             // 贈り物確率
             let giftChance = 0;
+            if (affinityLevel >= 3) giftChance = 0.10; // 30%
+            if (affinityLevel >= 4) giftChance = 0.20; // 30%
             if (affinityLevel >= 5) giftChance = 0.30; // 30%
             if (affinityLevel >= 6) giftChance = 0.35; // 35%
             if (affinityLevel >= 7) giftChance = 0.45; // 45%
-            if (affinityLevel >= 8) giftChance = 0.55; // 55%
-            if (affinityLevel >= 9) giftChance = 0.65; // 65%
-            if (affinityLevel >= 10) giftChance = 0.75; // 75%
+            if (affinityLevel >= 8) giftChance = 0.50; // 50%
+            if (affinityLevel >= 9) giftChance = 0.55; // 55%
+            if (affinityLevel >= 10) giftChance = 0.60; // 60%
             
             console.log(`🎲 ${birdName}(好感度${affinityLevel}) 贈り物チャンス: ${(giftChance * 100).toFixed(0)}%`);
             
