@@ -106,12 +106,18 @@ module.exports = {
             );
             
             if (bird) {
-                // クールダウンをリセット（lastFedを古い時刻に設定）
+                // クールダウンを完全にリセット
                 const oldTime = new Date();
-                oldTime.setHours(oldTime.getHours() - 1); // 1時間前に設定
+                oldTime.setMinutes(oldTime.getMinutes() - 15); // 15分前に設定（確実にクールダウン時間を超える）
                 
                 bird.lastFed = oldTime;
-                bird.lastFedBy = null; // クールダウンを完全にリセット
+                bird.lastFedBy = 'reset'; // nullではなく'reset'にして、条件を回避
+                
+                console.log(`🧪 ${birdName}のクールダウンリセット:`, {
+                    lastFed: bird.lastFed,
+                    lastFedBy: bird.lastFedBy,
+                    currentTime: new Date()
+                });
                 
                 birdFound = true;
                 break;
@@ -130,7 +136,7 @@ module.exports = {
         await zooManager.saveServerZoo(guildId);
         
         await interaction.reply({
-            content: `🧪 **${birdName}** の餌やりクールダウンをリセットしました。\n💡 すぐに餌やりができるようになりました！`,
+            content: `🧪 **${birdName}** の餌やりクールダウンをリセットしました。\n💡 すぐに餌やりができるようになりました！\n🔍 lastFed: ${bird.lastFed.toLocaleTimeString('ja-JP')}`,
             ephemeral: true
         });
     },
