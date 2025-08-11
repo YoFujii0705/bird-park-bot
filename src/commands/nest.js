@@ -544,7 +544,7 @@ class NestSystem {
     // 鳥のエリアを取得
     getBirdArea(birdName, guildId) {
         try {
-            const zooManager = require('./zooManager');
+            const zooManager = require('../utils/zooManager');
             const zooState = zooManager.getZooState(guildId);
             
             for (const area of ['森林', '草原', '水辺']) {
