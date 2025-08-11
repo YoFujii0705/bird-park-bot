@@ -125,6 +125,58 @@ module.exports = {
         }
     },
 
+    // 🔍 改良版鳥検索メソッド（優先順位付き）
+    findBirdInZoo(birdName, guildId) {
+        const zooManager = require('../utils/zooManager');
+        const zooState = zooManager.getZooState(guildId);
+        
+        // すべてのエリアの鳥を収集
+        const allBirds = [];
+        for (const area of ['森林', '草原', '水辺']) {
+            zooState[area].forEach(bird => {
+                allBirds.push({ bird, area });
+            });
+        }
+        
+        // 検索パターンを優先順位順に実行
+        
+        // 1. 完全一致（最優先）
+        let foundBird = allBirds.find(({ bird }) => 
+            bird.name === birdName
+        );
+        
+        if (foundBird) {
+            console.log(`🎯 完全一致で発見: ${foundBird.bird.name}`);
+            return foundBird;
+        }
+        
+        // 2. 前方一致（「オオアカゲラ」→「オオアカ」等）
+        foundBird = allBirds.find(({ bird }) => 
+            bird.name.startsWith(birdName) || birdName.startsWith(bird.name)
+        );
+        
+        if (foundBird) {
+            console.log(`🎯 前方一致で発見: ${foundBird.bird.name}`);
+            return foundBird;
+        }
+        
+        // 3. 長い名前の鳥を優先した部分一致
+        // 名前が長い順にソートしてから部分一致チェック
+        const sortedBirds = allBirds.sort((a, b) => b.bird.name.length - a.bird.name.length);
+        
+        foundBird = sortedBirds.find(({ bird }) => 
+            bird.name.includes(birdName) || birdName.includes(bird.name)
+        );
+        
+        if (foundBird) {
+            console.log(`🎯 部分一致で発見（長い名前優先）: ${foundBird.bird.name}`);
+            return foundBird;
+        }
+        
+        console.log(`❌ 鳥が見つかりません: ${birdName}`);
+        return null;
+    },
+
     async processGiftGiving(interaction, birdInfo, guildId) {
         try {
             const userId = interaction.user.id;
