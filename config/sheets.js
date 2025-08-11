@@ -169,9 +169,14 @@ this.sheets.userNests = await this.getOrCreateSheet('user_nests', [
             return false;
         }
         
-        // 🔧 birdGiftsは独自の日時フィールドを持つので、自動追加しない
+        // 🔧 userNestsの場合は独自の日時フィールドを持つので、自動追加しない
         let logData;
-        if (sheetName === 'birdGifts') {
+        if (sheetName === 'userNests') {
+            logData = {
+                日時: new Date().toLocaleString('ja-JP'),
+                ...data
+            };
+        } else if (sheetName === 'birdGifts') {
             logData = data;
         } else {
             logData = {
@@ -180,10 +185,16 @@ this.sheets.userNests = await this.getOrCreateSheet('user_nests', [
             };
         }
         
+        console.log(`📝 ${sheetName}シートに記録するデータ:`, logData);
+        
         await sheet.addRow(logData);
+        
+        console.log(`✅ ${sheetName}シートに記録完了`);
         return true;
     } catch (error) {
         console.error(`ログ追加エラー (${sheetName}):`, error);
+        console.error('データ:', data);
+        console.error('エラースタック:', error.stack);
         return false;
     }
 }
