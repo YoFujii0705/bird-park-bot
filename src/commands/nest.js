@@ -1,7 +1,6 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const bondLevelManager = require('../utils/bondLevelManager');
 const sheetsManager = require('../../config/sheets');
-const nestSystem = require('../utils/nestSystem');
 
 // 1. 最初にSlashCommandBuilderを定義
 const data = new SlashCommandBuilder()
@@ -74,6 +73,189 @@ async function execute(interaction) {
         if (!interaction.replied) {
             await interaction.reply({ content: 'エラーが発生しました。', ephemeral: true });
         }
+    }
+}
+
+// 3. ハンドラー関数を実装
+async function handleNestCreate(interaction) {
+    try {
+        const birdName = interaction.options.getString('bird');
+        const userId = interaction.user.id;
+        const userName = interaction.user.displayName || interaction.user.username;
+        const serverId = interaction.guild.id;
+        
+        // NestSystemインスタンスを作成
+        const nestSystem = new NestSystem();
+        
+        // 建設可能かチェック
+        const buildCheck = await nestSystem.canBuildNest(userId, birdName, serverId);
+        
+        if (!buildCheck.canBuild) {
+            await interaction.reply({
+                content: `❌ ネスト建設不可: ${buildCheck.message}`,
+                ephemeral: true
+            });
+            return;
+        }
+        
+        // 鳥のエリアを取得してネストタイプを生成
+        const birdArea = nestSystem.getBirdArea(birdName, serverId);
+        const nestOptions = nestSystem.generateNestOptions(birdArea);
+        
+        // ガチャ形式で3つの選択肢を提示
+        const embed = {
+            title: `🏗️ ${birdName}のネスト建設`,
+            description: `${birdArea}エリアに適したネストタイプを選択してください：`,
+            color: 0x4CAF50,
+            fields: nestOptions.map((nestType, index) => ({
+                name: `${index + 1}. ${nestType}`,
+                value: '建設可能',
+                inline: true
+            })),
+            footer: {
+                text: '番号を選択してネストを建設してください'
+            }
+        };
+        
+        await interaction.reply({
+            embeds: [embed],
+            components: [{
+                type: 1,
+                components: nestOptions.map((nestType, index) => ({
+                    type: 2,
+                    style: 1,
+                    label: `${index + 1}. ${nestType}`,
+                    custom_id: `nest_select_${index}_${birdName}_${nestType}`
+                }))
+            }],
+            ephemeral: true
+        });
+        
+    } catch (error) {
+        console.error('ネスト建設エラー:', error);
+        await interaction.reply({
+            content: 'ネスト建設中にエラーが発生しました。',
+            ephemeral: true
+        });
+    }
+}
+
+async function handleNestView(interaction) {
+    try {
+        const userId = interaction.user.id;
+        const serverId = interaction.guild.id;
+        const nestSystem = new NestSystem();
+        
+        const userNests = await nestSystem.getUserNests(userId, serverId);
+        
+        if (userNests.length === 0) {
+            await interaction.reply({
+                content: '🏠 まだネストを建設していません。\n`/nest create` でネストを建設してみましょう！',
+                ephemeral: true
+            });
+            return;
+        }
+        
+        const embed = {
+            title: '🏠 あなたのネスト一覧',
+            color: 0x8BC34A,
+            fields: userNests.map(nest => ({
+                name: `🐦 ${nest.鳥名}`,
+                value: `**ネストタイプ**: ${nest.ネストタイプ}\n**カスタム名**: ${nest.カスタム名 || '未設定'}`,
+                inline: true
+            })),
+            footer: {
+                text: `所有ネスト数: ${userNests.length}/5`
+            }
+        };
+        
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        
+    } catch (error) {
+        console.error('ネスト表示エラー:', error);
+        await interaction.reply({
+            content: 'ネスト情報の取得中にエラーが発生しました。',
+            ephemeral: true
+        });
+    }
+}
+
+async function handleNestVisit(interaction) {
+    try {
+        const birdName = interaction.options.getString('bird');
+        const userId = interaction.user.id;
+        const serverId = interaction.guild.id;
+        
+        const nestData = await sheetsManager.getBirdNest(userId, birdName, serverId);
+        
+        if (!nestData) {
+            await interaction.reply({
+                content: `❌ ${birdName}のネストが見つかりません。`,
+                ephemeral: true
+            });
+            return;
+        }
+        
+        const embed = {
+            title: `🏠 ${birdName}のネスト`,
+            description: `**ネストタイプ**: ${nestData.ネストタイプ}\n**カスタム名**: ${nestData.カスタム名 || '未設定'}`,
+            color: 0x2196F3,
+            fields: [
+                {
+                    name: '📊 ネスト情報',
+                    value: `建設日: ${nestData.日時 ? new Date(nestData.日時).toLocaleDateString('ja-JP') : '不明'}`,
+                    inline: false
+                }
+            ]
+        };
+        
+        if (nestData.チャンネルID) {
+            embed.fields.push({
+                name: '🔗 専用チャンネル',
+                value: `<#${nestData.チャンネルID}>`,
+                inline: false
+            });
+        }
+        
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        
+    } catch (error) {
+        console.error('ネスト詳細エラー:', error);
+        await interaction.reply({
+            content: 'ネスト詳細の取得中にエラーが発生しました。',
+            ephemeral: true
+        });
+    }
+}
+
+async function handleNestChange(interaction) {
+    try {
+        const birdName = interaction.options.getString('bird');
+        const newNestType = interaction.options.getString('type');
+        const userId = interaction.user.id;
+        const serverId = interaction.guild.id;
+        
+        const nestSystem = new NestSystem();
+        const result = await nestSystem.changeNestType(userId, birdName, newNestType, serverId);
+        
+        if (result.success) {
+            await interaction.reply({
+                content: `✅ ${result.message}`,
+                ephemeral: true
+            });
+        } else {
+            await interaction.reply({
+                content: `❌ ${result.message}`,
+                ephemeral: true
+            });
+        }
+        
+    } catch (error) {
+        console.error('ネスト変更エラー:', error);
+        await interaction.reply({
+            content: `❌ エラー: ${error.message}`,
+            ephemeral: true
+        });
     }
 }
 
