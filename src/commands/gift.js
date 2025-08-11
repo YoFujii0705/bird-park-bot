@@ -197,20 +197,40 @@ module.exports = {
 
             // 2. 前方一致
             foundNest = nests.find(nest => 
-                nest.鳥名.startsWith(birdName) || birdName.startsWith(nest.鳥名)
+                nest.鳥名.startsWith(birdName)
             );
             if (foundNest) {
                 console.log(`🎯 ネストで前方一致: ${foundNest.鳥名}`);
                 return foundNest;
             }
 
-            // 3. 部分一致（長い名前優先）
-            const sortedNests = nests.sort((a, b) => b.鳥名.length - a.鳥名.length);
-            foundNest = sortedNests.find(nest => 
-                nest.鳥名.includes(birdName) || birdName.includes(nest.鳥名)
+            // 3. 後方一致
+            foundNest = nests.find(nest => 
+                nest.鳥名.endsWith(birdName)
             );
             if (foundNest) {
-                console.log(`🎯 ネストで部分一致: ${foundNest.鳥名}`);
+                console.log(`🎯 ネストで後方一致: ${foundNest.鳥名}`);
+                return foundNest;
+            }
+
+            // 4. 部分一致（3文字以上の場合のみ、短い名前優先）
+            if (birdName.length >= 3) {
+                const sortedNests = nests.sort((a, b) => a.鳥名.length - b.鳥名.length);
+                foundNest = sortedNests.find(nest => 
+                    nest.鳥名.includes(birdName)
+                );
+                if (foundNest) {
+                    console.log(`🎯 ネストで部分一致: ${foundNest.鳥名}`);
+                    return foundNest;
+                }
+            }
+
+            // 5. 逆方向の部分一致
+            foundNest = nests.find(nest => 
+                birdName.includes(nest.鳥名)
+            );
+            if (foundNest) {
+                console.log(`🎯 ネストで逆方向一致: ${foundNest.鳥名}`);
                 return foundNest;
             }
 
@@ -270,7 +290,6 @@ module.exports = {
             return null;
         }
     },
-
     async processGiftGiving(interaction, birdInfo, guildId) {
         try {
             const userId = interaction.user.id;
