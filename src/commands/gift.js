@@ -22,9 +22,13 @@ module.exports = {
             // 鳥が鳥類園にいるかチェック
             const zooManager = require('../utils/zooManager');
             const birdInfo = this.findBirdInZoo(birdName, guildId);
+            if (birdName) {
+            // 特定の鳥を指定した場合、feed.jsと同じ検索ロジックを使用
+            const birdInfo = this.findBirdInZoo(birdName, guildId, zooState);
+            
             if (!birdInfo) {
                 await interaction.reply({
-                    content: `🔍 "${birdName}" は現在この鳥類園にいないようです。\n\`/zoo view\` で現在いる鳥を確認してください。`,
+                    content: `❌ "${birdName}" はこの鳥類園にいません。`,
                     ephemeral: true
                 });
                 return;
