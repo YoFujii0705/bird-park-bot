@@ -174,16 +174,25 @@ async function handleComponentInteraction(interaction) {
         if (customId.startsWith('zoo_')) {
             await handleZooButtons(interaction);
         }
-        // 🏠 ネスト関連のボタン（新規追加）
+        // 🏠 ネスト関連のボタン
         else if (customId.startsWith('nest_select_')) {
             await handleNestSelection(interaction);
+        }
+        // 🎁 贈り物関連のセレクトメニュー（新規追加）
+        else if (customId === 'gift_bird_select') {
+            // gift.jsで処理済みなので何もしない
+            console.log('贈り物鳥選択は既に処理済み');
+        }
+        else if (customId === 'gift_item_select') {
+            // gift.jsで処理済みなので何もしない
+            console.log('贈り物アイテム選択は既に処理済み');
         }
         // 見学招待関連はガチャコマンド内で処理されるので何もしない
         else if (customId.startsWith('visit_') || customId === 'select_visitor_bird') {
             console.log(`見学関連の操作: ${customId} - ガチャコマンド内で処理済み`);
             // ガチャコマンドで既に処理されているため、ここでは何もしない
         }
-        // 贈り物関連
+        // 贈り物関連（既存）
         else if (customId === 'select_gift') {
             console.log('贈り物選択は既に処理済み');
             // gift.jsで処理済みなので何もしない
