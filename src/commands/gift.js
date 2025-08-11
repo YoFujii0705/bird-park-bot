@@ -34,7 +34,7 @@ module.exports = {
             const affinities = await sheetsManager.getUserAffinity(userId, guildId);
             const birdAffinity = affinities[birdInfo.bird.name];
             
-            if (!birdAffinity || birdAffinity.level < 5) {
+            if (!birdAffinity || birdAffinity.level < 3) {
                 const currentLevel = birdAffinity ? birdAffinity.level : 0;
                 const currentHearts = '💖'.repeat(currentLevel) + '🤍'.repeat(10 - currentLevel);
                 
@@ -59,9 +59,9 @@ module.exports = {
             const birdCurrentGifts = await sheetsManager.getBirdGifts(birdInfo.bird.name, guildId);
             const userGiftsToThisBird = birdCurrentGifts.filter(gift => gift.giverId === userId);
             
-            if (userGiftsToThisBird.length >= 5) {
+            if (userGiftsToThisBird.length >= 10) {
                 await interaction.editReply({
-                    content: `💝 ${birdInfo.bird.name}にはすでに5つの贈り物をしています。\n\n一羽の鳥には最大5個まで贈り物ができます。`
+                    content: `💝 ${birdInfo.bird.name}にはすでに10つの贈り物をしています。\n\n一羽の鳥には最大10個まで贈り物ができます。`
                 });
                 return;
             }
@@ -82,7 +82,7 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setTitle('🎁 贈り物を選択')
-                .setDescription(`**${birdInfo.bird.name}**に心を込めた贈り物をしましょう！\n\n${birdInfo.bird.name}は現在${userGiftsToThisBird.length}/5個の贈り物を持っています。`)
+                .setDescription(`**${birdInfo.bird.name}**に心を込めた贈り物をしましょう！\n\n${birdInfo.bird.name}は現在${userGiftsToThisBird.length}/10個の贈り物を持っています。`)
                 .setColor(0xFF69B4)
                 .addFields({
                     name: '💝 現在身につけている贈り物',
