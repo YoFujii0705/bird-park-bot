@@ -290,6 +290,7 @@ module.exports = {
             return null;
         }
     },
+    
     async processGiftGiving(interaction, birdInfo, guildId) {
         try {
             const userId = interaction.user.id;
