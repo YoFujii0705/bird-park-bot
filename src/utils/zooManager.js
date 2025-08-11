@@ -1874,7 +1874,7 @@ class ZooManager {
                 `🌟 ${passingBird.name}が${passingBird.description}園の上を飛んでいきました。${witnessBird.name}が羨ましそうに見ています`,
                 `⭐ 風に乗った${passingBird.name}が園の空を横切っていきます。${witnessBird.name}が「いってらっしゃい」と言っているようです`,
                 `💫 ${passingBird.name}が${timeSlot.emoji}の空を自由に飛んでいく姿を、${witnessBird.name}が憧れの眼差しで見つめています`,
-                `🌈 優雅な${passingBird.name}が通り過ぎていきます。${witnessBird.name}が「また来てね」と手を振っているようです`,
+                `🌈 優雅な${passingBird.name}が通り過ぎていきます。${witnessBird.name}が「また来てね」と羽を振っているようです`,
                 `🎪 ${passingBird.name}が${season.detail}の空に美しい弧を描いて飛んでいきます。${witnessBird.name}が感嘆しています`,
                 `🎭 ${passingBird.name}が${passingBird.description}空の彼方へ消えていきました。${witnessBird.name}が長い間見送っています`
             ];
