@@ -11,40 +11,95 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction) {
+        console.log('🔥 NEW VERSION - bird-profile コマンドが実行されました');
+        
         try {
             const guildId = interaction.guild.id;
             const birdName = interaction.options.getString('bird');
 
+            console.log(`🔍 対象の鳥: ${birdName}, サーバー: ${guildId}`);
+
             await interaction.deferReply();
 
             // 鳥が鳥類園にいるかチェック
-            const birdInfo = this.findBirdInZoo(birdName, guildId);
+            console.log('🔍 鳥類園をチェック中...');
+            
+            let birdInfo;
+            try {
+                birdInfo = this.findBirdInZoo(birdName, guildId);
+                console.log('🔍 findBirdInZoo 結果:', birdInfo);
+            } catch (findError) {
+                console.error('🔍 findBirdInZoo エラー:', findError);
+                await interaction.editReply({ content: '鳥類園の確認中にエラーが発生しました。' });
+                return;
+            }
             
             if (!birdInfo) {
+                console.log('🔍 鳥が見つかりませんでした');
                 await interaction.editReply({
                     content: `🔍 "${birdName}" は現在この鳥類園にいないようです。\n\`/zoo view\` で現在いる鳥を確認してください。`
                 });
                 return;
             }
 
+            console.log('🔍 鳥が見つかりました:', birdInfo);
+
             // 鳥の基本情報を取得
             const bird = birdInfo.bird;
             const area = birdInfo.area;
 
-            // 鳥が現在持っている贈り物を取得
-            const birdGifts = await sheetsManager.getBirdGifts(birdName, guildId);
+            console.log('🔍 鳥データベースから詳細情報を取得中...');
+            let birdDetails = null;
+            try {
+                birdDetails = await this.getBirdDetails(birdName);
+                console.log(`🔍 ${birdName}の詳細データ:`, birdDetails);
+            } catch (error) {
+                console.error('🔍 鳥詳細取得エラー:', error);
+            }
             
-            // 贈り物を贈り主別にグループ化
+            console.log(`🔍 zooの鳥データ:`, bird);
+
+            console.log('🔍 贈り物データを取得中...');
+            let birdGifts = [];
+            try {
+                birdGifts = await sheetsManager.getBirdGifts(birdName, guildId);
+                console.log(`🔍 ${birdName}の贈り物データ:`, birdGifts);
+            } catch (error) {
+                console.error('🔍 贈り物取得エラー:', error);
+            }
+            
+            // 贈り物を贈り主別にグループ化（修正版）
             const giftsByGiver = {};
             birdGifts.forEach(gift => {
-                if (!giftsByGiver[gift.giverName]) {
-                    giftsByGiver[gift.giverName] = [];
+                const giverName = gift.giver || '不明'; // 🔧 修正: gift.giver を使用
+                if (!giftsByGiver[giverName]) {
+                    giftsByGiver[giverName] = [];
                 }
-                giftsByGiver[gift.giverName].push(gift);
+                giftsByGiver[giverName].push(gift);
             });
 
-            // ユーザーごとの好感度情報を取得（複数ユーザー分）
-            const allAffinities = await this.getAllUserAffinities(birdName, guildId);
+            console.log('🔍 好感度データを取得中...');
+            let allAffinities = [];
+            try {
+                allAffinities = await this.getAllUserAffinities(birdName, guildId);
+                console.log('🔍 好感度データ:', allAffinities);
+            } catch (error) {
+                console.error('🔍 好感度取得エラー:', error);
+            }
+
+            console.log('🔍 Embed作成中...');
+            
+            // 餌情報を処理
+            console.log('🔍 餌情報を処理中...');
+            let favoriteFood = '不明';
+            try {
+                const rawFood = birdDetails?.好物 || bird.好物;
+                console.log('🔍 生の餌データ:', rawFood);
+                favoriteFood = this.extractFavoriteFood(rawFood);
+                console.log('🔍 処理後の餌データ:', favoriteFood);
+            } catch (error) {
+                console.error('🔍 餌処理エラー:', error);
+            }
 
             // プロフィール埋め込みを作成
             const embed = new EmbedBuilder()
@@ -62,7 +117,7 @@ module.exports = {
                 })
                 .addFields({
                     name: '🍽️ 好きな餌',
-                    value: `${this.getFoodEmoji(bird.favoriteFood)} **${bird.favoriteFood}**`,
+                    value: favoriteFood || '不明', // 🔧 修正: 処理済みの餌データを使用
                     inline: true
                 });
 
@@ -77,10 +132,12 @@ module.exports = {
 
                 // 最新の贈り物を特別表示
                 const latestGift = birdGifts[birdGifts.length - 1];
-                if (latestGift) {
+                if (latestGift && latestGift.caption) {
+                    const latestGiver = latestGift.giver || '不明'; // 🔧 修正: gift.giver を使用
+                    const latestCaption = latestGift.caption || '';
                     embed.addFields({
                         name: '✨ 最新の贈り物',
-                        value: `${this.getGiftEmoji(latestGift.name)} **${latestGift.name}** from ${latestGift.giverName}\n*${latestGift.caption}*`,
+                        value: `${this.getGiftEmoji(latestGift.name)} **${latestGift.name}** from ${latestGiver}\n*${latestCaption}*`,
                         inline: false
                     });
                 }
@@ -133,17 +190,20 @@ module.exports = {
             }
 
             embed.setFooter({ 
-                text: `${birdName}は${area}エリアで幸せに過ごしています`,
-                iconURL: 'https://example.com/bird-icon.png' // お好みのアイコンURL
+                text: `${birdName}は${area}エリアで幸せに過ごしています`
             })
             .setTimestamp();
 
+            console.log('🔍 応答送信中...');
             await interaction.editReply({
                 embeds: [embed]
             });
+            
+            console.log('🔍 bird-profile コマンド完了');
 
         } catch (error) {
             console.error('鳥プロフィール表示エラー:', error);
+            console.error('エラースタック:', error.stack);
             
             const errorMessage = '鳥のプロフィール表示中にエラーが発生しました。';
             if (interaction.deferred) {
@@ -197,6 +257,26 @@ module.exports = {
         }
     },
 
+    // 餌情報を抽出・整形
+    extractFavoriteFood(foodData) {
+        if (!foodData) return '不明';
+        
+        // 既に絵文字付きの場合はそのまま返す
+        if (foodData.includes('🥜') || foodData.includes('🌿') || foodData.includes('🐛') || 
+            foodData.includes('🐟') || foodData.includes('🍯') || foodData.includes('🌾') || foodData.includes('🐁')) {
+            return foodData;
+        }
+        
+        // 絵文字なしの場合は絵文字を追加
+        const foods = foodData.split(',').map(food => food.trim());
+        const formattedFoods = foods.map(food => {
+            const emoji = this.getFoodEmoji(food);
+            return `${emoji}${food}`;
+        });
+        
+        return formattedFoods.join(', ');
+    },
+
     // 贈り物サマリーを作成
     createGiftSummary(giftsByGiver) {
         const summary = [];
@@ -212,9 +292,9 @@ module.exports = {
     // エリア別の色を取得
     getAreaColor(area) {
         const colors = {
-            '森林': 0x228B22,    // フォレストグリーン
-            '草原': 0x9ACD32,    // イエローグリーン
-            '水辺': 0x4169E1     // ロイヤルブルー
+            '森林': 0x228B22,
+            '草原': 0x9ACD32,
+            '水辺': 0x4169E1
         };
         return colors[area] || 0x808080;
     },
@@ -243,10 +323,10 @@ module.exports = {
         return emojis[food] || '🍽️';
     },
 
-    // 贈り物の絵文字を取得（gift.jsと同じ関数）
+    // 贈り物の絵文字を取得
     getGiftEmoji(giftName) {
         const emojiMap = {
-            // 🌲 森林エリアの贈り物
+            // 森林エリアの贈り物
             '綺麗なビー玉': '🔮',
             '小さな鈴': '🔔',
             '色とりどりのリボン': '🎀',
@@ -256,7 +336,7 @@ module.exports = {
             '美しい羽根飾り': '🪶',
             '手編みの小さな巣材': '🧶',
 
-            // 🌾 草原エリアの贈り物
+            // 草原エリアの贈り物
             '花で編んだ花冠': '🌸',
             'カラフルなビーズ': '🔴',
             '小さな風車': '🎡',
@@ -265,7 +345,7 @@ module.exports = {
             '羽根でできたお守り': '🪶',
             '花の種のネックレス': '🌱',
 
-            // 🌊 水辺エリアの贈り物
+            // 水辺エリアの贈り物
             '磨いた貝殻': '🐚',
             '美しいガラス玉': '🔮',
             '小さな流木アート': '🪵',
@@ -275,7 +355,7 @@ module.exports = {
             '水晶のペンダント': '💎',
             '真珠のような玉': '🤍',
 
-            // ✨ 共通の特別な贈り物
+            // 共通の特別な贈り物
             '虹色のリボン': '🌈',
             'ハート型の小石': '💖',
             '特別な羽根': '🪶',
@@ -283,16 +363,15 @@ module.exports = {
             '光る小さな宝石': '✨',
             '音の鳴る玩具': '🎵',
             '温かい毛糸': '🧶',
-            '小さな楽器': '🎼'
+            '小さな楽器': '🎼',
+            '波の欠片': '🌊'
         };
         
         return emojiMap[giftName] || '🎁';
     },
 
-    // 滞在期間を計算（概算）
+    // 滞在期間を計算
     getStayDuration(bird) {
-        // zooManagerから滞在開始時間を取得できる場合の実装例
-        // 実際の実装はzooManagerの構造に合わせて調整してください
         return '2日目 / 3-5日間滞在予定';
     }
 };
