@@ -908,18 +908,23 @@ getBondLevelPhotoName(bondLevel) {
         return null;
     },
 
-    // ⏰ 餌やりクールダウンチェック
+    // ⏰ 餌やりクールダウンチェック（修正版）
     checkFeedingCooldown(bird, userId) {
         const now = new Date();
         const cooldownMinutes = 10;
         
-        if (!bird.lastFed) {
+        // 🔧 修正: lastFedまたはlastFedByがnullの場合はクールダウンなし
+        if (!bird.lastFed || !bird.lastFedBy) {
+            console.log(`🔧 クールダウンチェック: ${bird.name} - lastFed or lastFedBy is null, allowing feed`);
             return { canFeed: true };
         }
 
+        // 同じユーザーが最後に餌をあげた場合のみクールダウンチェック
         if (bird.lastFedBy === userId) {
             const timeDiff = now - bird.lastFed;
             const minutesPassed = Math.floor(timeDiff / (1000 * 60));
+            
+            console.log(`🔧 クールダウンチェック: ${bird.name} - 同じユーザー(${userId}), ${minutesPassed}分経過`);
             
             if (minutesPassed < cooldownMinutes) {
                 const nextFeedTime = new Date(bird.lastFed.getTime() + cooldownMinutes * 60 * 1000);
@@ -933,9 +938,10 @@ getBondLevelPhotoName(bondLevel) {
             }
         }
 
+        console.log(`🔧 クールダウンチェック: ${bird.name} - 餌やり可能`);
         return { canFeed: true };
     },
-
+    
     // 🌙 鳥の睡眠時間チェック
     checkBirdSleepTime() {
         const now = new Date();
