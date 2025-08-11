@@ -169,11 +169,14 @@ client.on('interactionCreate', async interaction => {
 // コンポーネント（ボタン・セレクトメニュー）インタラクション処理
 async function handleComponentInteraction(interaction) {
     const { customId } = interaction;
-
     try {
         // 鳥類園関連のボタン
         if (customId.startsWith('zoo_')) {
             await handleZooButtons(interaction);
+        }
+        // 🏠 ネスト関連のボタン（新規追加）
+        else if (customId.startsWith('nest_select_')) {
+            await handleNestSelection(interaction);
         }
         // 見学招待関連はガチャコマンド内で処理されるので何もしない
         else if (customId.startsWith('visit_') || customId === 'select_visitor_bird') {
@@ -268,6 +271,108 @@ async function handleBirdDetailSelect(interaction) {
         await interaction.reply({
             content: '詳細情報の取得中にエラーが発生しました。',
             ephemeral: true
+        });
+    }
+}
+
+// 🏠 ネスト選択処理関数（bot.jsに追加）
+async function handleNestSelection(interaction) {
+    // カスタムIDを解析: nest_select_0_アホウドリ_樹海の宮殿
+    const parts = interaction.customId.split('_');
+    const index = parts[2];
+    const birdName = parts[3];
+    const nestType = parts.slice(4).join('_'); // ネスト名に_が含まれる場合に対応
+    
+    const userId = interaction.user.id;
+    const userName = interaction.user.displayName || interaction.user.username;
+    const serverId = interaction.guild.id;
+    
+    console.log(`🏗️ ネスト選択: ${userName} -> ${birdName} (${nestType})`);
+    
+    try {
+        // ネストシステムクラスをインスタンス化
+        const { NestSystem } = require('./commands/nest');
+        const nestSystem = new NestSystem();
+        
+        // ネスト建設を実行
+        const result = await nestSystem.buildNest(
+            userId, 
+            userName, 
+            birdName, 
+            nestType, 
+            serverId, 
+            interaction.client
+        );
+        
+        if (result.success) {
+            const embed = {
+                title: '🏗️ ネスト建設完了！',
+                description: `**${birdName}**の**${nestType}**が完成しました！`,
+                color: 0x4CAF50,
+                fields: [
+                    {
+                        name: '📍 専用チャンネル',
+                        value: result.channelId ? `<#${result.channelId}>` : '専用チャンネルの作成に失敗しました',
+                        inline: false
+                    },
+                    {
+                        name: '🎉 おめでとうございます！',
+                        value: `${birdName}との絆がさらに深まりました。専用チャンネルで特別な時間をお過ごしください。`,
+                        inline: false
+                    },
+                    {
+                        name: '🔧 次にできること',
+                        value: '• `/nest view` - 所有ネスト一覧\n• `/nest change` - ネストタイプ変更\n• `/nest visit` - ネスト詳細表示',
+                        inline: false
+                    }
+                ],
+                footer: {
+                    text: '専用ネストでは特別なイベントが発生します'
+                }
+            };
+            
+            await interaction.update({
+                embeds: [embed],
+                components: [] // ボタンを削除
+            });
+            
+            console.log(`✅ ネスト建設成功: ${birdName} -> ${nestType}`);
+            
+            // ログ記録
+            await logger.logEvent('ネスト建設', `${userName}が${birdName}の${nestType}を建設しました`, serverId);
+            
+        } else {
+            await interaction.update({
+                content: `❌ ネスト建設に失敗しました: ${result.message}`,
+                embeds: [],
+                components: []
+            });
+            
+            console.log(`❌ ネスト建設失敗: ${result.message}`);
+        }
+        
+    } catch (error) {
+        console.error('ネスト建設実行エラー:', error);
+        
+        const errorMessage = error.message || 'ネスト建設中に予期しないエラーが発生しました';
+        
+        try {
+            await interaction.update({
+                content: `❌ ネスト建設中にエラーが発生しました: ${errorMessage}`,
+                embeds: [],
+                components: []
+            });
+        } catch (updateError) {
+            console.error('ネスト建設エラー応答失敗:', updateError);
+        }
+        
+        // エラーログ記録
+        await logger.logError('ネスト建設', error, {
+            userId,
+            userName,
+            birdName,
+            nestType,
+            serverId
         });
     }
 }
