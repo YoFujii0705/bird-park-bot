@@ -118,6 +118,11 @@ this.sheets.bondLevels = await this.getOrCreateSheet('bond_levels', [
     '日時', 'ユーザーID', 'ユーザー名', '鳥名', '絆レベル', 
     '絆餌やり回数', 'サーバーID'
 ]);
+            // 🏠 ネストシステム用シート
+this.sheets.userNests = await this.getOrCreateSheet('user_nests', [
+    '日時', 'ユーザーID', 'ユーザー名', '鳥名', 'カスタム名', 
+    'ネストタイプ', '所持ネストリスト', 'チャンネルID', 'サーバーID'
+]);
 
             this.isInitialized = true;
             console.log('✅ 全シートの初期化完了');
@@ -184,6 +189,164 @@ this.sheets.bondLevels = await this.getOrCreateSheet('bond_levels', [
 }
 
     // 以下、既存のメソッドはそのまま（すべてに ensureInitialized() を追加）
+
+    // 🏠 ネストシステム関連メソッドを追加
+
+/**
+ * ユーザーのネスト情報を取得
+ */
+async getUserNests(userId, serverId) {
+    try {
+        await this.ensureInitialized();
+        
+        const sheet = this.sheets.userNests;
+        if (!sheet) {
+            console.error('userNests シートが見つかりません');
+            return [];
+        }
+        
+        const rows = await sheet.getRows();
+        
+        const userNests = rows.filter(row => 
+            row.get('ユーザーID') === userId && 
+            row.get('サーバーID') === serverId
+        );
+        
+        return userNests.map(row => ({
+            日時: row.get('日時'),
+            ユーザーID: row.get('ユーザーID'),
+            ユーザー名: row.get('ユーザー名'),
+            鳥名: row.get('鳥名'),
+            カスタム名: row.get('カスタム名') || '',
+            ネストタイプ: row.get('ネストタイプ'),
+            所持ネストリスト: JSON.parse(row.get('所持ネストリスト') || '[]'),
+            チャンネルID: row.get('チャンネルID') || '',
+            サーバーID: row.get('サーバーID')
+        }));
+    } catch (error) {
+        console.error('ユーザーネスト取得エラー:', error);
+        return [];
+    }
+}
+
+/**
+ * 特定の鳥のネスト情報を取得
+ */
+async getBirdNest(userId, birdName, serverId) {
+    try {
+        const userNests = await this.getUserNests(userId, serverId);
+        return userNests.find(nest => nest.鳥名 === birdName) || null;
+    } catch (error) {
+        console.error('鳥ネスト取得エラー:', error);
+        return null;
+    }
+}
+
+/**
+ * ネスト建設を記録
+ */
+async logNestCreation(userId, userName, birdName, customName, nestType, ownedNests, channelId, serverId) {
+    try {
+        // 同じ鳥のネストが既に存在するかチェック
+        const existingNest = await this.getBirdNest(userId, birdName, serverId);
+        if (existingNest) {
+            throw new Error('この鳥のネストは既に建設済みです');
+        }
+        
+        const result = await this.addLog('userNests', {
+            ユーザーID: userId,
+            ユーザー名: userName,
+            鳥名: birdName,
+            カスタム名: customName || '',
+            ネストタイプ: nestType,
+            所持ネストリスト: JSON.stringify(ownedNests),
+            チャンネルID: channelId || '',
+            サーバーID: serverId
+        });
+        
+        console.log(`✅ ネスト建設記録: ${userName} -> ${birdName} (${nestType})`);
+        return result;
+    } catch (error) {
+        console.error('ネスト建設記録エラー:', error);
+        throw error;
+    }
+}
+
+/**
+ * ネストタイプを変更
+ */
+async updateNestType(userId, birdName, newNestType, serverId) {
+    try {
+        await this.ensureInitialized();
+        
+        const sheet = this.sheets.userNests;
+        const rows = await sheet.getRows();
+        
+        const nestRow = rows.find(row => 
+            row.get('ユーザーID') === userId && 
+            row.get('鳥名') === birdName && 
+            row.get('サーバーID') === serverId
+        );
+        
+        if (!nestRow) {
+            throw new Error('ネストが見つかりません');
+        }
+        
+        nestRow.set('ネストタイプ', newNestType);
+        nestRow.set('日時', new Date().toLocaleString('ja-JP'));
+        await nestRow.save();
+        
+        console.log(`✅ ネストタイプ変更: ${birdName} -> ${newNestType}`);
+        return true;
+    } catch (error) {
+        console.error('ネストタイプ変更エラー:', error);
+        throw error;
+    }
+}
+
+/**
+ * ユーザーの所持ネスト数を取得
+ */
+async getUserNestCount(userId, serverId) {
+    try {
+        const userNests = await this.getUserNests(userId, serverId);
+        return userNests.length;
+    } catch (error) {
+        console.error('ネスト数取得エラー:', error);
+        return 0;
+    }
+}
+
+/**
+ * チャンネルIDを更新
+ */
+async updateNestChannelId(userId, birdName, channelId, serverId) {
+    try {
+        await this.ensureInitialized();
+        
+        const sheet = this.sheets.userNests;
+        const rows = await sheet.getRows();
+        
+        const nestRow = rows.find(row => 
+            row.get('ユーザーID') === userId && 
+            row.get('鳥名') === birdName && 
+            row.get('サーバーID') === serverId
+        );
+        
+        if (!nestRow) {
+            throw new Error('ネストが見つかりません');
+        }
+        
+        nestRow.set('チャンネルID', channelId);
+        await nestRow.save();
+        
+        console.log(`✅ ネストチャンネルID更新: ${birdName} -> ${channelId}`);
+        return true;
+    } catch (error) {
+        console.error('チャンネルID更新エラー:', error);
+        throw error;
+    }
+}
 
     async logAffinity(userId, userName, birdName, affinityLevel, feedCount, serverId) {
         return await this.addLog('userAffinity', {
