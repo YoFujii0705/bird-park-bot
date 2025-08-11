@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const sheetsManager = require('../../config/sheets');
+const zooManager = require('../utils/zooManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -19,30 +20,28 @@ module.exports = {
 
             await interaction.deferReply();
 
-            // 鳥が鳥類園にいるかチェック
-            const zooManager = require('../utils/zooManager');
-            if (birdName) {
-            // 特定の鳥を指定した場合、feed.jsと同じ検索ロジックを使用
-            const birdInfo = this.findBirdInZoo(birdName, guildId, zooState);
+            // 🔍 厳格な鳥名検索（鳥類園 + ネスト）
+            const birdInfo = await this.findBirdEverywhere(birdName, guildId);
             
             if (!birdInfo) {
-                await interaction.reply({
-                    content: `❌ "${birdName}" はこの鳥類園にいません。`,
-                    ephemeral: true
+                await interaction.editReply({
+                    content: `❌ "${birdName}" が見つかりません。\n\n**検索場所:**\n• 鳥類園（現在滞在中の鳥）\n• ネスト（建設済みのネスト）\n\n**利用可能な検索方法:**\n• 完全な鳥名で検索\n• 鳥名の一部で検索\n\n\`/zoo view\` や \`/nest view\` で確認できます。`
                 });
                 return;
             }
+
+            console.log(`🎯 鳥発見: ${birdInfo.bird.name} (${birdInfo.location}: ${birdInfo.area || birdInfo.owner})`);
 
             // 好感度チェック
             const affinities = await sheetsManager.getUserAffinity(userId, guildId);
             const birdAffinity = affinities[birdInfo.bird.name];
             
-            if (!birdAffinity || birdAffinity.level < 3) {
+            if (!birdAffinity || birdAffinity.level < 5) {
                 const currentLevel = birdAffinity ? birdAffinity.level : 0;
                 const currentHearts = '💖'.repeat(currentLevel) + '🤍'.repeat(10 - currentLevel);
                 
                 await interaction.editReply({
-                    content: `💔 ${birdInfo.bird.name}とはまだ贈り物ができるほど仲良くありません。\n\n現在の好感度: ${currentHearts} (Lv.${currentLevel})\n\n餌やりを続けて好感度レベル5にしましょう！`
+                    content: `💔 ${birdInfo.bird.name}とはまだ贈り物ができるほど仲良くありません。\n\n**現在の好感度:** ${currentHearts} (Lv.${currentLevel})\n\n餌やりを続けて**好感度レベル5**にしましょう！`
                 });
                 return;
             }
@@ -53,7 +52,7 @@ module.exports = {
             
             if (availableGifts.length === 0) {
                 await interaction.editReply({
-                    content: '🎁 贈り物がありません。\n\n好感度レベル5に到達した鳥がいると、その鳥への贈り物を思いつくことができます。\nまずは他の鳥との絆を深めてみましょう！'
+                    content: '🎁 贈り物がありません。\n\n**贈り物の入手方法:**\n• 好感度レベル5に到達した鳥がいると、その鳥への贈り物を思いつくことができます\n• まずは他の鳥との絆を深めてみましょう！'
                 });
                 return;
             }
@@ -64,7 +63,7 @@ module.exports = {
             
             if (userGiftsToThisBird.length >= 10) {
                 await interaction.editReply({
-                    content: `💝 ${birdInfo.bird.name}にはすでに10つの贈り物をしています。\n\n一羽の鳥には最大10個まで贈り物ができます。`
+                    content: `💝 ${birdInfo.bird.name}にはすでに10個の贈り物をしています。\n\n**制限:** 一羽の鳥には最大10個まで贈り物ができます。`
                 });
                 return;
             }
@@ -83,17 +82,29 @@ module.exports = {
 
             const row = new ActionRowBuilder().addComponents(selectMenu);
 
+            const locationText = birdInfo.location === 'zoo' 
+                ? `${birdInfo.area}エリアに滞在中` 
+                : `${birdInfo.owner}さんのネストにいます`;
+
             const embed = new EmbedBuilder()
                 .setTitle('🎁 贈り物を選択')
-                .setDescription(`**${birdInfo.bird.name}**に心を込めた贈り物をしましょう！\n\n${birdInfo.bird.name}は現在${userGiftsToThisBird.length}/10個の贈り物を持っています。`)
+                .setDescription(`**${birdInfo.bird.name}**に心を込めた贈り物をしましょう！\n\n📍 **現在の場所:** ${locationText}\n💝 **保有贈り物:** ${userGiftsToThisBird.length}/10個`)
                 .setColor(0xFF69B4)
                 .addFields({
-                    name: '💝 現在身につけている贈り物',
+                    name: '💎 現在身につけている贈り物',
                     value: userGiftsToThisBird.length > 0 
-                        ? userGiftsToThisBird.map(gift => `${this.getGiftEmoji(gift.name)} ${gift.name}`).join('\n')
+                        ? userGiftsToThisBird.slice(0, 5).map(gift => `${this.getGiftEmoji(gift.name)} ${gift.name}`).join('\n')
                         : 'まだ贈り物はありません',
                     inline: false
                 });
+
+            if (userGiftsToThisBird.length > 5) {
+                embed.addFields({
+                    name: '📦 その他の贈り物',
+                    value: `他に${userGiftsToThisBird.length - 5}個の贈り物を大切に保管しています`,
+                    inline: false
+                });
+            }
 
             const response = await interaction.editReply({
                 embeds: [embed],
@@ -128,55 +139,136 @@ module.exports = {
         }
     },
 
-    // 🔍 改良版鳥検索メソッド（優先順位付き）
-    findBirdInZoo(birdName, guildId) {
-        const zooState = zooManager.getZooState(guildId);
-        
-        // すべてのエリアの鳥を収集
-        const allBirds = [];
-        for (const area of ['森林', '草原', '水辺']) {
-            zooState[area].forEach(bird => {
-                allBirds.push({ bird, area });
-            });
+    // 🔍 鳥類園とネストの両方を検索する関数（新機能）
+    async findBirdEverywhere(birdName, guildId) {
+        // 1. まず鳥類園から検索
+        const zooResult = this.findBirdInZoo(birdName, guildId);
+        if (zooResult) {
+            return {
+                bird: zooResult.bird,
+                area: zooResult.area,
+                location: 'zoo'
+            };
         }
-        
-        // 検索パターンを優先順位順に実行
-        
-        // 1. 完全一致（最優先）
-        let foundBird = allBirds.find(({ bird }) => 
-            bird.name === birdName
-        );
-        
-        if (foundBird) {
-            console.log(`🎯 完全一致で発見: ${foundBird.bird.name}`);
-            return foundBird;
+
+        // 2. ネストから検索
+        const nestResult = await this.findBirdInNests(birdName, guildId);
+        if (nestResult) {
+            return {
+                bird: { name: nestResult.鳥名 },
+                owner: nestResult.ユーザー名,
+                location: 'nest',
+                nestData: nestResult
+            };
         }
-        
-        // 2. 前方一致（「オオアカゲラ」→「オオアカ」等）
-        foundBird = allBirds.find(({ bird }) => 
-            bird.name.startsWith(birdName) || birdName.startsWith(bird.name)
-        );
-        
-        if (foundBird) {
-            console.log(`🎯 前方一致で発見: ${foundBird.bird.name}`);
-            return foundBird;
-        }
-        
-        // 3. 長い名前の鳥を優先した部分一致
-        // 名前が長い順にソートしてから部分一致チェック
-        const sortedBirds = allBirds.sort((a, b) => b.bird.name.length - a.bird.name.length);
-        
-        foundBird = sortedBirds.find(({ bird }) => 
-            bird.name.includes(birdName) || birdName.includes(bird.name)
-        );
-        
-        if (foundBird) {
-            console.log(`🎯 部分一致で発見（長い名前優先）: ${foundBird.bird.name}`);
-            return foundBird;
-        }
-        
-        console.log(`❌ 鳥が見つかりません: ${birdName}`);
+
         return null;
+    },
+
+    // 🏠 ネストから鳥を検索（新機能）
+    async findBirdInNests(birdName, guildId) {
+        try {
+            await sheetsManager.ensureInitialized();
+            
+            const sheet = sheetsManager.sheets.userNests;
+            if (!sheet) return null;
+
+            const rows = await sheet.getRows();
+            const nests = rows
+                .filter(row => row.get('サーバーID') === guildId)
+                .map(row => ({
+                    ユーザーID: row.get('ユーザーID'),
+                    ユーザー名: row.get('ユーザー名'),
+                    鳥名: row.get('鳥名'),
+                    カスタム名: row.get('カスタム名') || '',
+                    ネストタイプ: row.get('ネストタイプ'),
+                    チャンネルID: row.get('チャンネルID'),
+                    サーバーID: row.get('サーバーID')
+                }));
+
+            // 検索パターンを優先順位順に実行
+            
+            // 1. 完全一致（最優先）
+            let foundNest = nests.find(nest => nest.鳥名 === birdName);
+            if (foundNest) {
+                console.log(`🎯 ネストで完全一致: ${foundNest.鳥名}`);
+                return foundNest;
+            }
+
+            // 2. 前方一致
+            foundNest = nests.find(nest => 
+                nest.鳥名.startsWith(birdName) || birdName.startsWith(nest.鳥名)
+            );
+            if (foundNest) {
+                console.log(`🎯 ネストで前方一致: ${foundNest.鳥名}`);
+                return foundNest;
+            }
+
+            // 3. 部分一致（長い名前優先）
+            const sortedNests = nests.sort((a, b) => b.鳥名.length - a.鳥名.length);
+            foundNest = sortedNests.find(nest => 
+                nest.鳥名.includes(birdName) || birdName.includes(nest.鳥名)
+            );
+            if (foundNest) {
+                console.log(`🎯 ネストで部分一致: ${foundNest.鳥名}`);
+                return foundNest;
+            }
+
+            return null;
+
+        } catch (error) {
+            console.error('ネスト検索エラー:', error);
+            return null;
+        }
+    },
+
+    // 🔍 改良版鳥検索メソッド（優先順位付き）- 元のコードを改良
+    findBirdInZoo(birdName, guildId) {
+        try {
+            const zooState = zooManager.getZooState(guildId);
+            
+            // すべてのエリアの鳥を収集
+            const allBirds = [];
+            for (const area of ['森林', '草原', '水辺']) {
+                zooState[area].forEach(bird => {
+                    allBirds.push({ bird, area });
+                });
+            }
+            
+            // 検索パターンを優先順位順に実行
+            
+            // 1. 完全一致（最優先）
+            let foundBird = allBirds.find(({ bird }) => bird.name === birdName);
+            if (foundBird) {
+                console.log(`🎯 鳥類園で完全一致: ${foundBird.bird.name}`);
+                return foundBird;
+            }
+            
+            // 2. 前方一致
+            foundBird = allBirds.find(({ bird }) => 
+                bird.name.startsWith(birdName) || birdName.startsWith(bird.name)
+            );
+            if (foundBird) {
+                console.log(`🎯 鳥類園で前方一致: ${foundBird.bird.name}`);
+                return foundBird;
+            }
+            
+            // 3. 部分一致（長い名前優先）
+            const sortedBirds = allBirds.sort((a, b) => b.bird.name.length - a.bird.name.length);
+            foundBird = sortedBirds.find(({ bird }) => 
+                bird.name.includes(birdName) || birdName.includes(bird.name)
+            );
+            if (foundBird) {
+                console.log(`🎯 鳥類園で部分一致: ${foundBird.bird.name}`);
+                return foundBird;
+            }
+            
+            return null;
+
+        } catch (error) {
+            console.error('鳥類園検索エラー:', error);
+            return null;
+        }
     },
 
     async processGiftGiving(interaction, birdInfo, guildId) {
@@ -185,7 +277,10 @@ module.exports = {
             const userName = interaction.user.username;
             const selectedGift = interaction.values[0];
             const birdName = birdInfo.bird.name;
-            const area = birdInfo.area;
+            
+            // 鳥類園の鳥かネストの鳥かで処理を分岐
+            const area = birdInfo.location === 'zoo' ? birdInfo.area : 
+                        birdInfo.location === 'nest' ? 'ネスト' : 'unknown';
 
             await interaction.deferUpdate();
 
@@ -216,9 +311,13 @@ module.exports = {
             await this.updateBirdMemoryWithGift(birdName, selectedGift, userName, guildId);
 
             // 成功メッセージ
+            const locationText = birdInfo.location === 'zoo' 
+                ? `${birdInfo.area}エリアで` 
+                : `${birdInfo.owner}さんのネストで`;
+
             const embed = new EmbedBuilder()
                 .setTitle('🎁 贈り物が完了しました！')
-                .setDescription(`**${birdName}**に**${selectedGift}**を贈りました！`)
+                .setDescription(`**${birdName}**に**${selectedGift}**を贈りました！\n\n📍 **場所:** ${locationText}`)
                 .setColor(0x00FF00)
                 .addFields({
                     name: '💝 贈り物の様子',
@@ -229,42 +328,46 @@ module.exports = {
                 .setTimestamp();
 
             // 🆕 思い出システム - 贈り物後の思い出生成
-setTimeout(async () => {
-    const memoryManager = require('../utils/humanMemoryManager');
-    
-    // 🔧 修正: 現在の贈り物数を正しく取得
-    const currentBirdGifts = await sheetsManager.getBirdGifts(birdName, guildId);
-    const userGiftsToThisBird = currentBirdGifts.filter(gift => gift.giverId === userId);
-    const currentGiftCount = userGiftsToThisBird.length; // +1 を削除（既に記録済みのため）
-    
-    // 贈り物アクションデータを構築
-    const actionData = {
-        type: 'gift_given',
-        isFirst: currentGiftCount === 1, // 修正: 今回の贈り物が初回かチェック
-        giftCount: currentGiftCount,
-        details: {
-            giftName: selectedGift,
-            birdName: birdName,
-            area: area,
-            giftCount: currentGiftCount
-        }
-    };
-    
-    // 思い出生成をチェック
-    const newMemory = await memoryManager.createMemory(
-        userId,
-        userName,
-        birdName,
-        actionData,
-        guildId
-    );
-    
-    // 思い出が生成された場合は通知
-    if (newMemory) {
-        await memoryManager.sendMemoryNotification(interaction, newMemory);
-    }
-    
-}, 3000); // 3秒後に思い出チェック
+            setTimeout(async () => {
+                try {
+                    const memoryManager = require('../utils/humanMemoryManager');
+                    
+                    // 🔧 修正: 現在の贈り物数を正しく取得
+                    const currentBirdGifts = await sheetsManager.getBirdGifts(birdName, guildId);
+                    const userGiftsToThisBird = currentBirdGifts.filter(gift => gift.giverId === userId);
+                    const currentGiftCount = userGiftsToThisBird.length; // 既に記録済みなので+1不要
+                    
+                    // 贈り物アクションデータを構築
+                    const actionData = {
+                        type: 'gift_given',
+                        isFirst: currentGiftCount === 1, // 今回の贈り物が初回かチェック
+                        giftCount: currentGiftCount,
+                        details: {
+                            giftName: selectedGift,
+                            birdName: birdName,
+                            area: area,
+                            giftCount: currentGiftCount,
+                            location: birdInfo.location
+                        }
+                    };
+                    
+                    // 思い出生成をチェック
+                    const newMemory = await memoryManager.createMemory(
+                        userId,
+                        userName,
+                        birdName,
+                        actionData,
+                        guildId
+                    );
+                    
+                    // 思い出が生成された場合は通知
+                    if (newMemory) {
+                        await memoryManager.sendMemoryNotification(interaction, newMemory);
+                    }
+                } catch (memoryError) {
+                    console.error('思い出システムエラー:', memoryError);
+                }
+            }, 3000); // 3秒後に思い出チェック
 
             await interaction.editReply({
                 embeds: [embed],
@@ -319,22 +422,27 @@ setTimeout(async () => {
         }
     },
 
+    // 元の関数を保持（互換性のため）
     findBirdInZoo(birdName, guildId) {
-        const zooManager = require('../utils/zooManager');
-        const zooState = zooManager.getZooState(guildId);
-        
-        for (const area of ['森林', '草原', '水辺']) {
-            const bird = zooState[area].find(b => 
-                b.name.includes(birdName) || birdName.includes(b.name)
-            );
-            if (bird) {
-                return { bird, area };
+        try {
+            const zooState = zooManager.getZooState(guildId);
+            
+            for (const area of ['森林', '草原', '水辺']) {
+                const bird = zooState[area].find(b => 
+                    b.name.includes(birdName) || birdName.includes(b.name)
+                );
+                if (bird) {
+                    return { bird, area };
+                }
             }
+            return null;
+        } catch (error) {
+            console.error('鳥検索エラー:', error);
+            return null;
         }
-        return null;
     },
 
-    // 🔧 人間→鳥への贈り物用の絵文字マップ（更新版）
+    // 🔧 人間→鳥への贈り物用の絵文字マップ（元のコードを保持）
     getGiftEmoji(giftName) {
         const emojiMap = {
             // 🌲 森林エリアの贈り物
@@ -380,8 +488,25 @@ setTimeout(async () => {
         return emojiMap[giftName] || '🎁';
     },
 
-    // 🔧 人間→鳥への贈り物用キャプション生成（全面更新）
+    // 🔧 人間→鳥への贈り物用キャプション生成（元のコード + ネスト対応）
     generateGiftCaption(giftName, birdName, userName, area) {
+        // ネストの場合の特別なキャプション（新機能）
+        if (area === 'ネスト') {
+            const nestCaptions = {
+                '綺麗なビー玉': `${birdName}は${userName}さんからのビー玉をネストの特等席に飾りました。光が差し込むたびに美しく輝き、巣全体を虹色に照らしています。`,
+                '小さな鈴': `${birdName}は${userName}さんからの鈴をネストの入り口に吊るしました。風が吹くたびに美しい音色が響き、まるでネスト専用のウェルカムベルのようです。`,
+                '色とりどりのリボン': `${birdName}は${userName}さんからのリボンをネストの壁に編み込みました。カラフルな装飾で、ネストがまるでアート作品のように美しくなりました。`,
+                '手作りの巣箱': `${birdName}は${userName}さんからの巣箱をネスト内の特別な場所に設置しました。大切なものを保管する宝箱として愛用しています。`,
+                '花で編んだ花冠': `${birdName}は${userName}さんからの花冠をネストの中央に飾りました。いつも美しい花の香りがネスト全体を包んでいます。`,
+                '磨いた貝殻': `${birdName}は${userName}さんからの貝殻をネストの窓辺に置きました。海の思い出を感じながら、毎日眺めて癒されています。`
+            };
+
+            if (nestCaptions[giftName]) {
+                return nestCaptions[giftName];
+            }
+        }
+
+        // 元のキャプション（既存のコードを保持）
         const captions = {
             // 🌲 森林エリアの贈り物
             '綺麗なビー玉': `透明で美しいビー玉。${birdName}は${userName}さんからもらったビー玉を通して森の景色を眺めるのがお気に入りです。光の屈折で見える美しい世界に魅了されているようです。`,
@@ -450,7 +575,8 @@ setTimeout(async () => {
             '小さな楽器': `美しい音色の小さな楽器。${birdName}は${userName}さんからもらった楽器で音楽を奏でています。まるで天使のように、美しいメロディーを響かせています。`
         };
 
-        // デフォルトキャプション（新しい贈り物が追加された場合の安全策）
-        return captions[giftName] || `素敵な${giftName}。${birdName}は${userName}さんからの心のこもった贈り物をとても大切にしています。二人の絆がより深まり、${birdName}はいつもこの贈り物を身につけて${userName}さんのことを思い出しているようです。`;
+        // デフォルトキャプション（元のコード + ネスト対応）
+        const locationText = area === 'ネスト' ? 'ネストで' : area === 'unknown' ? '' : `${area}で`;
+        return captions[giftName] || `素敵な${giftName}。${birdName}は${userName}さんからの心のこもった贈り物を${locationText}とても大切にしています。二人の絆がより深まり、${birdName}はいつもこの贈り物を身につけて${userName}さんのことを思い出しているようです。`;
     }
 };
