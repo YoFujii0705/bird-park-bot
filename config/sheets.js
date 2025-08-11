@@ -530,22 +530,41 @@ async getAllUserAffinities(birdName, serverId) {
     }
 }
 
-    /**
- * 絆レベルをログに記録
+/**
+ * 絆レベルをログに記録（修正版）
  */
 async logBondLevel(userId, userName, birdName, bondLevel, bondFeedCount, serverId) {
-    return await this.addLog('bondLevels', {
-        ユーザーID: userId,
-        ユーザー名: userName,
-        鳥名: birdName,
-        絆レベル: bondLevel,
-        絆餌やり回数: bondFeedCount,
-        サーバーID: serverId
-    });
-},
+    try {
+        console.log(`📊 絆レベル記録開始:`, {
+            userId, userName, birdName, bondLevel, bondFeedCount, serverId
+        });
+        
+        const logData = {
+            ユーザーID: userId,
+            ユーザー名: userName,
+            鳥名: birdName,
+            絆レベル: bondLevel,
+            絆餌やり回数: bondFeedCount,
+            サーバーID: serverId  // 🔧 確実にサーバーIDを設定
+        };
+        
+        console.log(`📊 記録するデータ:`, logData);
+        
+        const result = await this.addLog('bondLevels', logData);
+        
+        console.log(`📊 絆レベル記録完了:`, result);
+        
+        return result;
+        
+    } catch (error) {
+        console.error('絆レベル記録エラー:', error);
+        console.error('エラースタック:', error.stack);
+        return false;
+    }
+}
 
 /**
- * ユーザーの絆レベル情報を取得
+ * ユーザーの絆レベル情報を取得（修正版）
  */
 async getUserBondLevel(userId, birdName, serverId) {
     try {
@@ -559,12 +578,23 @@ async getUserBondLevel(userId, birdName, serverId) {
         
         const rows = await sheet.getRows();
         
+        console.log(`🔍 絆レベル検索: ${userId} - ${birdName} - ${serverId}`);
+        
         // 最新の絆レベル記録を取得
         let latestBond = null;
         rows.forEach(row => {
-            if (row.get('ユーザーID') === userId && 
-                row.get('鳥名') === birdName && 
-                row.get('サーバーID') === serverId) {
+            const rowUserId = row.get('ユーザーID');
+            const rowBirdName = row.get('鳥名');
+            const rowServerId = row.get('サーバーID');
+            
+            console.log(`🔍 検索中の行:`, {
+                rowUserId, rowBirdName, rowServerId,
+                match: rowUserId === userId && rowBirdName === birdName && rowServerId === serverId
+            });
+            
+            if (rowUserId === userId && 
+                rowBirdName === birdName && 
+                rowServerId === serverId) {
                 
                 const rowDate = new Date(row.get('日時'));
                 if (!latestBond || rowDate > new Date(latestBond.日時)) {
@@ -573,54 +603,20 @@ async getUserBondLevel(userId, birdName, serverId) {
                         bondLevel: parseInt(row.get('絆レベル')) || 0,
                         bondFeedCount: parseFloat(row.get('絆餌やり回数')) || 0
                     };
+                    
+                    console.log(`🔍 最新の絆レベル記録を更新:`, latestBond);
                 }
             }
         });
+        
+        console.log(`🔍 最終的な絆レベル結果:`, latestBond);
         
         return latestBond;
         
     } catch (error) {
         console.error('絆レベル取得エラー:', error);
+        console.error('エラースタック:', error.stack);
         return null;
-    }
-},
-
-/**
- * ユーザーの全絆レベル情報を取得
- */
-async getUserBondLevels(userId, serverId) {
-    try {
-        await this.ensureInitialized();
-        
-        const sheet = this.sheets.bondLevels;
-        if (!sheet) {
-            return {};
-        }
-        
-        const rows = await sheet.getRows();
-        
-        const bondLevels = {};
-        rows.forEach(row => {
-            if (row.get('ユーザーID') === userId && row.get('サーバーID') === serverId) {
-                const birdName = row.get('鳥名');
-                const bondLevel = parseInt(row.get('絆レベル')) || 0;
-                const bondFeedCount = parseFloat(row.get('絆餌やり回数')) || 0;
-                
-                // 最新の記録のみ保持
-                if (!bondLevels[birdName] || bondLevels[birdName].bondLevel < bondLevel) {
-                    bondLevels[birdName] = {
-                        bondLevel,
-                        bondFeedCount
-                    };
-                }
-            }
-        });
-        
-        return bondLevels;
-        
-    } catch (error) {
-        console.error('全絆レベル取得エラー:', error);
-        return {};
     }
 }
     
