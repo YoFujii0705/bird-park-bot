@@ -162,8 +162,6 @@ module.exports = {
     // 全ユーザーの好感度情報を取得
     async getAllUserAffinities(birdName, guildId) {
         try {
-            // この関数はsheetsManagerに追加する必要があります
-            // 一旦、既存の関数で代替実装
             const allAffinities = await sheetsManager.getAllUserAffinities(birdName, guildId);
             return allAffinities || [];
         } catch (error) {
