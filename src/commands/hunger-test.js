@@ -97,31 +97,13 @@ module.exports = {
         await zooManager.initializeServer(guildId);
         
         const zooState = zooManager.getZooState(guildId);
-        let birdFound = false;
+        let foundBird = null;
+        let foundArea = '';
         
-        // 指定された鳥を検索してクールダウンをリセット
-        for (const area of ['森林', '草原', '水辺']) {
-            const bird = zooState[area].find(b => 
-                b.name.includes(birdName) || birdName.includes(b.name)
-            );
-            
-            if (bird) {
-                // 🔧 修正: lastFedとlastFedByを完全にクリア
-                bird.lastFed = null;
-                bird.lastFedBy = null;
-                
-                console.log(`🧪 ${birdName}のクールダウンリセット:`, {
-                    lastFed: bird.lastFed,
-                    lastFedBy: bird.lastFedBy,
-                    currentTime: new Date()
-                });
-                
-                birdFound = true;
-                break;
-            }
-        }
+        // 🔧 修正: feed.jsと同じ検索ロジックを使用
+        const birdInfo = this.findBirdInZoo(birdName, guildId, zooState);
         
-        if (!birdFound) {
+        if (!birdInfo) {
             await interaction.reply({
                 content: `❌ "${birdName}" はこの鳥類園にいません。`,
                 ephemeral: true
@@ -129,11 +111,26 @@ module.exports = {
             return;
         }
         
+        foundBird = birdInfo.bird;
+        foundArea = birdInfo.area;
+        
+        // 🔧 修正: lastFedとlastFedByを完全にクリア
+        foundBird.lastFed = null;
+        foundBird.lastFedBy = null;
+        
+        console.log(`🧪 ${foundBird.name}のクールダウンリセット:`, {
+            actualBirdName: foundBird.name,
+            searchedName: birdName,
+            area: foundArea,
+            lastFed: foundBird.lastFed,
+            lastFedBy: foundBird.lastFedBy
+        });
+        
         // データ保存
         await zooManager.saveServerZoo(guildId);
         
         await interaction.reply({
-            content: `🧪 **${birdName}** の餌やりクールダウンをリセットしました。\n💡 すぐに餌やりができるようになりました！\n🔍 lastFed: ${bird.lastFed || 'null'}, lastFedBy: ${bird.lastFedBy || 'null'}`,
+            content: `🧪 **${foundBird.name}** の餌やりクールダウンをリセットしました。\n💡 すぐに餌やりができるようになりました！\n🔍 実際の鳥名: ${foundBird.name}\n🔍 lastFed: ${foundBird.lastFed || 'null'}, lastFedBy: ${foundBird.lastFedBy || 'null'}`,
             ephemeral: true
         });
     },
@@ -147,11 +144,48 @@ module.exports = {
         
         const zooState = zooManager.getZooState(guildId);
         let count = 0;
+        let processedBirds = []; // 処理された鳥の名前を記録
         
-        // 鳥を空腹状態にする
-        for (const area of ['森林', '草原', '水辺']) {
-            for (const bird of zooState[area]) {
-                if (!birdName || bird.name.includes(birdName) || birdName.includes(bird.name)) {
+        if (birdName) {
+            // 特定の鳥を指定した場合、feed.jsと同じ検索ロジックを使用
+            const birdInfo = this.findBirdInZoo(birdName, guildId, zooState);
+            
+            if (!birdInfo) {
+                await interaction.reply({
+                    content: `❌ "${birdName}" はこの鳥類園にいません。`,
+                    ephemeral: true
+                });
+                return;
+            }
+            
+            const bird = birdInfo.bird;
+            
+            // 空腹状態に設定
+            bird.isHungry = true;
+            bird.hungerNotified = false;
+            
+            // 🔧 修正: lastFedとlastFedByを完全にクリア（クールダウンを無効化）
+            bird.lastFed = null;
+            bird.lastFedBy = null;
+            
+            // 活動を空腹状態に変更
+            bird.activity = this.generateHungryActivity();
+            
+            count = 1;
+            processedBirds.push(bird.name);
+            
+            console.log(`🧪 ${bird.name}を強制空腹に設定:`, {
+                searchedName: birdName,
+                actualBirdName: bird.name,
+                area: birdInfo.area,
+                isHungry: bird.isHungry,
+                lastFed: bird.lastFed,
+                lastFedBy: bird.lastFedBy
+            });
+        } else {
+            // 全ての鳥を処理
+            for (const area of ['森林', '草原', '水辺']) {
+                for (const bird of zooState[area]) {
                     // 空腹状態に設定
                     bird.isHungry = true;
                     bird.hungerNotified = false;
@@ -164,24 +198,20 @@ module.exports = {
                     bird.activity = this.generateHungryActivity();
                     
                     count++;
+                    processedBirds.push(bird.name);
                     
                     console.log(`🧪 ${bird.name}を強制空腹に設定:`, {
                         isHungry: bird.isHungry,
                         lastFed: bird.lastFed,
                         lastFedBy: bird.lastFedBy
                     });
-                    
-                    if (birdName) break; // 特定の鳥の場合は1羽だけ
                 }
             }
-            if (birdName && count > 0) break;
         }
         
         if (count === 0) {
             await interaction.reply({
-                content: birdName ? 
-                    `❌ "${birdName}" はこの鳥類園にいません。` : 
-                    '❌ この鳥類園に鳥がいません。',
+                content: '❌ この鳥類園に鳥がいません。',
                 ephemeral: true
             });
             return;
@@ -190,10 +220,12 @@ module.exports = {
         // データ保存
         await zooManager.saveServerZoo(guildId);
 
+        const resultMessage = birdName ? 
+            `🧪 **${processedBirds[0]}** を強制的に空腹状態にしました。\n💡 クールダウンもリセットされ、すぐに餌やりができます！\n🔍 検索語: "${birdName}" → 実際の鳥名: "${processedBirds[0]}"` :
+            `🧪 この鳥類園の全ての鳥（${count}羽）を強制的に空腹状態にしました。\n💡 全ての鳥のクールダウンもリセットされました！\n🔍 処理された鳥: ${processedBirds.join(', ')}`;
+
         await interaction.reply({
-            content: birdName ? 
-                `🧪 **${birdName}** を強制的に空腹状態にしました。\n💡 クールダウンもリセットされ、すぐに餌やりができます！` :
-                `🧪 この鳥類園の全ての鳥（${count}羽）を強制的に空腹状態にしました。\n💡 全ての鳥のクールダウンもリセットされました！`,
+            content: resultMessage,
             ephemeral: true
         });
     },
@@ -397,5 +429,54 @@ module.exports = {
             '水辺': '🌊'
         };
         return emojis[area] || '📍';
+    },
+
+    // 🔧 feed.jsと同じ鳥検索ロジックを追加
+    findBirdInZoo(birdName, guildId, zooState) {
+        // すべてのエリアの鳥を収集
+        const allBirds = [];
+        for (const area of ['森林', '草原', '水辺']) {
+            zooState[area].forEach(bird => {
+                allBirds.push({ bird, area });
+            });
+        }
+        
+        // 検索パターンを優先順位順に実行
+        
+        // 1. 完全一致（最優先）
+        let foundBird = allBirds.find(({ bird }) => 
+            bird.name === birdName
+        );
+        
+        if (foundBird) {
+            console.log(`🎯 完全一致で発見: ${foundBird.bird.name}`);
+            return foundBird;
+        }
+        
+        // 2. 前方一致（「オオアカゲラ」→「オオアカ」等）
+        foundBird = allBirds.find(({ bird }) => 
+            bird.name.startsWith(birdName) || birdName.startsWith(bird.name)
+        );
+        
+        if (foundBird) {
+            console.log(`🎯 前方一致で発見: ${foundBird.bird.name}`);
+            return foundBird;
+        }
+        
+        // 3. 長い名前の鳥を優先した部分一致
+        // 名前が長い順にソートしてから部分一致チェック
+        const sortedBirds = allBirds.sort((a, b) => b.bird.name.length - a.bird.name.length);
+        
+        foundBird = sortedBirds.find(({ bird }) => 
+            bird.name.includes(birdName) || birdName.includes(bird.name)
+        );
+        
+        if (foundBird) {
+            console.log(`🎯 部分一致で発見（長い名前優先）: ${foundBird.bird.name}`);
+            return foundBird;
+        }
+        
+        console.log(`❌ 鳥が見つかりません: ${birdName}`);
+        return null;
     }
 };
