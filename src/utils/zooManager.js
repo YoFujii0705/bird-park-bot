@@ -177,54 +177,69 @@ class ZooManager {
 
     // 🔧 修正版: 日付オブジェクトの復元（見学鳥対応）
     restoreDates(data) {
-        if (data.lastUpdate) data.lastUpdate = new Date(data.lastUpdate);
-        
-        // 通常の鳥の日付復元
-        ['森林', '草原', '水辺'].forEach(area => {
-            if (data[area]) {
-                data[area].forEach(bird => {
-                    if (bird.entryTime) bird.entryTime = new Date(bird.entryTime);
-                    if (bird.lastFed) bird.lastFed = new Date(bird.lastFed);
-                    if (bird.scheduledDeparture) bird.scheduledDeparture = new Date(bird.scheduledDeparture);
-                    if (bird.hungerStartTime) bird.hungerStartTime = new Date(bird.hungerStartTime);
-                    
-                    if (bird.feedHistory) {
-                        bird.feedHistory.forEach(feed => {
-                            if (feed.time) feed.time = new Date(feed.time);
-                        });
-                    }
-                });
-            }
-        });
-        
-        // 🆕 見学鳥の日付復元
-        if (data.visitors) {
-            data.visitors.forEach(visitor => {
-                if (visitor.entryTime) visitor.entryTime = new Date(visitor.entryTime);
-                if (visitor.lastFed) visitor.lastFed = new Date(visitor.lastFed);
-                if (visitor.scheduledDeparture) visitor.scheduledDeparture = new Date(visitor.scheduledDeparture);
+    if (data.lastUpdate) data.lastUpdate = new Date(data.lastUpdate);
+    
+    // 通常の鳥の日付復元
+    ['森林', '草原', '水辺'].forEach(area => {
+        if (data[area]) {
+            data[area].forEach(bird => {
+                if (bird.entryTime) bird.entryTime = new Date(bird.entryTime);
+                if (bird.lastFed) bird.lastFed = new Date(bird.lastFed);
+                if (bird.scheduledDeparture) bird.scheduledDeparture = new Date(bird.scheduledDeparture);
+                if (bird.hungerStartTime) bird.hungerStartTime = new Date(bird.hungerStartTime);
                 
-                if (visitor.feedHistory) {
-                    visitor.feedHistory.forEach(feed => {
+                if (bird.feedHistory) {
+                    bird.feedHistory.forEach(feed => {
                         if (feed.time) feed.time = new Date(feed.time);
                     });
                 }
             });
         }
-        
-        // 🆕 優先入園キューの日付復元
-        if (data.priorityQueue) {
-            data.priorityQueue.forEach(item => {
-                if (item.addedTime) item.addedTime = new Date(item.addedTime);
-            });
-        }
-        
-        if (data.events) {
-            data.events.forEach(event => {
-                if (event.timestamp) event.timestamp = new Date(event.timestamp);
-            });
-        }
+    });
+    
+    // 見学鳥の日付復元
+    if (data.visitors) {
+        data.visitors.forEach(visitor => {
+            if (visitor.entryTime) visitor.entryTime = new Date(visitor.entryTime);
+            if (visitor.lastFed) visitor.lastFed = new Date(visitor.lastFed);
+            if (visitor.scheduledDeparture) visitor.scheduledDeparture = new Date(visitor.scheduledDeparture);
+            
+            if (visitor.feedHistory) {
+                visitor.feedHistory.forEach(feed => {
+                    if (feed.time) feed.time = new Date(feed.time);
+                });
+            }
+        });
     }
+    
+    // 優先入園キューの日付復元
+    if (data.priorityQueue) {
+        data.priorityQueue.forEach(item => {
+            if (item.addedTime) item.addedTime = new Date(item.addedTime);
+        });
+    }
+
+    // 🆕 お出かけ鳥の日付復元
+    if (data.outingBirds) {
+        data.outingBirds.forEach(outing => {
+            if (outing.outingStartTime) outing.outingStartTime = new Date(outing.outingStartTime);
+            if (outing.scheduledReturn) outing.scheduledReturn = new Date(outing.scheduledReturn);
+            if (outing.lastFed) outing.lastFed = new Date(outing.lastFed);
+            
+            if (outing.feedHistory) {
+                outing.feedHistory.forEach(feed => {
+                    if (feed.time) feed.time = new Date(feed.time);
+                });
+            }
+        });
+    }
+    
+    if (data.events) {
+        data.events.forEach(event => {
+            if (event.timestamp) event.timestamp = new Date(event.timestamp);
+        });
+    }
+}
 
     // サーバー別データ保存
     async saveServerZoo(guildId) {
@@ -241,23 +256,24 @@ class ZooManager {
 
     // サーバー別鳥類園データ取得
     getZooState(guildId) {
-        if (!this.serverZoos.has(guildId)) {
-            // 新しいサーバーの場合、初期データを作成
-            const newZooState = {
-                森林: [],
-                草原: [],
-                水辺: [],
-                visitors: [], // 🆕 見学鳥リスト追加
-                priorityQueue: [], // 🆕 優先入園キュー追加
-                lastUpdate: new Date(),
-                events: [],
-                isInitialized: false,
-                guildId: guildId
-            };
-            this.serverZoos.set(guildId, newZooState);
-        }
-        return this.serverZoos.get(guildId);
+    if (!this.serverZoos.has(guildId)) {
+        // 新しいサーバーの場合、初期データを作成
+        const newZooState = {
+            森林: [],
+            草原: [],
+            水辺: [],
+            visitors: [], // 見学鳥リスト
+            priorityQueue: [], // 優先入園キュー
+            outingBirds: [], // 🆕 お出かけ鳥リスト追加
+            lastUpdate: new Date(),
+            events: [],
+            isInitialized: false,
+            guildId: guildId
+        };
+        this.serverZoos.set(guildId, newZooState);
     }
+    return this.serverZoos.get(guildId);
+}
 
     // 全サーバーデータ保存
     async saveAllServerZoos() {
@@ -295,25 +311,27 @@ class ZooManager {
 
     // 統計情報取得
     getStatistics(guildId) {
-        const allBirds = this.getAllBirds(guildId);
-        const zooState = this.getZooState(guildId);
-        const visitors = zooState.visitors || [];
-        
-        return {
-            totalBirds: allBirds.length,
-            areaDistribution: {
-                森林: zooState.森林.length,
-                草原: zooState.草原.length,
-                水辺: zooState.水辺.length
-            },
-            visitors: visitors.length,
-            priorityQueue: (zooState.priorityQueue || []).length,
-            averageStay: this.calculateAverageStay(allBirds),
-            hungryBirds: allBirds.filter(b => b.isHungry).length,
-            recentEvents: zooState.events.slice(-5),
-            lastUpdate: zooState.lastUpdate
-        };
-    }
+    const allBirds = this.getAllBirds(guildId);
+    const zooState = this.getZooState(guildId);
+    const visitors = zooState.visitors || [];
+    const outingBirds = zooState.outingBirds || []; // 🆕 お出かけ鳥追加
+    
+    return {
+        totalBirds: allBirds.length,
+        areaDistribution: {
+            森林: zooState.森林.length,
+            草原: zooState.草原.length,
+            水辺: zooState.水辺.length
+        },
+        visitors: visitors.length,
+        outingBirds: outingBirds.length, // 🆕 お出かけ鳥統計追加
+        priorityQueue: (zooState.priorityQueue || []).length,
+        averageStay: this.calculateAverageStay(allBirds),
+        hungryBirds: allBirds.filter(b => b.isHungry).length,
+        recentEvents: zooState.events.slice(-5),
+        lastUpdate: zooState.lastUpdate
+    };
+}
 
     // 平均滞在時間計算
     calculateAverageStay(birds) {
@@ -2978,6 +2996,418 @@ async createTemperatureEvent(allBirds) {
         return stats;
     }
 
+    // ===========================================
+// 🆕 ネスト関連の新メソッド
+// ===========================================
+
+// ネストシステムの遅延読み込み
+getNestSystem() {
+    if (!this.nestSystem) {
+        try {
+            this.nestSystem = require('./nestSystem');
+        } catch (error) {
+            console.warn('⚠️ NestSystemが見つかりません。ネスト機能は無効化されます。');
+            this.nestSystem = null;
+        }
+    }
+    return this.nestSystem;
+}
+
+// ネスト所持鳥がいるかチェック
+async isNestBird(birdName, guildId) {
+    try {
+        const nestSystem = this.getNestSystem();
+        if (!nestSystem) return false;
+
+        if (!this.sheetsManager) return false;
+
+        // sheetsManagerのgetUserNestsメソッドを使って全ネストをチェック
+        const allNests = await this.sheetsManager.getAllNests(guildId);
+        return allNests.some(nest => nest.鳥名 === birdName);
+    } catch (error) {
+        console.error('ネスト鳥チェックエラー:', error);
+        return false;
+    }
+}
+
+// ネストからお出かけ処理
+async sendBirdOnOuting(birdName, targetArea, guildId, reason = 'ガチャで選択') {
+    try {
+        console.log(`🚶 ${birdName}をネストから${targetArea}エリアにお出かけ処理開始`);
+
+        const zooState = this.getZooState(guildId);
+        const nestSystem = this.getNestSystem();
+        
+        if (!nestSystem) {
+            console.error('❌ NestSystemが利用できません');
+            return false;
+        }
+
+        // 既にお出かけ中でないかチェック
+        const alreadyOuting = zooState.outingBirds.find(outing => outing.name === birdName);
+        if (alreadyOuting) {
+            console.log(`⚠️ ${birdName}は既にお出かけ中です`);
+            return false;
+        }
+
+        // 鳥のデータを取得
+        const birdDataManager = require('./birdData');
+        const allBirds = birdDataManager.getAllBirds();
+        const birdData = allBirds.find(b => b.名前 === birdName);
+        
+        if (!birdData) {
+            console.error(`❌ 鳥データが見つかりません: ${birdName}`);
+            return false;
+        }
+
+        // お出かけ鳥インスタンス作成
+        const outingBird = this.createOutingBirdInstance(birdData, targetArea, reason);
+        
+        // お出かけリストに追加
+        zooState.outingBirds.push(outingBird);
+        
+        // 鳥類園エリアに配置
+        zooState[targetArea].push(outingBird);
+
+        // イベント記録
+        await this.addEvent(
+            guildId,
+            'ネストからお出かけ',
+            `🏠➡️🌳 ${birdName}がネストからお出かけして${targetArea}エリアにやってきました！`,
+            birdName
+        );
+
+        console.log(`✅ ${birdName}のお出かけ処理完了 (${targetArea}エリア)`);
+        await this.saveServerZoo(guildId);
+        
+        return true;
+
+    } catch (error) {
+        console.error('お出かけ処理エラー:', error);
+        return false;
+    }
+}
+
+// お出かけ鳥インスタンス作成
+createOutingBirdInstance(birdData, area, reason) {
+    const outingDuration = this.calculateOutingDuration();
+    const scheduledReturn = new Date(Date.now() + outingDuration * 60 * 60 * 1000);
+
+    return {
+        name: birdData.名前,
+        data: birdData,
+        area: area,
+        entryTime: new Date(),
+        outingStartTime: new Date(),
+        scheduledReturn: scheduledReturn,
+        outingDuration: outingDuration,
+        lastFed: null,
+        lastFedBy: null,
+        feedCount: 0,
+        feedHistory: [],
+        activity: `お出かけ中：${this.generateActivity(area)}`,
+        mood: this.getRandomMood(),
+        isOuting: true,
+        isFromNest: true,
+        outingReason: reason,
+        isHungry: false,
+        hungerNotified: false
+    };
+}
+
+// お出かけ時間計算
+calculateOutingDuration() {
+    // 30%の確率で短時間お出かけ（2-4時間）、70%の確率で通常お出かけ（4-8時間）
+    if (Math.random() < 0.3) {
+        return Math.floor(Math.random() * 3 + 2); // 2-4時間
+    } else {
+        return Math.floor(Math.random() * 5 + 4); // 4-8時間
+    }
+}
+
+// お出かけ鳥の帰宅処理
+async returnBirdToNest(guildId, outingBirdIndex) {
+    try {
+        const zooState = this.getZooState(guildId);
+        
+        if (!zooState.outingBirds || outingBirdIndex >= zooState.outingBirds.length || outingBirdIndex < 0) {
+            console.error(`❌ 無効なお出かけ鳥インデックス: ${outingBirdIndex}`);
+            return false;
+        }
+
+        const outingBird = zooState.outingBirds[outingBirdIndex];
+        console.log(`🏠 ${outingBird.name}の帰宅処理開始`);
+
+        // 鳥類園エリアから削除
+        const areaIndex = zooState[outingBird.area].findIndex(bird => 
+            bird.name === outingBird.name && bird.isOuting
+        );
+        
+        if (areaIndex !== -1) {
+            zooState[outingBird.area].splice(areaIndex, 1);
+            console.log(`✅ ${outingBird.name}を${outingBird.area}エリアから削除`);
+        }
+
+        // お出かけリストから削除
+        zooState.outingBirds.splice(outingBirdIndex, 1);
+
+        // 帰宅イベント
+        const returnMessages = [
+            `🏠 ${outingBird.name}がお出かけを終えてネストに帰っていきました`,
+            `🏠 ${outingBird.name}が楽しいお出かけの思い出を胸にネストへ戻りました`,
+            `🏠 ${outingBird.name}が「ただいま」と言っているかのようにネストに戻りました`,
+            `🏠 ${outingBird.name}が満足そうな表情でネストに帰宅しました`,
+            `🏠 ${outingBird.name}がお出かけで得た新しい経験をネストで振り返っています`
+        ];
+
+        const message = returnMessages[Math.floor(Math.random() * returnMessages.length)];
+        
+        await this.addEvent(guildId, 'ネストへ帰宅', message, outingBird.name);
+        
+        console.log(`✅ ${outingBird.name}の帰宅処理完了`);
+        await this.saveServerZoo(guildId);
+        
+        return true;
+
+    } catch (error) {
+        console.error('帰宅処理エラー:', error);
+        return false;
+    }
+}
+
+// お出かけ鳥のチェック
+async checkOutingBirds(guildId) {
+    try {
+        const zooState = this.getZooState(guildId);
+        if (!zooState.outingBirds || zooState.outingBirds.length === 0) return false;
+
+        const now = new Date();
+        let changesOccurred = false;
+
+        console.log(`🔍 サーバー ${guildId} のお出かけ鳥チェック開始 (${zooState.outingBirds.length}羽)`);
+
+        for (let i = zooState.outingBirds.length - 1; i >= 0; i--) {
+            const outingBird = zooState.outingBirds[i];
+            
+            if (now >= outingBird.scheduledReturn) {
+                console.log(`⏰ ${outingBird.name}のお出かけ時間終了 - 帰宅処理開始`);
+                await this.returnBirdToNest(guildId, i);
+                changesOccurred = true;
+            } else {
+                // 活動更新
+                if (Math.random() < 0.3) {
+                    outingBird.activity = `お出かけ中：${this.generateActivity(outingBird.area)}`;
+                }
+            }
+        }
+
+        console.log(`🔍 サーバー ${guildId} のお出かけ鳥チェック完了 (変更: ${changesOccurred})`);
+        return changesOccurred;
+
+    } catch (error) {
+        console.error(`お出かけ鳥チェックエラー (サーバー ${guildId}):`, error);
+        return false;
+    }
+}
+
+    // ===========================================
+// 🆕 状態確認・メンテナンス用メソッド
+// ===========================================
+
+// ネスト鳥の状態確認
+getOutingBirdsStatus(guildId) {
+    const zooState = this.getZooState(guildId);
+    if (!zooState.outingBirds) return { totalOuting: 0, outingBirds: [] };
+    
+    const now = new Date();
+    
+    return {
+        totalOuting: zooState.outingBirds.length,
+        outingBirds: zooState.outingBirds.map(outing => ({
+            name: outing.name,
+            area: outing.area,
+            outingStartTime: outing.outingStartTime,
+            scheduledReturn: outing.scheduledReturn,
+            outingDuration: outing.outingDuration,
+            remainingTime: Math.max(0, Math.floor((outing.scheduledReturn - now) / (60 * 1000))), // 分単位
+            activity: outing.activity,
+            outingReason: outing.outingReason,
+            isExpired: now >= outing.scheduledReturn
+        }))
+    };
+}
+
+// 手動でお出かけ鳥をチェック
+async manualOutingCheck(guildId) {
+    console.log(`🧪 サーバー ${guildId} で手動お出かけ鳥チェックを実行...`);
+    
+    // まず現在の状況を記録
+    const beforeStatus = this.getOutingBirdsStatus(guildId);
+    console.log(`🔍 チェック前: ${beforeStatus.totalOuting}羽のお出かけ鳥`);
+    
+    // チェック実行
+    const result = await this.checkOutingBirds(guildId);
+    
+    // チェック後の状況を確認
+    const afterStatus = this.getOutingBirdsStatus(guildId);
+    console.log(`🔍 チェック後: ${afterStatus.totalOuting}羽のお出かけ鳥`);
+    
+    // データ保存
+    await this.saveServerZoo(guildId);
+    
+    return {
+        checkResult: result,
+        beforeCount: beforeStatus.totalOuting,
+        afterCount: afterStatus.totalOuting,
+        returned: beforeStatus.totalOuting - afterStatus.totalOuting,
+        currentStatus: afterStatus
+    };
+}
+
+// 期限切れお出かけ鳥の強制帰宅
+async forceReturnExpiredOutingBirds(guildId) {
+    const zooState = this.getZooState(guildId);
+    if (!zooState.outingBirds) return 0;
+    
+    const now = new Date();
+    let returnedCount = 0;
+    
+    console.log(`🧪 期限切れお出かけ鳥をチェック中...`);
+    
+    for (let i = zooState.outingBirds.length - 1; i >= 0; i--) {
+        const outingBird = zooState.outingBirds[i];
+        if (now >= outingBird.scheduledReturn) {
+            console.log(`🧪 期限切れ発見: ${outingBird.name} (予定: ${outingBird.scheduledReturn}, 現在: ${now})`);
+            await this.returnBirdToNest(guildId, i);
+            returnedCount++;
+        }
+    }
+    
+    await this.saveServerZoo(guildId);
+    console.log(`🧪 ${returnedCount}羽の期限切れお出かけ鳥を帰宅させました`);
+    return returnedCount;
+}
+
+// お出かけ鳥の時間延長
+extendOutingTime(guildId, birdName, hours = 1) {
+    const zooState = this.getZooState(guildId);
+    if (!zooState.outingBirds) return false;
+    
+    const outingBird = zooState.outingBirds.find(o => o.name === birdName);
+    if (outingBird) {
+        outingBird.scheduledReturn = new Date(outingBird.scheduledReturn.getTime() + hours * 60 * 60 * 1000);
+        console.log(`🧪 ${birdName}のお出かけ時間を${hours}時間延長しました`);
+        return true;
+    }
+    
+    return false;
+}
+
+// お出かけ鳥データの修復
+async repairOutingData(guildId) {
+    const zooState = this.getZooState(guildId);
+    let repairCount = 0;
+    
+    console.log(`🔧 お出かけ鳥データの修復開始...`);
+    
+    if (!zooState.outingBirds) {
+        zooState.outingBirds = [];
+        console.log(`🔧 お出かけ鳥配列を初期化しました`);
+        repairCount++;
+    }
+    
+    // 無効なデータをチェック・修復
+    for (let i = zooState.outingBirds.length - 1; i >= 0; i--) {
+        const outingBird = zooState.outingBirds[i];
+        
+        // 必須データが欠けている場合は削除
+        if (!outingBird.name || !outingBird.scheduledReturn || !outingBird.outingStartTime) {
+            console.log(`🔧 無効なお出かけ鳥データを削除: ${outingBird.name || 'Unknown'}`);
+            zooState.outingBirds.splice(i, 1);
+            repairCount++;
+            continue;
+        }
+        
+        // 日付オブジェクトが文字列になっている場合は修復
+        if (typeof outingBird.scheduledReturn === 'string') {
+            outingBird.scheduledReturn = new Date(outingBird.scheduledReturn);
+            console.log(`🔧 ${outingBird.name}の帰宅予定時刻を修復`);
+            repairCount++;
+        }
+        
+        if (typeof outingBird.outingStartTime === 'string') {
+            outingBird.outingStartTime = new Date(outingBird.outingStartTime);
+            console.log(`🔧 ${outingBird.name}のお出かけ開始時刻を修復`);
+            repairCount++;
+        }
+    }
+    
+    await this.saveServerZoo(guildId);
+    console.log(`🔧 お出かけ鳥データの修復完了 (${repairCount}項目修復)`);
+    return repairCount;
+}
+
+// お出かけ専用イベント生成
+async createOutingSpecialEvent(guildId) {
+    const zooState = this.getZooState(guildId);
+    const outingBirds = zooState.outingBirds || [];
+    
+    if (outingBirds.length === 0) return null;
+    
+    const outingBird = outingBirds[Math.floor(Math.random() * outingBirds.length)];
+    
+    const outingEvents = [
+        `🏠✨ お出かけ中の${outingBird.name}が、ネストの話を嬉しそうにしています`,
+        `🏠💭 ${outingBird.name}が「ネストの仲間に土産話をしよう」と思っているようです`,
+        `🏠🌟 お出かけを満喫している${outingBird.name}が、ネストへの感謝の気持ちを表しています`,
+        `🏠💫 ${outingBird.name}が「ネストでこの体験を共有したい」と考えているようです`,
+        `🏠🎭 お出かけ中の${outingBird.name}が、いつもとは違う環境を楽しんでいます`,
+        `🏠🌈 ${outingBird.name}が「お出かけも楽しいけれど、やっぱりネストが一番」と思っているようです`
+    ];
+    
+    const eventContent = outingEvents[Math.floor(Math.random() * outingEvents.length)];
+    
+    return {
+        type: 'お出かけ特別イベント',
+        content: eventContent,
+        relatedBird: outingBird.name,
+        isOutingEvent: true
+    };
+}
+
+// お出かけ鳥と他の鳥の交流イベント
+async createOutingInteractionEvent(guildId) {
+    const zooState = this.getZooState(guildId);
+    const outingBirds = zooState.outingBirds || [];
+    const allBirds = this.getAllBirds(guildId);
+    
+    if (outingBirds.length === 0 || allBirds.length === 0) return null;
+    
+    const outingBird = outingBirds[Math.floor(Math.random() * outingBirds.length)];
+    const regularBirds = allBirds.filter(bird => !bird.isOuting);
+    
+    if (regularBirds.length === 0) return null;
+    
+    const regularBird = regularBirds[Math.floor(Math.random() * regularBirds.length)];
+    
+    const interactionEvents = [
+        `🏠🤝 お出かけ中の${outingBird.name}が${regularBird.name}にネストでの生活について教えています`,
+        `🏠💬 ${outingBird.name}が${regularBird.name}と「お出かけと鳥類園生活の違い」について話し合っています`,
+        `🏠✨ ${regularBird.name}が${outingBird.name}のネストの話に興味深そうに聞き入っています`,
+        `🏠🎭 お出かけ中の${outingBird.name}と${regularBird.name}が、それぞれの生活スタイルを比較して楽しんでいます`,
+        `🏠🌟 ${outingBird.name}が${regularBird.name}とネストと鳥類園それぞれの楽しさについて議論しています`
+    ];
+    
+    const eventContent = interactionEvents[Math.floor(Math.random() * interactionEvents.length)];
+    
+    return {
+        type: 'お出かけ交流イベント',
+        content: eventContent,
+        relatedBird: `${outingBird.name}, ${regularBird.name}`,
+        isOutingEvent: true
+    };
+}
+
 // ===========================================
     // 自動管理システム
     // ===========================================
@@ -3097,52 +3527,62 @@ async createTemperatureEvent(allBirds) {
 
     // 🔧 修正版: 鳥の移動チェック（見学鳥チェック付き）
     async checkBirdMigration(guildId) {
-        if (this.isProcessing) return;
-        
-        const zooState = this.getZooState(guildId);
-        if (!zooState.isInitialized) return;
+    if (this.isProcessing) return;
+    
+    const zooState = this.getZooState(guildId);
+    if (!zooState.isInitialized) return;
 
-        try {
-            const now = new Date();
-            let migrationOccurred = false;
+    try {
+        const now = new Date();
+        let migrationOccurred = false;
 
-            // 🆕 見学鳥のチェックを最初に実行
-            const visitorChanges = await this.checkVisitorBirds(guildId);
-            if (visitorChanges) {
-                migrationOccurred = true;
-            }
+        // 見学鳥のチェックを最初に実行
+        const visitorChanges = await this.checkVisitorBirds(guildId);
+        if (visitorChanges) {
+            migrationOccurred = true;
+        }
 
-            // 通常の鳥の退園チェック
-            for (const area of ['森林', '草原', '水辺']) {
-                const birds = zooState[area];
+        // 🆕 お出かけ鳥のチェック
+        const outingChanges = await this.checkOutingBirds(guildId);
+        if (outingChanges) {
+            migrationOccurred = true;
+        }
+
+        // 通常の鳥の退園チェック
+        for (const area of ['森林', '草原', '水辺']) {
+            const birds = zooState[area];
+            
+            for (let i = birds.length - 1; i >= 0; i--) {
+                const bird = birds[i];
                 
-                for (let i = birds.length - 1; i >= 0; i--) {
-                    const bird = birds[i];
-                    const actualDeparture = new Date(bird.scheduledDeparture.getTime() + (bird.stayExtension * 24 * 60 * 60 * 1000));
-                    
-                    if (now >= actualDeparture) {
-                        await this.removeBird(guildId, area, i);
-                        migrationOccurred = true;
-                    }
-                }
+                // 🆕 お出かけ鳥はここではスキップ（checkOutingBirdsで処理済み）
+                if (bird.isOuting) continue;
                 
-                // 空きがあれば新しい鳥を追加
-                if (zooState[area].length < 5) {
-                    await this.addNewBirdToArea(guildId, area);
+                const actualDeparture = new Date(bird.scheduledDeparture.getTime() + (bird.stayExtension * 24 * 60 * 60 * 1000));
+                
+                if (now >= actualDeparture) {
+                    await this.removeBird(guildId, area, i);
                     migrationOccurred = true;
                 }
             }
-
-            if (migrationOccurred) {
-                zooState.lastUpdate = new Date();
-                await this.saveServerZoo(guildId);
-                console.log(`🔄 サーバー ${guildId} の鳥類園構成が更新されました`);
+            
+            // 空きがあれば新しい鳥を追加
+            if (zooState[area].length < 5) {
+                await this.addNewBirdToArea(guildId, area);
+                migrationOccurred = true;
             }
-
-        } catch (error) {
-            console.error(`サーバー ${guildId} の鳥移動チェックエラー:`, error);
         }
+
+        if (migrationOccurred) {
+            zooState.lastUpdate = new Date();
+            await this.saveServerZoo(guildId);
+            console.log(`🔄 サーバー ${guildId} の鳥類園構成が更新されました`);
+        }
+
+    } catch (error) {
+        console.error(`サーバー ${guildId} の鳥移動チェックエラー:`, error);
     }
+}
 
     // ===========================================
     // 鳥の基本管理機能
@@ -3190,62 +3630,68 @@ async createTemperatureEvent(allBirds) {
 
     // エリア別鳥配置
     async populateArea(area, targetCount, guildId = null) {
-        const suitableBirds = birdData.getBirdsForZooArea(area);
+    const suitableBirds = birdData.getBirdsForZooArea(area);
+    
+    if (suitableBirds.length === 0) {
+        console.warn(`⚠️ ${area}エリアに適した鳥が見つかりません`);
+        return [];
+    }
+
+    // 既存の鳥をチェック
+    let existingBirds = [];
+    let recentlyLeft = [];
+    
+    if (guildId) {
+        const allBirds = this.getAllBirds(guildId);
+        existingBirds = allBirds.map(b => b.name);
+        recentlyLeft = this.getRecentlyLeftBirds(guildId);
+    }
+
+    const selectedBirds = [];
+    const maxAttempts = targetCount * 5;
+    let attempts = 0;
+
+    while (selectedBirds.length < targetCount && attempts < maxAttempts) {
+        const randomBird = suitableBirds[Math.floor(Math.random() * suitableBirds.length)];
         
-        if (suitableBirds.length === 0) {
-            console.warn(`⚠️ ${area}エリアに適した鳥が見つかりません`);
-            return [];
-        }
-
-        // 既存の鳥をチェック
-        let existingBirds = [];
-        let recentlyLeft = [];
-        
-        if (guildId) {
-            const allBirds = this.getAllBirds(guildId);
-            existingBirds = allBirds.map(b => b.name);
-            recentlyLeft = this.getRecentlyLeftBirds(guildId);
-        }
-
-        const selectedBirds = [];
-        const maxAttempts = targetCount * 5;
-        let attempts = 0;
-
-        while (selectedBirds.length < targetCount && attempts < maxAttempts) {
-            const randomBird = suitableBirds[Math.floor(Math.random() * suitableBirds.length)];
+        if (!selectedBirds.some(b => b.name === randomBird.名前) && 
+            !existingBirds.includes(randomBird.名前) &&
+            !recentlyLeft.includes(randomBird.名前)) {
             
-            if (!selectedBirds.some(b => b.name === randomBird.名前) && 
-                !existingBirds.includes(randomBird.名前) &&
-                !recentlyLeft.includes(randomBird.名前)) {
+            // 🆕 ネスト鳥のチェック - ネスト鳥は通常の配置には含めない
+            const isNestBird = await this.isNestBird(randomBird.名前, guildId);
+            if (!isNestBird) {
                 const birdInstance = this.createBirdInstance(randomBird, area);
                 selectedBirds.push(birdInstance);
             }
-            attempts++;
         }
-
-        return selectedBirds;
+        attempts++;
     }
+
+    return selectedBirds;
+}
 
     // 鳥インスタンス作成
     createBirdInstance(birdData, area) {
-        return {
-            name: birdData.名前,
-            data: birdData,
-            area: area,
-            entryTime: new Date(),
-            lastFed: null,
-            lastFedBy: null,
-            feedCount: 0,
-            feedHistory: [],
-            activity: this.generateActivity(area),
-            mood: this.getRandomMood(),
-            stayExtension: 0,
-            scheduledDeparture: this.calculateDepartureTime(),
-            isHungry: false,
-            hungerNotified: false
-        };
-    }
-
+    return {
+        name: birdData.名前,
+        data: birdData,
+        area: area,
+        entryTime: new Date(),
+        lastFed: null,
+        lastFedBy: null,
+        feedCount: 0,
+        feedHistory: [],
+        activity: this.generateActivity(area),
+        mood: this.getRandomMood(),
+        stayExtension: 0,
+        scheduledDeparture: this.calculateDepartureTime(),
+        isHungry: false,
+        hungerNotified: false,
+        isOuting: false, // 🆕 お出かけフラグ追加
+        isFromNest: false // 🆕 ネスト起源フラグ追加
+    };
+}
     // 出発時間計算
     calculateDepartureTime() {
         const minDays = 2;
@@ -3260,37 +3706,63 @@ async createTemperatureEvent(allBirds) {
 
     // 鳥の退園処理
     async removeBird(guildId, area, index) {
-        const zooState = this.getZooState(guildId);
-        const bird = zooState[area][index];
-        
-        // 記憶データを保存（シンプル版）
-        await this.saveBirdMemory(bird, area, guildId);
-        
-        zooState[area].splice(index, 1);
-        
-        // 退園した鳥を記録
-        this.addRecentlyLeftBird(guildId, bird.name);
-        
-        await logger.logZoo('退園', area, bird.name, '', '', guildId);
-        
-        let departureMessage = `${bird.name}が旅立っていきました。また会える日まで...👋`;
-        
-        await this.addEvent(guildId, 'お別れ', departureMessage, bird.name);
+    const zooState = this.getZooState(guildId);
+    const bird = zooState[area][index];
+    
+    // 🆕 お出かけ鳥の場合は帰宅処理
+    if (bird.isOuting && bird.isFromNest) {
+        console.log(`🏠 お出かけ鳥 ${bird.name} の帰宅処理`);
+        await this.returnBirdToNest(guildId, zooState.outingBirds.findIndex(o => o.name === bird.name));
+        return;
     }
+    
+    // 記憶データを保存（シンプル版）
+    await this.saveBirdMemory(bird, area, guildId);
+    
+    zooState[area].splice(index, 1);
+    
+    // 退園した鳥を記録
+    this.addRecentlyLeftBird(guildId, bird.name);
+    
+    await logger.logZoo('退園', area, bird.name, '', '', guildId);
+    
+    let departureMessage = `${bird.name}が旅立っていきました。また会える日まで...👋`;
+    
+    await this.addEvent(guildId, 'お別れ', departureMessage, bird.name);
+}
 
     // 新しい鳥をエリアに追加
     async addNewBirdToArea(guildId, area) {
-        const zooState = this.getZooState(guildId);
+    const zooState = this.getZooState(guildId);
+    
+    // 優先キューをチェック
+    if (zooState.priorityQueue && zooState.priorityQueue.length > 0) {
+        const priorityBird = zooState.priorityQueue.shift();
         
-        // 優先キューをチェック
-        if (zooState.priorityQueue && zooState.priorityQueue.length > 0) {
-            const priorityBird = zooState.priorityQueue.shift();
+        const birdDataManager = require('./birdData');
+        const birdDataAll = birdDataManager.getAllBirds();
+        const targetBird = birdDataAll.find(b => b.名前 === priorityBird.birdName);
+        
+        if (targetBird) {
+            // 🆕 ネスト鳥かチェック
+            const isNestBird = await this.isNestBird(targetBird.名前, guildId);
             
-            const birdDataManager = require('./birdData');
-            const birdDataAll = birdDataManager.getAllBirds();
-            const targetBird = birdDataAll.find(b => b.名前 === priorityBird.birdName);
-            
-            if (targetBird) {
+            if (isNestBird) {
+                // ネスト鳥の場合、お出かけ処理
+                console.log(`🏠 ネスト鳥 ${targetBird.名前} のお出かけ処理`);
+                const success = await this.sendBirdOnOuting(targetBird.名前, area, guildId, '優先入園（ガチャ選択）');
+                
+                if (success) {
+                    await this.addEvent(
+                        guildId,
+                        'ネスト鳥お出かけ',
+                        `🏠✨ ネストで暮らす${targetBird.名前}が優先的に${area}エリアにお出かけしました！`,
+                        targetBird.名前
+                    );
+                }
+                return;
+            } else {
+                // 通常の優先入園処理
                 await this.removeVisitorIfExists(guildId, targetBird.名前);
                 
                 const birdInstance = this.createBirdInstance(targetBird, area);
@@ -3308,23 +3780,45 @@ async createTemperatureEvent(allBirds) {
                 return;
             }
         }
+    }
+    
+    // 通常の新鳥追加処理
+    const newBirds = await this.populateArea(area, 1, guildId);
+    
+    if (newBirds.length > 0) {
+        const selectedBird = newBirds[0];
         
-        // 通常の新鳥追加
-        const newBirds = await this.populateArea(area, 1, guildId);
+        // 🆕 選択された鳥がネスト鳥かチェック
+        const isNestBird = await this.isNestBird(selectedBird.name, guildId);
         
-        if (newBirds.length > 0) {
-            zooState[area].push(newBirds[0]);
+        if (isNestBird) {
+            // ネスト鳥の場合、お出かけ処理
+            console.log(`🏠 新規追加でネスト鳥 ${selectedBird.name} を選択 - お出かけ処理`);
+            const success = await this.sendBirdOnOuting(selectedBird.name, area, guildId, 'ランダム選択（ガチャ）');
             
-            await logger.logZoo('入園', area, newBirds[0].name, '', '', guildId);
+            if (success) {
+                await this.addEvent(
+                    guildId,
+                    'ネスト鳥お出かけ',
+                    `🏠🌟 ネストで暮らす${selectedBird.name}が${area}エリアにお出かけしました！`,
+                    selectedBird.name
+                );
+            }
+        } else {
+            // 通常の新入園処理
+            zooState[area].push(selectedBird);
+            
+            await logger.logZoo('入園', area, selectedBird.name, '', '', guildId);
             
             await this.addEvent(
                 guildId,
                 '新入り',
-                `${newBirds[0].name}が新しく${area}エリアに仲間入りしました！🎉`,
-                newBirds[0].name
+                `${selectedBird.name}が新しく${area}エリアに仲間入りしました！🎉`,
+                selectedBird.name
             );
         }
     }
+}
 
     // 見学中の同じ鳥を削除
     async removeVisitorIfExists(guildId, birdName) {
@@ -3759,25 +4253,30 @@ createNightWatchEvent(allBirds) {
 
     // 活動更新
     async updateBirdActivities(guildId) {
-        try {
-            const zooState = this.getZooState(guildId);
-            if (!zooState.isInitialized) return;
+    try {
+        const zooState = this.getZooState(guildId);
+        if (!zooState.isInitialized) return;
 
-            for (const area of ['森林', '草原', '水辺']) {
-                zooState[area].forEach(bird => {
-                    if (Math.random() < 0.4) {
+        for (const area of ['森林', '草原', '水辺']) {
+            zooState[area].forEach(bird => {
+                if (Math.random() < 0.4) {
+                    // 🆕 お出かけ鳥の活動は特別表記
+                    if (bird.isOuting) {
+                        bird.activity = `お出かけ中：${this.generateActivity(area)}`;
+                    } else {
                         bird.activity = this.generateActivity(area);
-                        
-                        if (Math.random() < 0.3) {
-                            bird.mood = this.getRandomMood();
-                        }
                     }
-                });
-            }
-        } catch (error) {
-            console.error(`サーバー ${guildId} の活動更新エラー:`, error);
+                    
+                    if (Math.random() < 0.3) {
+                        bird.mood = this.getRandomMood();
+                    }
+                }
+            });
         }
+    } catch (error) {
+        console.error(`サーバー ${guildId} の活動更新エラー:`, error);
     }
+}
 
     // 夜間は空腹チェックを停止する既存のメソッドを確認
 async checkHungerStatus(guildId) {
@@ -3819,7 +4318,12 @@ async checkHungerStatus(guildId) {
                 } else {
                     if (bird.isHungry) {
                         bird.isHungry = false;
-                        bird.activity = this.generateActivity(area);
+                        // 🆕 お出かけ鳥かどうかで活動メッセージを調整
+                        if (bird.isOuting) {
+                            bird.activity = `お出かけ中：${this.generateActivity(area)}`;
+                        } else {
+                            bird.activity = this.generateActivity(area);
+                        }
                         console.log(`😊 サーバー ${guildId} - ${bird.name} が満腹になりました (${area}エリア)`);
                     }
                 }
@@ -3837,89 +4341,99 @@ async checkHungerStatus(guildId) {
      * 改良されたランダムイベント生成（通過イベント追加版）
      */
     async generateRandomEvent(guildId) {
-        try {
-            const zooState = this.getZooState(guildId);
-            if (!zooState.isInitialized) return;
+    try {
+        const zooState = this.getZooState(guildId);
+        if (!zooState.isInitialized) return;
 
-            const allBirds = this.getAllBirds(guildId);
-            if (allBirds.length === 0) return;
+        const allBirds = this.getAllBirds(guildId);
+        if (allBirds.length === 0) return;
 
-            const timeSlot = this.getCurrentTimeSlot();
-            let event = null;
+        const timeSlot = this.getCurrentTimeSlot();
+        let event = null;
 
-            console.log(`🎪 サーバー ${guildId} でランダムイベント生成開始 (${timeSlot.name})`);
+        console.log(`🎪 サーバー ${guildId} でランダムイベント生成開始 (${timeSlot.name})`);
 
-            // 夜間の場合
-            if (timeSlot.key === 'sleep') {
-                const nightEventTypes = ['sleep', 'dream', 'night_watch', 'moon_phase'];
-                
-                const hasNocturnalBirds = await this.hasNocturnalBirds(allBirds);
-                if (hasNocturnalBirds) {
-                    nightEventTypes.push('nocturnal_specific', 'nocturnal_specific');
-                }
-                
-                const eventType = nightEventTypes[Math.floor(Math.random() * nightEventTypes.length)];
-                console.log(`🌙 夜間イベントタイプ: ${eventType}`);
-                
-                switch (eventType) {
-                    case 'nocturnal_specific':
-                        event = await this.createNocturnalSpecificEvent(allBirds);
-                        break;
-                    case 'moon_phase':
-                        event = await this.createMoonPhaseEvent(allBirds);
-                        break;
-                    default:
-                        event = await this.createNightEvent(eventType, allBirds);
-                }
-            } else {
-                // 昼間の場合 - 通過イベントを追加
-                const dayEventTypes = [
-                    'interaction', 'discovery', 'weather_based', 'time_based', 
-                    'seasonal', 'temperature', 'wind', 'humidity',
-                    'flyover', 'special_flyover', 'long_stay' // 🆕 通過イベント追加
-                ];
-                
-                // 渡りの季節ボーナス
-                const migrationBonus = this.getSeasonalMigrationBonus();
-                if (migrationBonus > 1.0) {
-                    // 渡りの季節は通過イベントの確率を上げる
-                    dayEventTypes.push('flyover', 'special_flyover');
-                    console.log(`🦅 渡りの季節です！通過イベントの確率アップ (${migrationBonus}x)`);
-                }
-                
-                const specialDay = this.getSpecialDay();
-                if (specialDay) {
-                    dayEventTypes.push('special_day', 'special_day', 'special_flyover');
-                    console.log(`🎉 今日は${specialDay.name}です！`);
-                }
-                
-                const longStayBirds = this.getLongStayBirds(guildId);
-                if (longStayBirds.length > 0) {
-                    dayEventTypes.push('long_stay', 'long_stay');
-                }
-                
-                const eventType = dayEventTypes[Math.floor(Math.random() * dayEventTypes.length)];
-                console.log(`☀️ 昼間イベントタイプ: ${eventType}`);
-                
-                event = await this.generateDaytimeEventWithFlyover(eventType, allBirds, guildId);
+        // 夜間の場合
+        if (timeSlot.key === 'sleep') {
+            const nightEventTypes = ['sleep', 'dream', 'night_watch'];
+            
+            const hasNocturnalBirds = await this.hasNocturnalBirds(allBirds);
+            if (hasNocturnalBirds) {
+                nightEventTypes.push('nocturnal_specific', 'nocturnal_specific');
             }
             
-            if (event) {
-                await this.addEvent(guildId, event.type, event.content, event.relatedBird);
-                
-                if (event.isRareEvent) {
-                    console.log(`⭐ サーバー ${guildId} でレアイベント発生: ${event.type} - ${event.relatedBird}`);
-                } else {
-                    console.log(`✅ サーバー ${guildId} でイベント発生: ${event.type} - ${event.relatedBird}`);
-                }
-            } else {
-                console.log(`⚠️ サーバー ${guildId} でイベントが生成されませんでした`);
+            const eventType = nightEventTypes[Math.floor(Math.random() * nightEventTypes.length)];
+            console.log(`🌙 夜間イベントタイプ: ${eventType}`);
+            
+            // 夜間イベントの生成は基本的なもののみ実装
+            event = { type: '夜間イベント', content: 'みんな静かに眠っています...', relatedBird: '' };
+        } else {
+            // 昼間の場合
+            const dayEventTypes = [
+                'interaction', 'discovery', 'weather_based', 'time_based', 
+                'seasonal', 'outing_interaction' // 🆕 お出かけ鳥の交流イベント追加
+            ];
+            
+            const specialDay = this.getSpecialDay();
+            if (specialDay) {
+                dayEventTypes.push('special_day', 'special_day');
+                console.log(`🎉 今日は${specialDay.name}です！`);
+            }
+            
+            const longStayBirds = this.getLongStayBirds(guildId);
+            if (longStayBirds.length > 0) {
+                dayEventTypes.push('long_stay', 'long_stay');
             }
 
-        } catch (error) {
-            console.error(`❌ サーバー ${guildId} のランダムイベント生成エラー:`, error);
+            // 🆕 お出かけ鳥がいる場合、お出かけイベントを追加
+            const outingBirds = zooState.outingBirds || [];
+            if (outingBirds.length > 0) {
+                dayEventTypes.push('outing_special', 'outing_interaction');
+            }
+            
+            const eventType = dayEventTypes[Math.floor(Math.random() * dayEventTypes.length)];
+            console.log(`☀️ 昼間イベントタイプ: ${eventType}`);
+            
+            // 基本的なイベント生成（簡略版）
+            switch (eventType) {
+                case 'outing_special':
+                    event = await this.createOutingSpecialEvent(guildId);
+                    break;
+                case 'outing_interaction':
+                    event = await this.createOutingInteractionEvent(guildId);
+                    break;
+                case 'interaction':
+                    event = this.createInteractionEvent(allBirds);
+                    break;
+                case 'discovery':
+                    event = this.createDiscoveryEvent(allBirds);
+                    break;
+                default:
+                    const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+                    event = {
+                        type: eventType,
+                        content: `${bird.name}が何かをしています`,
+                        relatedBird: bird.name
+                    };
+            }
         }
+        
+        if (event) {
+            await this.addEvent(guildId, event.type, event.content, event.relatedBird);
+            
+            if (event.isRareEvent) {
+                console.log(`⭐ サーバー ${guildId} でレアイベント発生: ${event.type} - ${event.relatedBird}`);
+            } else {
+                console.log(`✅ サーバー ${guildId} でイベント発生: ${event.type} - ${event.relatedBird}`);
+            }
+        } else {
+            console.log(`⚠️ サーバー ${guildId} でイベントが生成されませんでした`);
+        }
+
+    } catch (error) {
+        console.error(`❌ サーバー ${guildId} のランダムイベント生成エラー:`, error);
     }
+}
 }
 
 module.exports = new ZooManager();
