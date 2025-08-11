@@ -770,35 +770,60 @@ class ZooManager {
                 `${timeSlot.emoji} 朝日に照らされて、${bird.name}の羽が金色に輝いています`,
                 `${timeSlot.emoji} 早朝の清々しい空気を、${bird.name}が深く吸い込んでいます`,
                 `${timeSlot.emoji} 夜明けの静寂の中、${bird.name}が優雅に羽ばたいています`,
-                `${timeSlot.emoji} 朝霧の中から${bird.name}が現れて、新しい一日を迎えています`
+                `${timeSlot.emoji} 朝霧の中から${bird.name}が現れて、新しい一日を迎えています`,
+                `${timeSlot.emoji} 東の空が赤く染まる中、${bird.name}が一番鳥として美しく鳴いています`,
+            `${timeSlot.emoji} 夜露に濡れた羽を${bird.name}が朝日で乾かしています`,
+            `${timeSlot.emoji} 静寂を破って、${bird.name}が力強い鳴き声で朝の到来を告げています`,
+            `${timeSlot.emoji} 薄明かりの中、${bird.name}が神々しい姿で佇んでいます`,
+            `${timeSlot.emoji} 朝一番の冷たい空気を、${bird.name}が胸いっぱいに吸い込んでいます`
             ],
             morning: [
                 `${timeSlot.emoji} 爽やかな朝、${bird.name}が活発に動き回っています`,
                 `${timeSlot.emoji} 朝の光を浴びて、${bird.name}が元気よく鳴いています`,
                 `${timeSlot.emoji} 朝食を求めて、${bird.name}が餌を探し始めました`,
                 `${timeSlot.emoji} 朝のさえずりで、${bird.name}が仲間とコミュニケーションを取っています`,
-                `${timeSlot.emoji} 朝露に濡れた草を、${bird.name}が歩いています`
+                `${timeSlot.emoji} 朝露に濡れた草を、${bird.name}が歩いています`,
+                `${timeSlot.emoji} 朝の新鮮な空気の中、${bird.name}が翼を大きく広げてストレッチしています`,
+            `${timeSlot.emoji} 暖かな朝日を背中で受けて、${bird.name}が気持ちよさそうにしています`,
+            `${timeSlot.emoji} 朝の涼しい風に乗って、${bird.name}が軽やかに舞っています`,
+            `${timeSlot.emoji} 一日の計画を立てるように、${bird.name}が辺りを見回しています`,
+            `${timeSlot.emoji} 朝の活気に満ちて、${bird.name}が仲間たちと楽しそうに過ごしています`
             ],
             noon: [
                 `${timeSlot.emoji} 昼下がり、${bird.name}がのんびりと過ごしています`,
                 `${timeSlot.emoji} 暖かい昼間の陽だまりで、${bird.name}が気持ちよさそうにしています`,
                 `${timeSlot.emoji} お昼時、${bird.name}が木陰で休憩しています`,
                 `${timeSlot.emoji} 昼間の賑やかな時間を、${bird.name}が楽しんでいます`,
-                `${timeSlot.emoji} 午後の暖かい日差しの中、${bird.name}が羽繕いをしています`
+                `${timeSlot.emoji} 午後の暖かい日差しの中、${bird.name}が羽繕いをしています`,
+                `${timeSlot.emoji} 太陽が真上から照らす中、${bird.name}が日光浴を満喫しています`,
+            `${timeSlot.emoji} お昼の暖かい時間に、${bird.name}が仲間とのんびりおしゃべりしています`,
+            `${timeSlot.emoji} 昼間の明るい光の中で、${bird.name}の美しい羽色が際立っています`,
+            `${timeSlot.emoji} ランチタイムを楽しむように、${bird.name}が美味しそうに食事をしています`,
+            `${timeSlot.emoji} 昼下がりの暖かさに、${bird.name}が心地よい居眠りをしています`
             ],
             evening: [
                 `${timeSlot.emoji} 夕暮れ時、${bird.name}が美しい夕日を眺めています`,
                 `${timeSlot.emoji} 夕焼け空を背景に、${bird.name}が幻想的に舞っています`,
                 `${timeSlot.emoji} 一日の終わりに、${bird.name}が仲間と夕べの歌を歌っています`,
                 `${timeSlot.emoji} 夕方の涼しい風を、${bird.name}が羽で感じています`,
-                `${timeSlot.emoji} 夕暮れの静けさの中、${bird.name}が穏やかに過ごしています`
+                `${timeSlot.emoji} 夕暮れの静けさの中、${bird.name}が穏やかに過ごしています`,
+                `${timeSlot.emoji} オレンジ色の空の下で、${bird.name}が一日を振り返っているようです`,
+            `${timeSlot.emoji} 夕陽に照らされた${bird.name}のシルエットが美しく映えています`,
+            `${timeSlot.emoji} 夕暮れの優しい光の中で、${bird.name}が安らかに佇んでいます`,
+            `${timeSlot.emoji} 黄昏時の神秘的な雰囲気を、${bird.name}が楽しんでいるようです`,
+            `${timeSlot.emoji} 夕方の特別な時間に、${bird.name}が感慨深げに空を見上げています`
             ],
             night: [
                 `${timeSlot.emoji} 夜の始まり、${bird.name}がねぐらの準備をしています`,
                 `${timeSlot.emoji} 夜風に羽を揺らしながら、${bird.name}が静かに佇んでいます`,
                 `${timeSlot.emoji} 星空の下で、${bird.name}が美しい夜の歌を奏でています`,
                 `${timeSlot.emoji} 夜の静寂を楽しみながら、${bird.name}が月を見上げています`,
-                `${timeSlot.emoji} 夜の帳が降りる中、${bird.name}が安らかに過ごしています`
+                `${timeSlot.emoji} 夜の帳が降りる中、${bird.name}が安らかに過ごしています`,
+                `${timeSlot.emoji} 街の明かりが灯る中、${bird.name}が夜の美しさに見とれています`,
+            `${timeSlot.emoji} 夜のひんやりとした空気を、${bird.name}が心地よく感じています`,
+            `${timeSlot.emoji} 星々の輝きの下で、${bird.name}が宇宙の神秘を感じているようです`,
+            `${timeSlot.emoji} 夜の静けさに包まれて、${bird.name}が深い瞑想にふけっています`,
+            `${timeSlot.emoji} 月明かりに照らされた${bird.name}が、天使のように美しく佇んでいます`
             ]
         };
 
@@ -896,36 +921,72 @@ class ZooManager {
                     `${emoji} 暖かい日差しに誘われて、${bird.name}が活発に動き回っています`,
                     `${emoji} 青空を背景に、${bird.name}が美しく舞っています`,
                     `${emoji} 太陽の光で${bird.name}の羽が金色に輝いています`,
-                    `${emoji} 晴れた空に向かって、${bird.name}が嬉しそうに鳴いています`
+                    `${emoji} 晴れた空に向かって、${bird.name}が嬉しそうに鳴いています`,
+                    `${emoji} 雲一つない青空の下で、${bird.name}が自由自在に飛び回っています`,
+                `${emoji} 燦々と降り注ぐ陽光を浴びて、${bird.name}が幸せそうに羽ばたいています`,
+                `${emoji} 晴天に恵まれた今日、${bird.name}が特別に美しい鳴き声を響かせています`,
+                `${emoji} 太陽のエネルギーを感じて、${bird.name}が元気いっぱいに舞い踊っています`,
+                `${emoji} 完璧な晴れ空の下で、${bird.name}が最高の一日を満喫しています`
                 ],
                 rainy: [
                     `${emoji} 雨音を聞きながら、${bird.name}が軒下で静かに過ごしています`,
                     `${emoji} 雨粒が葉っぱに当たる音を、${bird.name}が興味深そうに聞いています`,
                     `${emoji} 雨宿り中の${bird.name}が、雨上がりを待ちわびているようです`,
                     `${emoji} 小雨の中、${bird.name}が濡れないよう上手に移動しています`,
-                    `${emoji} 雨で潤った空気を、${bird.name}が深く吸い込んでいます`
+                    `${emoji} 雨で潤った空気を、${bird.name}が深く吸い込んでいます`,
+                    `${emoji} 雨粒のリズムに合わせて、${bird.name}が小さく体を揺らしています`,
+                `${emoji} しっとりとした雨の日を、${bird.name}が静かに楽しんでいます`,
+                `${emoji} 雨に濡れた羽を器用に震わせて、${bird.name}が水滴を飛ばしています`,
+                `${emoji} 雨宿りしながら、${bird.name}が雨の匂いを楽しんでいるようです`,
+                `${emoji} 雨音のBGMの中で、${bird.name}が穏やかに瞑想しています`
                 ],
                 cloudy: [
                     `${emoji} 曇り空の下、${bird.name}が穏やかに過ごしています`,
                     `${emoji} 雲の隙間から差す光を、${bird.name}が見上げています`,
                     `${emoji} 涼しい曇り空を、${bird.name}が気持ちよさそうに眺めています`,
-                    `${emoji} 時々雲が動くのを、${bird.name}が不思議そうに見つめています`
+                    `${emoji} 時々雲が動くのを、${bird.name}が不思議そうに見つめています`,
+                    `${emoji} グレーの空模様の中、${bird.name}が落ち着いた様子で佇んでいます`,
+                `${emoji} 曇天の柔らかい光の下で、${bird.name}がリラックスしています`,
+                `${emoji} 雲に覆われた空を見上げて、${bird.name}が物思いにふけっています`,
+                `${emoji} 適度な涼しさの中、${bird.name}が快適そうに過ごしています`,
+                `${emoji} 曇り空の神秘的な雰囲気を、${bird.name}が味わっています`,
+                `${emoji} 雲の形を眺めながら、${bird.name}が想像力を働かせているようです`
                 ],
                 snowy: [
                     `${emoji} 雪景色の中、${bird.name}が美しく映えています`,
                     `${emoji} 舞い散る雪を、${bird.name}が興味深そうに見上げています`,
                     `${emoji} 雪の結晶を羽で受け止めて、${bird.name}が遊んでいます`,
-                    `${emoji} 雪化粧した木々の間を、${bird.name}が優雅に移動しています`
+                    `${emoji} 雪化粧した木々の間を、${bird.name}が優雅に移動しています`,
+                    `${emoji} 真っ白な雪の中で、${bird.name}の羽色が鮮やかに映えています`,
+                `${emoji} 雪だるまのように膨らんだ羽で、${bird.name}が寒さをしのいでいます`,
+                `${emoji} 雪の上に残る小さな足跡が、${bird.name}の軌跡を物語っています`,
+                `${emoji} 雪景色の美しさに、${bird.name}が感動しているようです`,
+                `${emoji} 雪の結晶を一つ一つ見つめて、${bird.name}が自然の芸術を楽しんでいます`,
+                `${emoji} 静寂の銀世界で、${bird.name}が特別な平和を感じています`
                 ],
                 stormy: [
                     `${emoji} 嵐の中、${bird.name}が安全な場所で身を寄せ合っています`,
                     `${emoji} 強風に負けじと、${bird.name}がしっかりと枝にとまっています`,
-                    `${emoji} 嵐が去るのを、${bird.name}が辛抱強く待っています`
+                    `${emoji} 嵐が去るのを、${bird.name}が辛抱強く待っています`,
+                    `${emoji} 激しい風雨の中、${bird.name}が勇敢に立ち向かっています`,
+                `${emoji} 嵐の迫力を感じながら、${bird.name}が自然の力に敬意を払っています`,
+                `${emoji} 雷鳴に驚きながらも、${bird.name}が冷静さを保っています`,
+                `${emoji} 嵐の合間を縫って、${bird.name}が素早く避難場所を見つけました`,
+                `${emoji} 強風に羽を震わせながら、${bird.name}が嵐の終息を見守っています`,
+                `${emoji} 自然の脅威の前で、${bird.name}が生命力の強さを見せています`,
+                `${emoji} 嵐雲を見上げて、${bird.name}が自然の偉大さを感じているようです`
                 ],
                 foggy: [
                     `${emoji} 霧に包まれた幻想的な中を、${bird.name}がゆっくりと移動しています`,
                     `${emoji} 霧の向こうから${bird.name}の美しいシルエットが浮かび上がります`,
-                    `${emoji} 霧の静寂の中で、${bird.name}が神秘的な雰囲気を醸し出しています`
+                    `${emoji} 霧の静寂の中で、${bird.name}が神秘的な雰囲気を醸し出しています`,
+                    `${emoji} 霧のベールに包まれて、${bird.name}が妖精のように見えます`,
+                `${emoji} 白い霧の中を、${bird.name}が幽玄に漂っています`,
+                `${emoji} 霧で視界が限られる中、${bird.name}が慎重に歩いています`,
+                `${emoji} 霧の湿気を羽で感じながら、${bird.name}が静かに佇んでいます`,
+                `${emoji} 霧に煙る景色の中で、${bird.name}が幻想的な存在感を放っています`,
+                `${emoji} 朝霧の中から現れた${bird.name}が、まるで夢の中の住人のようです`,
+                `${emoji} 霧の神秘に包まれて、${bird.name}が特別な魔法にかかったように見えます`
                 ]
             };
 
@@ -973,62 +1034,146 @@ class ZooManager {
             1: [ // 厳冬
                 `${seasonInfo.emoji} 厳しい寒さの中、${bird.name}が羽を膨らませて暖を取っています`,
                 `${seasonInfo.emoji} 雪景色が美しい中、${bird.name}が凛とした姿を見せています`,
-                `${seasonInfo.emoji} 冬の澄んだ空気の中、${bird.name}が清々しく過ごしています`
+                `${seasonInfo.emoji} 冬の澄んだ空気の中、${bird.name}が清々しく過ごしています`,
+                `${seasonInfo.emoji} 新年の寒気の中で、${bird.name}が新たな希望を胸に佇んでいます`,
+            `${seasonInfo.emoji} 厳冬期の静寂を、${bird.name}が深く味わっているようです`,
+            `${seasonInfo.emoji} 氷点下の朝に、${bird.name}が力強い生命力を見せています`,
+            `${seasonInfo.emoji} 雪化粧した枝で、${bird.name}が優雅にバランスを取っています`,
+            `${seasonInfo.emoji} 冬の王者のように、${bird.name}が堂々と寒さに立ち向かっています`,
+            `${seasonInfo.emoji} 白い息を吐きながら、${bird.name}が冬の美しさを楽しんでいます`,
+            `${seasonInfo.emoji} 厳寒の中でも、${bird.name}が温かい心を保っているようです`
             ],
             2: [ // 晩冬
                 `${seasonInfo.emoji} 春の気配を感じて、${bird.name}が少し活発になってきました`,
                 `${seasonInfo.emoji} 梅の香りに誘われて、${bird.name}が嬉しそうにしています`,
-                `${seasonInfo.emoji} 日差しが暖かくなり、${bird.name}が春を待ちわびているようです`
+                `${seasonInfo.emoji} 日差しが暖かくなり、${bird.name}が春を待ちわびているようです`,
+                `${seasonInfo.emoji} 立春の兆しを感じて、${bird.name}が希望に満ちた表情をしています`,
+            `${seasonInfo.emoji} 梅のつぼみを見つけて、${bird.name}が春の訪れに喜んでいます`,
+            `${seasonInfo.emoji} 日照時間が長くなり、${bird.name}が元気を取り戻しています`,
+            `${seasonInfo.emoji} 雪解けの音を聞いて、${bird.name}が耳を澄ませています`,
+            `${seasonInfo.emoji} 晩冬の穏やかな日差しを、${bird.name}が羽で受け止めています`,
+            `${seasonInfo.emoji} もうすぐ春という期待に、${bird.name}が胸を躍らせているようです`,
+            `${seasonInfo.emoji} 冬の終わりを感じて、${bird.name}が安堵の表情を浮かべています`
             ],
             3: [ // 早春
                 `${seasonInfo.emoji} 桜のつぼみを見つけて、${bird.name}が春の到来を喜んでいます`,
                 `${seasonInfo.emoji} 暖かい春風を受けて、${bird.name}が嬉しそうに羽ばたいています`,
-                `${seasonInfo.emoji} 新芽が出始めた木々で、${bird.name}が春の歌を奏でています`
+                `${seasonInfo.emoji} 新芽が出始めた木々で、${bird.name}が春の歌を奏でています`,
+                `${seasonInfo.emoji} 菜の花畑を見て、${bird.name}が春の色彩に感動しています`,
+            `${seasonInfo.emoji} 暖かい陽だまりで、${bird.name}が春の恵みを感じています`,
+            `${seasonInfo.emoji} 新緑の芽吹きに、${bird.name}が生命の力を感じているようです`,
+            `${seasonInfo.emoji} 春一番の風に乗って、${bird.name}が軽やかに舞っています`,
+            `${seasonInfo.emoji} 花々の開花を見守って、${bird.name}が春の魔法を感じています`,
+            `${seasonInfo.emoji} 虫たちの活動再開に、${bird.name}が食欲を刺激されています`,
+            `${seasonInfo.emoji} 早春の柔らかな光に包まれて、${bird.name}が幸せそうです`
             ],
             4: [ // 盛春
                 `${seasonInfo.emoji} 満開の桜と一緒に、${bird.name}が美しく舞っています`,
                 `${seasonInfo.emoji} 花々に囲まれて、${bird.name}が幸せそうに過ごしています`,
-                `${seasonInfo.emoji} 春の盛りを感じて、${bird.name}が活発に動き回っています`
+                `${seasonInfo.emoji} 春の盛りを感じて、${bird.name}が活発に動き回っています`,
+                `${seasonInfo.emoji} 花見の季節に、${bird.name}が桜の美しさに見とれています`,
+            `${seasonInfo.emoji} 花びらの舞い散る中を、${bird.name}が詩的に飛んでいます`,
+            `${seasonInfo.emoji} 新緑と花々の競演に、${bird.name}が芸術的感動を覚えています`,
+            `${seasonInfo.emoji} 春の恵みを全身で感じて、${bird.name}が生き生きとしています`,
+            `${seasonInfo.emoji} ツツジの香りに誘われて、${bird.name}が花から花へと移っています`,
+            `${seasonInfo.emoji} 完璧な春日和に、${bird.name}が最高の気分で過ごしています`,
+            `${seasonInfo.emoji} 春の交響曲に合わせて、${bird.name}が美しく歌っています`
             ],
             5: [ // 晩春
                 `${seasonInfo.emoji} 新緑の美しさに、${bird.name}が見とれています`,
                 `${seasonInfo.emoji} 青葉若葉の中で、${bird.name}が爽やかに過ごしています`,
-                `${seasonInfo.emoji} 緑豊かな季節を、${bird.name}が心から楽しんでいます`
+                `${seasonInfo.emoji} 緑豊かな季節を、${bird.name}が心から楽しんでいます`,
+                `${seasonInfo.emoji} 新緑の香りに包まれて、${bird.name}が深呼吸しています`,
+            `${seasonInfo.emoji} 若葉の輝きに、${bird.name}が自然の美しさを感じています`,
+            `${seasonInfo.emoji} 緑陰の涼しさを、${bird.name}が味わっています`,
+            `${seasonInfo.emoji} 新緑のトンネルを、${bird.name}が楽しそうに通り抜けています`,
+            `${seasonInfo.emoji} 葉桜の季節に、${bird.name}が春の移ろいを感じています`,
+            `${seasonInfo.emoji} 緑豊かな環境で、${bird.name}が活力に満ちています`,
+            `${seasonInfo.emoji} 晩春の豊かさに、${bird.name}が感謝の気持ちを抱いているようです`
             ],
             6: [ // 初夏
                 `${seasonInfo.emoji} 初夏の爽やかな風を、${bird.name}が羽で感じています`,
                 `${seasonInfo.emoji} 青空の下で、${bird.name}が元気いっぱいに活動しています`,
-                `${seasonInfo.emoji} 梅雨入り前の美しい季節を、${bird.name}が満喫しています`
+                `${seasonInfo.emoji} 梅雨入り前の美しい季節を、${bird.name}が満喫しています`,
+                `${seasonInfo.emoji} 初夏の清々しい朝に、${bird.name}が特別な歌声を響かせています`,
+            `${seasonInfo.emoji} 新緑が濃くなる中で、${bird.name}が夏への準備をしています`,
+            `${seasonInfo.emoji} 青空と白い雲を背景に、${bird.name}が美しく映えています`,
+            `${seasonInfo.emoji} 初夏の花々の香りに、${bird.name}が酔いしれています`,
+            `${seasonInfo.emoji} 心地よい湿度の中で、${bird.name}がリラックスしています`,
+            `${seasonInfo.emoji} 初夏の陽光を浴びて、${bird.name}が生命力に満ちています`,
+            `${seasonInfo.emoji} 季節の変わり目を感じて、${bird.name}が適応力を発揮しています`
             ],
             7: [ // 盛夏
                 `${seasonInfo.emoji} 夏の暑さを避けて、${bird.name}が木陰で涼んでいます`,
                 `${seasonInfo.emoji} 夏の青空の下、${bird.name}が力強く飛んでいます`,
-                `${seasonInfo.emoji} 暑い夏の日、${bird.name}が水浴びを楽しんでいます`
+                `${seasonInfo.emoji} 暑い夏の日、${bird.name}が水浴びを楽しんでいます`,
+                `${seasonInfo.emoji} 真夏の太陽に負けず、${bird.name}が元気に活動しています`,
+            `${seasonInfo.emoji} セミの鳴き声と一緒に、${bird.name}が夏の合唱団を形成しています`,
+            `${seasonInfo.emoji} 夏の入道雲を見上げて、${bird.name}が自然の雄大さを感じています`,
+            `${seasonInfo.emoji} 暑さ対策として、${bird.name}が涼しい場所を見つけました`,
+            `${seasonInfo.emoji} 夏祭りの季節に、${bird.name}が祭囃子のような鳴き声を響かせています`,
+            `${seasonInfo.emoji} 盛夏の生命力に圧倒されて、${bird.name}が自然への敬意を表しています`,
+            `${seasonInfo.emoji} 夏の恵みを感じて、${bird.name}が感謝の気持ちでいっぱいです`
             ],
             8: [ // 晩夏
                 `${seasonInfo.emoji} 夏の終わりを感じて、${bird.name}が少し寂しそうです`,
                 `${seasonInfo.emoji} 夕涼みを楽しむように、${bird.name}が静かに過ごしています`,
-                `${seasonInfo.emoji} 夏の思い出を胸に、${bird.name}が穏やかにしています`
+                `${seasonInfo.emoji} 夏の思い出を胸に、${bird.name}が穏やかにしています`,
+                `${seasonInfo.emoji} 晩夏の黄昏時に、${bird.name}が郷愁を感じているようです`,
+            `${seasonInfo.emoji} 夏の終わりの風情を、${bird.name}が静かに味わっています`,
+            `${seasonInfo.emoji} 秋への準備を始めて、${bird.name}が季節の移ろいを感じています`,
+            `${seasonInfo.emoji} 夏休みの終わりのような、${bird.name}の少し物悲しい表情です`,
+            `${seasonInfo.emoji} 晩夏の夕陽を眺めて、${bird.name}が感慨深げです`,
+            `${seasonInfo.emoji} 残暑の中で、${bird.name}が夏の名残を惜しんでいます`,
+            `${seasonInfo.emoji} 夏から秋への橋渡しを、${bird.name}が優雅に演じています`
             ],
             9: [ // 初秋
                 `${seasonInfo.emoji} 涼しい風を感じて、${bird.name}が秋の到来を喜んでいます`,
                 `${seasonInfo.emoji} 虫の音に耳を傾けて、${bird.name}が秋を感じています`,
-                `${seasonInfo.emoji} 秋の気配に、${bird.name}が心地よさそうにしています`
+                `${seasonInfo.emoji} 秋の気配に、${bird.name}が心地よさそうにしています`,
+                `${seasonInfo.emoji} 初秋の爽やかな空気に、${bird.name}が新鮮さを感じています`,
+            `${seasonInfo.emoji} 虫の声の交響曲に、${bird.name}が聞き入っています`,
+            `${seasonInfo.emoji} 秋の七草を見つけて、${bird.name}が季節の美しさに感動しています`,
+            `${seasonInfo.emoji} コスモスの花畑で、${bird.name}が秋の色彩を楽しんでいます`,
+            `${seasonInfo.emoji} 初秋の夕焼けに、${bird.name}が見とれています`,
+            `${seasonInfo.emoji} 秋風の心地よさに、${bird.name}が羽を広げています`,
+            `${seasonInfo.emoji} 季節の変化を敏感に感じ取って、${bird.name}が適応しています`
             ],
             10: [ // 中秋
                 `${seasonInfo.emoji} 紅葉の美しさに、${bird.name}が見とれています`,
                 `${seasonInfo.emoji} 色づいた葉っぱの中で、${bird.name}が美しく映えています`,
-                `${seasonInfo.emoji} 秋の深まりを感じて、${bird.name}が静かに過ごしています`
+                `${seasonInfo.emoji} 秋の深まりを感じて、${bird.name}が静かに過ごしています`,
+                `${seasonInfo.emoji} もみじ狩りの季節に、${bird.name}が紅葉の絨毯を歩いています`,
+            `${seasonInfo.emoji} 黄金色に染まった樹々の中で、${bird.name}が輝いています`,
+            `${seasonInfo.emoji} 秋の収穫の季節に、${bird.name}が豊かさを感じています`,
+            `${seasonInfo.emoji} 満ちてきた月を眺めて、${bird.name}が秋の夜長を楽しんでいます`,
+            `${seasonInfo.emoji} 紅葉のグラデーションに、${bird.name}が芸術的感動を覚えています`,
+            `${seasonInfo.emoji} 秋の実りに感謝して、${bird.name}が自然への感謝を表しています`,
+            `${seasonInfo.emoji} 月明かりが煌々と照らすなかで、${bird.name}が詩的な気分に浸っています`
             ],
             11: [ // 晩秋
                 `${seasonInfo.emoji} 落ち葉の絨毯の上を、${bird.name}が歩いています`,
                 `${seasonInfo.emoji} 秋の終わりを感じて、${bird.name}が物思いにふけっています`,
-                `${seasonInfo.emoji} 冬支度を始めるように、${bird.name}が準備をしています`
+                `${seasonInfo.emoji} 冬支度を始めるように、${bird.name}が準備をしています`,
+                `${seasonInfo.emoji} 枯葉が舞い散る中を、${bird.name}が風情豊かに歩いています`,
+            `${seasonInfo.emoji} 晩秋の寂しさを感じて、${bird.name}が郷愁に浸っています`,
+            `${seasonInfo.emoji} 冬への準備として、${bird.name}が羽毛を増やしています`,
+            `${seasonInfo.emoji} 落ち葉の音を立てながら、${bird.name}が季節の移ろいを感じています`,
+            `${seasonInfo.emoji} 晩秋の夕暮れに、${bird.name}が一年を振り返っているようです`,
+            `${seasonInfo.emoji} 木々が葉を落とす中で、${bird.name}が自然のサイクルを感じています`,
+            `${seasonInfo.emoji} もうすぐ冬という予感に、${bird.name}が身を引き締めています`
             ],
             12: [ // 初冬
                 `${seasonInfo.emoji} 初冬の寒さに、${bird.name}が身を寄せ合っています`,
                 `${seasonInfo.emoji} 冬の始まりを感じて、${bird.name}が静かに過ごしています`,
-                `${seasonInfo.emoji} 年の瀬の慌ただしさの中、${bird.name}が穏やかにしています`
+                `${seasonInfo.emoji} 年の瀬の慌ただしさの中、${bird.name}が穏やかにしています`,
+                `${seasonInfo.emoji} 初雪の予感に、${bird.name}が空を見上げています`,
+            `${seasonInfo.emoji} 年末の静けさの中で、${bird.name}が一年を締めくくっています`,
+            `${seasonInfo.emoji} 冬支度を完了して、${bird.name}が安心した表情をしています`,
+            `${seasonInfo.emoji} 初冬の澄んだ空気に、${bird.name}が身を引き締めています`,
+            `${seasonInfo.emoji} クリスマスの季節に、${bird.name}が特別な気分を味わっています`,
+            `${seasonInfo.emoji} 年の暮れを感じて、${bird.name}が感慨深げに過ごしています`,
+            `${seasonInfo.emoji} 新年への期待を胸に、${bird.name}が希望に満ちています`
             ]
         };
 
@@ -1045,41 +1190,149 @@ class ZooManager {
     }
 
     /**
-     * 記念日・特別な日イベント生成
-     */
-    async createSpecialDayEvent(allBirds) {
-        const specialDay = this.getSpecialDay();
-        if (!specialDay) {
-            console.log('🎉 今日は特別な日ではないため、記念日イベントはスキップします');
-            return null;
-        }
-
-        const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
-
-        const specialDayEvents = {
-            '元日': `${specialDay.emoji} ${specialDay.name}の特別な朝、${bird.name}が新年の希望を込めて美しく鳴いています`,
-            '節分': `${specialDay.emoji} ${specialDay.name}の日、${bird.name}が邪気を払うかのように力強く羽ばたいています`,
-            'バレンタインデー': `${specialDay.emoji} ${specialDay.name}、${bird.name}が愛情深い鳴き声で仲間への愛を表現しています`,
-            'ひな祭り': `${specialDay.emoji} ${specialDay.name}の日、${bird.name}が雅な雰囲気の中で優雅に舞っています`,
-            '春分の日': `${specialDay.emoji} ${specialDay.name}、${bird.name}が昼と夜の平衡を感じているようです`,
-            'こどもの日': `${specialDay.emoji} ${specialDay.name}、${bird.name}が子供たちの健やかな成長を願っているようです`,
-            '愛鳥週間開始': `${specialDay.emoji} ${specialDay.name}、${bird.name}が特別に美しい姿を見せています`,
-            '七夕': `${specialDay.emoji} ${specialDay.name}の夜、${bird.name}が星空に向かって願い事をしているようです`,
-            'ハロウィン': `${specialDay.emoji} ${specialDay.name}の夜、${bird.name}が魔法にかかったように神秘的に舞っています`,
-            'クリスマス': `${specialDay.emoji} ${specialDay.name}の聖なる夜、${bird.name}が天使のように美しく羽ばたいています`,
-            '大晦日': `${specialDay.emoji} ${specialDay.name}、${bird.name}が一年の感謝を込めて特別な歌を奏でています`
-        };
-
-        const eventContent = specialDayEvents[specialDay.name] || 
-            `${specialDay.emoji} ${specialDay.name}の特別な日、${bird.name}がお祝いの気持ちを込めて美しく舞っています`;
-
-        return {
-            type: `記念日イベント(${specialDay.name})`,
-            content: eventContent,
-            relatedBird: bird.name,
-            specialDay: specialDay
-        };
+ * 記念日・特別な日イベント生成（拡充版）
+ */
+async createSpecialDayEvent(allBirds) {
+    const specialDay = this.getSpecialDay();
+    if (!specialDay) {
+        console.log('🎉 今日は特別な日ではないため、記念日イベントはスキップします');
+        return null;
     }
+
+    const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+
+    const specialDayEvents = {
+        '元日': [
+            // 既存の1種類
+            `${specialDay.emoji} ${specialDay.name}の特別な朝、${bird.name}が新年の希望を込めて美しく鳴いています`,
+            
+            // 新規追加の4種類
+            `${specialDay.emoji} ${specialDay.name}の神聖な時に、${bird.name}が一年の抱負を心に刻んでいるようです`,
+            `${specialDay.emoji} 新年の門出に、${bird.name}が特別な舞を披露しています`,
+            `${specialDay.emoji} ${specialDay.name}の清々しい空気の中、${bird.name}が新たな決意を固めています`,
+            `${specialDay.emoji} 一年の始まりを祝って、${bird.name}が特別に美しい羽ばたきを見せています`
+        ],
+        '節分': [
+            // 既存の1種類
+            `${specialDay.emoji} ${specialDay.name}の日、${bird.name}が邪気を払うかのように力強く羽ばたいています`,
+            
+            // 新規追加の4種類
+            `${specialDay.emoji} 鬼は外、福は内の声に合わせて、${bird.name}が元気よく鳴いています`,
+            `${specialDay.emoji} ${specialDay.name}の厄払いの日に、${bird.name}が清らかな気持ちで過ごしています`,
+            `${specialDay.emoji} 悪いものを追い払うように、${bird.name}が力強い鳴き声を響かせています`,
+            `${specialDay.emoji} ${specialDay.name}の伝統を感じて、${bird.name}も恵方巻きを食べたがっています`
+        ],
+        'バレンタインデー': [
+            // 既存の1種類
+            `${specialDay.emoji} ${specialDay.name}、${bird.name}が愛情深い鳴き声で仲間への愛を表現しています`,
+            
+            // 新規追加の4種類
+            `${specialDay.emoji} 愛の日に、${bird.name}が特別にロマンチックな歌を奏でています`,
+            `${specialDay.emoji} ${specialDay.name}の甘い雰囲気に、${bird.name}もときめきを抱いているようです`,
+            `${specialDay.emoji} 愛を伝える日に、${bird.name}が仲間と愛情深く寄り添っています`,
+            `${specialDay.emoji} ${specialDay.name}の魔法にかかって、${bird.name}が普段より優しい表情をしています`
+        ],
+        'ひな祭り': [
+            // 既存の1種類
+            `${specialDay.emoji} ${specialDay.name}の日、${bird.name}が雅な雰囲気の中で優雅に舞っています`,
+            
+            // 新規追加の4種類
+            `${specialDay.emoji} お雛様のように、${bird.name}が美しく着飾ったような姿を見せています`,
+            `${specialDay.emoji} ${specialDay.name}の華やかさに、${bird.name}がひな祭りを祝っているようです`,
+            `${specialDay.emoji} 桃の節句に、${bird.name}が桃の花のように美しく輝いています`,
+            `${specialDay.emoji} ${specialDay.name}の伝統的な美しさを、${bird.name}が体現しています`
+        ],
+        '春分の日': [
+            // 既存の1種類
+            `${specialDay.emoji} ${specialDay.name}、${bird.name}が昼と夜の平衡を感じているようです`,
+            
+            // 新規追加の4種類
+            `${specialDay.emoji} 春の始まりを告げる日に、${bird.name}が新しい季節への期待を抱いています`,
+            `${specialDay.emoji} ${specialDay.name}の自然のバランスを、${bird.name}が全身で感じています`,
+            `${specialDay.emoji} 昼夜の長さが等しくなる神秘的な日に、${bird.name}が宇宙の調和を感じています`,
+            `${specialDay.emoji} ${specialDay.name}の特別なエネルギーを、${bird.name}が敏感に察知しています`
+        ],
+        'こどもの日': [
+            // 既存の1種類
+            `${specialDay.emoji} ${specialDay.name}、${bird.name}が子どもたちの健やかな成長を願っているようです`,
+            
+            // 新規追加の4種類
+            `${specialDay.emoji} 鯉のぼりのように、${bird.name}が空を力強く泳いでいます`,
+            `${specialDay.emoji} ${specialDay.name}の祝日に、${bird.name}が未来への希望を歌っています`,
+            `${specialDay.emoji} こどもの日を祝って、${bird.name}が若々しいエネルギーを放っています`,
+            `${specialDay.emoji} ${specialDay.name}の喜びを分かち合うように、${bird.name}が楽しそうに舞っています`
+        ],
+        '愛鳥週間開始': [
+            // 既存の1種類
+            `${specialDay.emoji} ${specialDay.name}、${bird.name}が特別に美しい姿を見せています`,
+            
+            // 新規追加の4種類
+            `${specialDay.emoji} 鳥たちの週間の始まりに、${bird.name}が主役としての誇りを感じています`,
+            `${specialDay.emoji} ${specialDay.name}を記念して、${bird.name}が特別なパフォーマンスを披露しています`,
+            `${specialDay.emoji} 愛鳥習慣への期待を込めて、${bird.name}が心からの歌声を響かせています`,
+            `${specialDay.emoji} ${specialDay.name}の意義を理解するように、${bird.name}が堂々と佇んでいます`
+        ],
+        '七夕': [
+            // 既存の1種類
+            `${specialDay.emoji} ${specialDay.name}の夜、${bird.name}が星空に向かって願い事をしているようです`,
+            
+            // 新規追加の4種類
+            `${specialDay.emoji} 天の川を見上げて、${bird.name}が宇宙の神秘に感動しています`,
+            `${specialDay.emoji} ${specialDay.name}の願いを込めて、${bird.name}が特別な鳴き声で祈っています`,
+            `${specialDay.emoji} 織姫と彦星の再会を祝って、${bird.name}が愛の歌を奏でています`,
+            `${specialDay.emoji} ${specialDay.name}の魔法的な夜に、${bird.name}が星々との会話を楽しんでいます`
+        ],
+        'ハロウィン': [
+            // 既存の1種類
+            `${specialDay.emoji} ${specialDay.name}の夜、${bird.name}が魔法にかかったように神秘的に舞っています`,
+            
+            // 新規追加の4種類
+            `${specialDay.emoji} 魔法の夜に、${bird.name}が不思議な力を得たように輝いています`,
+            `${specialDay.emoji} ${specialDay.name}の仮装パーティーで、${bird.name}が特別な変身を見せています`,
+            `${specialDay.emoji} トリック・オア・トリートの声に合わせて、${bird.name}が楽しそうに鳴いています`,
+            `${specialDay.emoji} ${specialDay.name}の神秘的な雰囲気に、${bird.name}が魅了されています`
+        ],
+        'クリスマス': [
+            // 既存の1種類
+            `${specialDay.emoji} ${specialDay.name}の聖なる夜、${bird.name}が天使のように美しく羽ばたいています`,
+            
+            // 新規追加の4種類
+            `${specialDay.emoji} 聖夜の奇跡を感じて、${bird.name}が神聖な歌声を響かせています`,
+            `${specialDay.emoji} ${specialDay.name}の平和な夜に、${bird.name}が愛と希望の歌を歌っています`,
+            `${specialDay.emoji} サンタクロースの到来を待って、${bird.name}がワクワクしているようです`,
+            `${specialDay.emoji} ${specialDay.name}の祝福を受けて、${bird.name}が特別な輝きを放っています`
+        ],
+        '大晦日': [
+            // 既存の1種類
+            `${specialDay.emoji} ${specialDay.name}、${bird.name}が一年の感謝を込めて特別な歌を奏でています`,
+            
+            // 新規追加の4種類
+            `${specialDay.emoji} 一年の締めくくりに、${bird.name}が感慨深げに空を見上げています`,
+            `${specialDay.emoji} ${specialDay.name}の夜に、${bird.name}が来年への期待を胸に抱いています`,
+            `${specialDay.emoji} 年越しの鐘の音に合わせて、${bird.name}が新年への準備をしています`,
+            `${specialDay.emoji} ${specialDay.name}の特別な時間を、${bird.name}が静かに過ごしています`
+        ]
+    };
+
+    // デフォルトイベント（定義されていない記念日用）
+    const defaultEvents = [
+        `${specialDay.emoji} ${specialDay.name}の特別な日、${bird.name}がお祝いの気持ちを込めて美しく舞っています`,
+        `${specialDay.emoji} 記念日を祝って、${bird.name}が特別な歌声を響かせています`,
+        `${specialDay.emoji} ${specialDay.name}の意味を感じて、${bird.name}が厳かに佇んでいます`,
+        `${specialDay.emoji} 特別な日の雰囲気に、${bird.name}が心を躍らせています`,
+        `${specialDay.emoji} ${specialDay.name}を記念して、${bird.name}が普段とは違う特別な姿を見せています`
+    ];
+
+    const events = specialDayEvents[specialDay.name] || defaultEvents;
+    const eventContent = events[Math.floor(Math.random() * events.length)];
+
+    return {
+        type: `記念日イベント(${specialDay.name})`,
+        content: eventContent,
+        relatedBird: bird.name,
+        specialDay: specialDay
+    };
+}
 
     /**
      * 月齢イベント生成
@@ -1092,27 +1345,62 @@ class ZooManager {
             new: [
                 `${moonPhase.emoji} ${moonPhase.name}の夜、${bird.name}が新しい始まりを感じているようです`,
                 `${moonPhase.emoji} 暗い夜空の下で、${bird.name}が静寂を楽しんでいます`,
-                `${moonPhase.emoji} ${moonPhase.name}の神秘的な夜、${bird.name}が特別な力を感じているようです`
+                `${moonPhase.emoji} ${moonPhase.name}の神秘的な夜、${bird.name}が特別な力を感じているようです`,
+                `${moonPhase.emoji} ${moonPhase.name}のエネルギーを受けて、${bird.name}が内なる力を感じています`,
+            `${moonPhase.emoji} 月のない夜空で、${bird.name}が星々との対話を楽しんでいます`,
+            `${moonPhase.emoji} ${moonPhase.name}の静寂の中で、${bird.name}が深い瞑想にふけっています`,
+            `${moonPhase.emoji} 暗闇に包まれた夜に、${bird.name}が自分自身と向き合っています`,
+            `${moonPhase.emoji} ${moonPhase.name}の潜在的な力を感じて、${bird.name}が新たな可能性を探っています`,
+            `${moonPhase.emoji} 月のない夜の神秘に、${bird.name}が心を奪われています`,
+            `${moonPhase.emoji} ${moonPhase.name}の夜に、${bird.name}が未来への希望を抱いています`
             ],
             waxing_crescent: [
                 `${moonPhase.emoji} ${moonPhase.name}の夜、${bird.name}が成長の兆しを感じているようです`,
                 `${moonPhase.emoji} 細い月の光に照らされて、${bird.name}が美しく輝いています`,
-                `${moonPhase.emoji} ${moonPhase.name}の優しい光の下で、${bird.name}が穏やかに過ごしています`
+                `${moonPhase.emoji} ${moonPhase.name}の優しい光の下で、${bird.name}が穏やかに過ごしています`,
+                `${moonPhase.emoji} 三日月の光に導かれて、${bird.name}が新しい道を見つけているようです`,
+            `${moonPhase.emoji} ${moonPhase.name}の成長エネルギーを感じて、${bird.name}が前向きになっています`,
+            `${moonPhase.emoji} 細い月光の下で、${bird.name}が希望の歌を歌っています`,
+            `${moonPhase.emoji} ${moonPhase.name}の優美な光に、${bird.name}が心を洗われているようです`,
+            `${moonPhase.emoji} 三日月を見上げて、${bird.name}が願い事をしているようです`,
+            `${moonPhase.emoji} ${moonPhase.name}の神秘的な光に、${bird.name}が魅了されています`,
+            `${moonPhase.emoji} 成長する月のように、${bird.name}も新しい力を蓄えているようです`
             ],
             first_quarter: [
                 `${moonPhase.emoji} ${moonPhase.name}の夜、${bird.name}が調和の美しさを感じているようです`,
                 `${moonPhase.emoji} 半月の光に照らされて、${bird.name}が静かに佇んでいます`,
-                `${moonPhase.emoji} ${moonPhase.name}の安定した光の下で、${bird.name}が安らいでいます`
+                `${moonPhase.emoji} ${moonPhase.name}の安定した光の下で、${bird.name}が安らいでいます`,
+                `${moonPhase.emoji} ${moonPhase.name}のバランスの取れた光に、${bird.name}が心の平静を見つけています`,
+            `${moonPhase.emoji} 半月の美しさに、${bird.name}が芸術的感動を覚えています`,
+            `${moonPhase.emoji} ${moonPhase.name}の安定したエネルギーで、${bird.name}が落ち着きを取り戻しています`,
+            `${moonPhase.emoji} 上弦の月を見て、${bird.name}が人生の節目を感じているようです`,
+            `${moonPhase.emoji} ${moonPhase.name}の光と影のコントラストに、${bird.name}が美を見出しています`,
+            `${moonPhase.emoji} 半月の下で、${bird.name}が静かな時間を楽しんでいます`,
+            `${moonPhase.emoji} ${moonPhase.name}の調和的なエネルギーで、${bird.name}が内なる平和を感じています`
             ],
             full: [
                 `${moonPhase.emoji} ${moonPhase.name}の夜、${bird.name}が月光に照らされて神々しく見えます`,
                 `${moonPhase.emoji} 明るい月の下で、${bird.name}が特別な美しさを放っています`,
-                `${moonPhase.emoji} ${moonPhase.name}の力強い光を受けて、${bird.name}が活力に満ちています`
+                `${moonPhase.emoji} ${moonPhase.name}の力強い光を受けて、${bird.name}が活力に満ちています`,
+                `${moonPhase.emoji} ${moonPhase.name}の完璧な光の下で、${bird.name}が最高の輝きを見せています`,
+            `${moonPhase.emoji} 満月のエネルギーを全身で受けて、${bird.name}が生命力に溢れています`,
+            `${moonPhase.emoji} ${moonPhase.name}の神聖な光に包まれて、${bird.name}が特別な存在感を放っています`,
+            `${moonPhase.emoji} 満月の夜に、${bird.name}が月の女神のように美しく舞っています`,
+            `${moonPhase.emoji} ${moonPhase.name}の完全なる光で、${bird.name}が内なる力を最大限に発揮しています`,
+            `${moonPhase.emoji} 満月の魔法にかかったように、${bird.name}が幻想的な美しさを見せています`,
+            `${moonPhase.emoji} ${moonPhase.name}の夜に、${bird.name}が特別な使命を感じているようです`
             ],
             waning_gibbous: [
                 `${moonPhase.emoji} ${moonPhase.name}の夜、${bird.name}が静かに思索にふけっています`,
                 `${moonPhase.emoji} 欠けゆく月を見上げて、${bird.name}が物思いにふけっているようです`,
-                `${moonPhase.emoji} ${moonPhase.name}の落ち着いた夜、${bird.name}が安らかに過ごしています`
+                `${moonPhase.emoji} ${moonPhase.name}の落ち着いた夜、${bird.name}が安らかに過ごしています`,
+                `${moonPhase.emoji} ${moonPhase.name}の穏やかな光の下で、${bird.name}が内省的な時間を過ごしています`,
+            `${moonPhase.emoji} 欠けていく月のように、${bird.name}が人生の移ろいを感じているようです`,
+            `${moonPhase.emoji} ${moonPhase.name}の柔らかな光に、${bird.name}が心の安らぎを見つけています`,
+            `${moonPhase.emoji} 下弦に向かう月を眺めて、${bird.name}が時の流れを実感しています`,
+            `${moonPhase.emoji} ${moonPhase.name}の静寂な夜に、${bird.name}が深い平安を感じています`,
+            `${moonPhase.emoji} 月の満ち欠けを見て、${bird.name}が自然のリズムに心を合わせています`,
+            `${moonPhase.emoji} ${moonPhase.name}の瞑想的な雰囲気に、${bird.name}が心を委ねています`
             ]
         };
 
@@ -1219,71 +1507,154 @@ class ZooManager {
     // 🆕 Phase 3: 詳細なイベント機能
     // ===========================================
 
-    /**
-     * 気温連動イベント生成
-     */
-    async createTemperatureEvent(allBirds) {
-        try {
-            if (!this.weatherManager) {
-                console.log('⚠️ WeatherManager利用不可、気温イベントをスキップします');
-                return null;
-            }
-
-            const weather = await this.weatherManager.getCurrentWeather();
-            const temp = weather.temperature;
-            
-            if (temp === null) {
-                console.log('⚠️ 気温データ取得不可、気温イベントをスキップします');
-                return null;
-            }
-
-            const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
-
-            let tempEvent = '';
-            let tempCategory = '';
-
-            if (temp < 0) {
-                tempCategory = '氷点下';
-                tempEvent = `🥶 氷点下の寒さ(${temp}°C)、${bird.name}が羽を大きく膨らませて寒さをしのいでいます`;
-            } else if (temp < 5) {
-                tempCategory = '厳寒';
-                tempEvent = `❄️ とても寒い日(${temp}°C)、${bird.name}が仲間と寄り添って暖を取っています`;
-            } else if (temp < 10) {
-                tempCategory = '寒冷';
-                tempEvent = `🌨️ 寒い日(${temp}°C)、${bird.name}が暖かい場所を探しています`;
-            } else if (temp < 15) {
-                tempCategory = '涼しい';
-                tempEvent = `🌤️ 涼しい日(${temp}°C)、${bird.name}が活発に動き回っています`;
-            } else if (temp < 20) {
-                tempCategory = '快適';
-                tempEvent = `😊 過ごしやすい気温(${temp}°C)、${bird.name}が心地よさそうに過ごしています`;
-            } else if (temp < 25) {
-                tempCategory = '暖かい';
-                tempEvent = `🌞 暖かい日(${temp}°C)、${bird.name}が気持ちよさそうに日向ぼっこしています`;
-            } else if (temp < 30) {
-                tempCategory = '温暖';
-                tempEvent = `☀️ 温かい日(${temp}°C)、${bird.name}が活発に飛び回っています`;
-            } else if (temp < 35) {
-                tempCategory = '暑い';
-                tempEvent = `🔥 暑い日(${temp}°C)、${bird.name}が木陰で涼しさを求めています`;
-            } else {
-                tempCategory = '酷暑';
-                tempEvent = `🌡️ 酷暑の日(${temp}°C)、${bird.name}が日陰でじっと暑さをしのいでいます`;
-            }
-
-            return {
-                type: `気温イベント(${tempCategory})`,
-                content: tempEvent,
-                relatedBird: bird.name,
-                temperature: temp,
-                category: tempCategory
-            };
-
-        } catch (error) {
-            console.error('気温イベント生成エラー:', error);
+   /**
+ * 気温連動イベント生成（拡充版）
+ */
+async createTemperatureEvent(allBirds) {
+    try {
+        if (!this.weatherManager) {
+            console.log('⚠️ WeatherManager利用不可、気温イベントをスキップします');
             return null;
         }
+
+        const weather = await this.weatherManager.getCurrentWeather();
+        const temp = weather.temperature;
+        
+        if (temp === null) {
+            console.log('⚠️ 気温データ取得不可、気温イベントをスキップします');
+            return null;
+        }
+
+        const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+
+        let tempEvents = [];
+        let tempCategory = '';
+
+        if (temp < 0) {
+            tempCategory = '氷点下';
+            tempEvents = [
+                // 既存の1種類
+                `🥶 氷点下の寒さ(${temp}°C)、${bird.name}が羽を大きく膨らませて寒さをしのいでいます`,
+                
+                // 新規追加の4種類
+                `🥶 極寒の気温(${temp}°C)の中、${bird.name}が生命力の強さを見せています`,
+                `🥶 氷点下(${temp}°C)でも、${bird.name}が力強く生きています`,
+                `🥶 凍るような寒さ(${temp}°C)に、${bird.name}が必死に耐えています`,
+                `🥶 氷点下の厳しい環境(${temp}°C)で、${bird.name}が仲間と身を寄せ合っています`
+            ];
+        } else if (temp < 5) {
+            tempCategory = '厳寒';
+            tempEvents = [
+                // 既存の1種類
+                `❄️ とても寒い日(${temp}°C)、${bird.name}が仲間と寄り添って暖を取っています`,
+                
+                // 新規追加の4種類
+                `❄️ 厳寒の朝(${temp}°C)に、${bird.name}が白い息を吐きながら過ごしています`,
+                `❄️ 寒波の影響(${temp}°C)で、${bird.name}が暖かい場所を探し回っています`,
+                `❄️ 真冬の厳しさ(${temp}°C)の中、${bird.name}が羽毛を最大限に膨らませています`,
+                `❄️ 極寒の一日(${temp}°C)を、${bird.name}が忍耐強く乗り越えています`
+            ];
+        } else if (temp < 10) {
+            tempCategory = '寒冷';
+            tempEvents = [
+                // 既存の1種類
+                `🌨️ 寒い日(${temp}°C)、${bird.name}が暖かい場所を探しています`,
+                
+                // 新規追加の4種類
+                `🌨️ 冷え込む気温(${temp}°C)の中、${bird.name}が活動量を調整しています`,
+                `🌨️ 寒さ(${temp}°C)に負けず、${bird.name}が元気に過ごそうとしています`,
+                `🌨️ 肌寒い気候(${temp}°C)で、${bird.name}が陽だまりを求めています`,
+                `🌨️ 冬らしい気温(${temp}°C)に、${bird.name}が季節を感じています`
+            ];
+        } else if (temp < 15) {
+            tempCategory = '涼しい';
+            tempEvents = [
+                // 既存の1種類
+                `🌤️ 涼しい日(${temp}°C)、${bird.name}が活発に動き回っています`,
+                
+                // 新規追加の4種類
+                `🌤️ 爽やかな気温(${temp}°C)で、${bird.name}が快適そうに過ごしています`,
+                `🌤️ 涼しい風(${temp}°C)を受けて、${bird.name}が羽を軽やかに動かしています`,
+                `🌤️ 程よい涼しさ(${temp}°C)の中、${bird.name}が活動的になっています`,
+                `🌤️ 秋らしい気温(${temp}°C)に、${bird.name}が季節の移ろいを感じています`
+            ];
+        } else if (temp < 20) {
+            tempCategory = '快適';
+            tempEvents = [
+                // 既存の1種類
+                `😊 過ごしやすい気温(${temp}°C)、${bird.name}が心地よさそうに過ごしています`,
+                
+                // 新規追加の4種類
+                `😊 理想的な気温(${temp}°C)で、${bird.name}が最高の気分でいます`,
+                `😊 完璧な気候(${temp}°C)の中、${bird.name}が生き生きとしています`,
+                `😊 心地よい気温(${temp}°C)に、${bird.name}が幸せそうな表情を浮かべています`,
+                `😊 絶好の気候(${temp}°C)で、${bird.name}が自然体で過ごしています`
+            ];
+        } else if (temp < 25) {
+            tempCategory = '暖かい';
+            tempEvents = [
+                // 既存の1種類
+                `🌞 暖かい日(${temp}°C)、${bird.name}が気持ちよさそうに日向ぼっこしています`,
+                
+                // 新規追加の4種類
+                `🌞 春らしい暖かさ(${temp}°C)に、${bird.name}が喜びを感じています`,
+                `🌞 穏やかな気温(${temp}°C)で、${bird.name}がリラックスしています`,
+                `🌞 暖かな陽気(${temp}°C)に誘われて、${bird.name}が活発に動いています`,
+                `🌞 心地よい暖かさ(${temp}°C)を、${bird.name}が全身で楽しんでいます`
+            ];
+        } else if (temp < 30) {
+            tempCategory = '温暖';
+            tempEvents = [
+                // 既存の1種類
+                `☀️ 温かい日(${temp}°C)、${bird.name}が活発に飛び回っています`,
+                
+                // 新規追加の4種類
+                `☀️ 夏日の気温(${temp}°C)で、${bird.name}が夏の訪れを感じています`,
+                `☀️ 暖かな気候(${temp}°C)に、${bird.name}が夏の準備をしています`,
+                `☀️ 温暖な一日(${temp}°C)を、${bird.name}が満喫しています`,
+                `☀️ 初夏の気温(${temp}°C)に、${bird.name}が季節の変化を楽しんでいます`
+            ];
+        } else if (temp < 35) {
+            tempCategory = '暑い';
+            tempEvents = [
+                // 既存の1種類
+                `🔥 暑い日(${temp}°C)、${bird.name}が木陰で涼しさを求めています`,
+                
+                // 新規追加の4種類
+                `🔥 真夏日の暑さ(${temp}°C)に、${bird.name}が暑さ対策を工夫しています`,
+                `🔥 厳しい暑さ(${temp}°C)の中、${bird.name}が涼しい場所を探しています`,
+                `🔥 猛暑の気温(${temp}°C)で、${bird.name}が日陰に避難しています`,
+                `🔥 夏本番の暑さ(${temp}°C)を、${bird.name}が賢く乗り切っています`
+            ];
+        } else {
+            tempCategory = '酷暑';
+            tempEvents = [
+                // 既存の1種類
+                `🌡️ 酷暑の日(${temp}°C)、${bird.name}が日陰でじっと暑さをしのいでいます`,
+                
+                // 新規追加の4種類
+                `🌡️ 記録的な暑さ(${temp}°C)に、${bird.name}が必死に耐えています`,
+                `🌡️ 危険な暑さ(${temp}°C)の中、${bird.name}が生存本能を発揮しています`,
+                `🌡️ 極限の気温(${temp}°C)で、${bird.name}が涼を求めてじっとしています`,
+                `🌡️ 異常な暑さ(${temp}°C)に、${bird.name}が適応力を見せています`
+            ];
+        }
+
+        const eventContent = tempEvents[Math.floor(Math.random() * tempEvents.length)];
+
+        return {
+            type: `気温イベント(${tempCategory})`,
+            content: eventContent,
+            relatedBird: bird.name,
+            temperature: temp,
+            category: tempCategory
+        };
+
+    } catch (error) {
+        console.error('気温イベント生成エラー:', error);
+        return null;
     }
+}
 
     /**
      * 長期滞在イベント生成
@@ -2153,7 +2524,7 @@ class ZooManager {
                     }
                     
                     // 見学中のランダムイベント
-                    if (Math.random() < 0.15) {
+                    if (Math.random() < 0.3) {
                         await this.generateVisitorEvent(guildId, visitor);
                     }
                 }
@@ -3394,10 +3765,10 @@ createNightWatchEvent(allBirds) {
 
             for (const area of ['森林', '草原', '水辺']) {
                 zooState[area].forEach(bird => {
-                    if (Math.random() < 0.3) {
+                    if (Math.random() < 0.4) {
                         bird.activity = this.generateActivity(area);
                         
-                        if (Math.random() < 0.2) {
+                        if (Math.random() < 0.3) {
                             bird.mood = this.getRandomMood();
                         }
                     }
