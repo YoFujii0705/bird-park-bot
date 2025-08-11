@@ -179,6 +179,81 @@ module.exports = {
                 }
             }
 
+            // 🆕 絆レベル情報を追加
+if (allAffinities.length > 0) {
+    // 現在のユーザーの好感度をチェック
+    const currentUserAffinity = allAffinities.find(affinity => affinity.userId === interaction.user.id);
+    
+    if (currentUserAffinity && currentUserAffinity.level >= 10) {
+        console.log('🔗 絆レベル情報を取得中...');
+        try {
+            const bondLevelManager = require('../utils/bondLevelManager');
+            const bondData = await bondLevelManager.getCurrentBondLevel(
+                interaction.user.id, 
+                birdName, 
+                guildId
+            );
+            
+            if (bondData && bondData.bondLevel > 0) {
+                // 次の絆レベルまでの必要回数を計算
+                const nextLevelRequired = bondLevelManager.getRequiredFeedsForBondLevel(bondData.bondLevel + 1);
+                const remaining = nextLevelRequired - bondData.bondFeedCount;
+                
+                let bondText = `🔗 **絆レベル ${bondData.bondLevel}**\n`;
+                bondText += `餌やり通算: ${bondData.bondFeedCount}回\n`;
+                
+                if (remaining > 0) {
+                    bondText += `次の絆レベルまで: ${remaining.toFixed(1)}回\n\n`;
+                } else {
+                    bondText += '\n';
+                }
+                
+                // 解放された機能を表示
+                const unlockedFeatures = bondLevelManager.getUnlockedFeatures(bondData.bondLevel);
+                if (unlockedFeatures.length > 0) {
+                    bondText += '**解放済み機能:**\n';
+                    bondText += unlockedFeatures.join('\n');
+                } else {
+                    bondText += '**解放予定機能:**\n';
+                    bondText += '🏠 ネスト建設 (絆Lv.1)\n';
+                    bondText += '🚶 レア散歩ルート (絆Lv.3)\n';
+                    bondText += '🌟 特別散歩ルート (絆Lv.5)';
+                }
+                
+                embed.addFields({
+                    name: '🤝 あなたとの絆',
+                    value: bondText,
+                    inline: false
+                });
+                
+                // ネスト情報があれば表示
+                const sheetsManager = require('../../config/sheets');
+                const nestInfo = await sheetsManager.getBirdNest(interaction.user.id, birdName, guildId);
+                if (nestInfo) {
+                    const nestEmoji = this.getNestEmoji(nestInfo.ネストタイプ);
+                    let nestText = `${nestEmoji} **${nestInfo.ネストタイプ}**\n`;
+                    
+                    if (nestInfo.チャンネルID) {
+                        nestText += `🔗 <#${nestInfo.チャンネルID}>`;
+                    }
+                    
+                    if (nestInfo.カスタム名) {
+                        nestText += `\n📝 "${nestInfo.カスタム名}"`;
+                    }
+                    
+                    embed.addFields({
+                        name: '🏠 専用ネスト',
+                        value: nestText,
+                        inline: false
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('🔗 絆レベル情報取得エラー:', error);
+        }
+    }
+}
+
             // 特別な状態やメモリー情報があれば追加
             const birdMemory = await sheetsManager.getBirdMemory(birdName, guildId);
             if (birdMemory && birdMemory.特別な思い出) {
@@ -369,6 +444,43 @@ module.exports = {
         
         return emojiMap[giftName] || '🎁';
     },
+
+    // ネストの絵文字を取得するメソッドも追加
+getNestEmoji(nestType) {
+    const emojiMap = {
+        // 森林エリア
+        '苔むした庭': '🌿',
+        '古木の大穴': '🕳️',
+        '木漏れ日の巣': '☀️',
+        '妖精の隠れ家': '🧚',
+        '樹海の宮殿': '🏰',
+        'きのこの家': '🍄',
+        '蔦の回廊': '🌿',
+        '森の神殿': '⛩️',
+        
+        // 草原エリア
+        '花畑の巣': '🌸',
+        '軒先の鳥かご': '🏠',
+        '風車小屋': '🎡',
+        '蝶の舞台': '🦋',
+        '虹の丘': '🌈',
+        '星見台': '⭐',
+        '花冠の宮殿': '👑',
+        'そよ風の家': '💨',
+        
+        // 水辺エリア
+        '蓮池の巣': '🪷',
+        '滝のしぶきの巣': '💧',
+        '真珠の洞窟': '🤍',
+        '虹の水辺': '🌈',
+        '水晶の泉': '💎',
+        '貝殻の宮殿': '🐚',
+        '流木の隠れ家': '🪵',
+        '月光の池': '🌙'
+    };
+    
+    return emojiMap[nestType] || '🏠';
+},
 
     // 滞在期間を計算
     getStayDuration(bird) {
