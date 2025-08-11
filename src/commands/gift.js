@@ -21,7 +21,6 @@ module.exports = {
 
             // 鳥が鳥類園にいるかチェック
             const zooManager = require('../utils/zooManager');
-            const birdInfo = this.findBirdInZoo(birdName, guildId);
             if (birdName) {
             // 特定の鳥を指定した場合、feed.jsと同じ検索ロジックを使用
             const birdInfo = this.findBirdInZoo(birdName, guildId, zooState);
