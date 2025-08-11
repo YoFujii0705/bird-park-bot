@@ -675,166 +675,93 @@ module.exports = {
         }
     },
 
-    // 🆕 同期版絆レベル処理メソッド（修正版）
-    async processBondLevel(userId, userName, birdName, feedIncrement, serverId) {
-        try {
-            console.log(`🔗 絆レベル処理開始 - ${birdName}, サーバー: ${serverId}`);
+    // 🆕 絆レベル処理メソッド（bondLevelManagerを活用した修正版）
+async processBondLevel(userId, userName, birdName, feedIncrement, serverId) {
+    try {
+        console.log(`🔗 絆レベル処理開始 - ${birdName}, サーバー: ${serverId}`);
+        
+        const bondLevelManager = require('../utils/bondLevelManager');
+        
+        // 現在の絆レベルを取得
+        const currentBond = await bondLevelManager.getCurrentBondLevel(userId, birdName, serverId);
+        
+        console.log(`🔗 現在の絆レベル:`, currentBond);
+        
+        // 絆餌やり回数を増加
+        let newBondFeedCount = currentBond.bondFeedCount + feedIncrement;
+        let newBondLevel = currentBond.bondLevel;
+        let bondLevelUp = false;
+        
+        console.log(`🔗 新しい絆餌やり回数: ${newBondFeedCount}`);
+        
+        // レベルアップ判定（bondLevelManagerの要件を使用）
+        while (newBondLevel < 50) { // 最大レベル制限
+            const requiredForNext = bondLevelManager.getRequiredFeedsForBondLevel(newBondLevel + 1);
+            console.log(`🔗 レベル${newBondLevel + 1}に必要な回数: ${requiredForNext}`);
             
-            const sheetsManager = require('../../config/sheets');
-            
-            // 現在の絆レベルを取得
-            const currentBond = await sheetsManager.getUserBondLevel(userId, birdName, serverId) || { 
-                bondLevel: 0, 
-                bondFeedCount: 0 
-            };
-            
-            console.log(`🔗 現在の絆レベル:`, currentBond);
-            
-            // 絆餌やり回数を増加
-            let newBondFeedCount = currentBond.bondFeedCount + feedIncrement;
-            let newBondLevel = currentBond.bondLevel;
-            let bondLevelUp = false;
-            
-            console.log(`🔗 新しい絆餌やり回数: ${newBondFeedCount}`);
-            
-            // 絆レベルアップ判定
-            while (true) {
-                const requiredFeeds = this.getRequiredFeedsForBondLevel(newBondLevel + 1);
-                console.log(`🔗 レベル${newBondLevel + 1}に必要な回数: ${requiredFeeds}`);
+            if (newBondFeedCount >= requiredForNext) {
+                newBondLevel++;
+                bondLevelUp = true;
+                console.log(`🔗 絆レベルアップ！ ${birdName}: Lv.${newBondLevel}`);
                 
-                if (newBondFeedCount >= requiredFeeds) {
-                    newBondLevel++;
-                    bondLevelUp = true;
-                    console.log(`🔗 絆レベルアップ！ ${birdName}: Lv.${newBondLevel}`);
-                    
-                    // 絆レベル特典チェック
-                    await this.checkBondLevelRewards(userId, userName, birdName, newBondLevel, serverId);
-                } else {
-                    break;
-                }
-            }
-            
-            // 🔧 絆レベルをスプレッドシートに記録（サーバーID修正）
-            console.log(`🔗 絆レベル記録: ${userName} -> ${birdName} Lv.${newBondLevel} (${newBondFeedCount}回) サーバー:${serverId}`);
-            
-            await sheetsManager.logBondLevel(
-                userId, 
-                userName, 
-                birdName, 
-                newBondLevel, 
-                Math.round(newBondFeedCount * 10) / 10, 
-                serverId
-            );
-            
-            console.log(`🔗 絆レベル処理完了 - ${birdName}: Lv.${newBondLevel}`);
-            
-            return {
-                bondLevelUp,
-                newBondLevel,
-                newBondFeedCount: Math.round(newBondFeedCount * 10) / 10,
-                previousBondLevel: currentBond.bondLevel,
-                requiredForNextBond: this.getRequiredFeedsForBondLevel(newBondLevel + 1),
-                isProcessing: false // 🔧 修正: 処理完了フラグ
-            };
-            
-        } catch (error) {
-            console.error('絆レベル処理エラー:', error);
-            console.error('エラースタック:', error.stack);
-            throw error; // エラーを上位に伝播
-        }
-    },
-
-    // 📈 レベル別必要餌やり回数計算
-    getRequiredFeedsForLevel(targetLevel) {
-        const levelRequirements = {
-            1: 2,      // レベル0→1: 2回
-            2: 4,      // レベル1→2: 2回追加 (累計4回)
-            3: 7,      // レベル2→3: 3回追加 (累計7回)
-            4: 11,     // レベル3→4: 4回追加 (累計11回)
-            5: 16,     // レベル4→5: 5回追加 (累計16回) ← 贈り物解放
-            6: 22,     // レベル5→6: 6回追加 (累計22回)
-            7: 29,     // レベル6→7: 7回追加 (累計29回)
-            8: 37,     // レベル7→8: 8回追加 (累計37回)
-            9: 46,     // レベル8→9: 9回追加 (累計46回)
-            10: 56     // レベル9→10: 10回追加 (累計56回)
-        };
-        
-        return levelRequirements[targetLevel] || 999;
-    },
-
-    // 🆕 絆レベル別必要餌やり回数計算
-    getRequiredFeedsForBondLevel(targetBondLevel) {
-        if (targetBondLevel <= 0) return 0;
-        
-        // 企画書通りの段階的増加（15→20→25→30→35...）
-        let totalRequired = 0;
-        for (let level = 1; level <= targetBondLevel; level++) {
-            let requiredForThisLevel;
-            
-            if (level === 1) {
-                requiredForThisLevel = 15;
-            } else if (level === 2) {
-                requiredForThisLevel = 20;
-            } else if (level === 3) {
-                requiredForThisLevel = 25;
-            } else if (level === 4) {
-                requiredForThisLevel = 30;
+                // 絆レベル特典チェック（bondLevelManagerに委譲）
+                await bondLevelManager.checkBondLevelRewards(userId, userName, birdName, newBondLevel, serverId);
             } else {
-                // レベル5以降は5回ずつ増加
-                requiredForThisLevel = 30 + (level - 4) * 5;
+                break;
             }
-            
-            totalRequired += requiredForThisLevel;
         }
         
-        return totalRequired;
-    },
-
-    // 🆕 絆レベル特典チェック
-    async checkBondLevelRewards(userId, userName, birdName, bondLevel, serverId) {
-        try {
-            console.log(`🎁 絆レベル${bondLevel}特典チェック - ${birdName}`);
-            
-            const sheetsManager = require('../../config/sheets');
-            
-            // きりのいいレベルで「写真」確定入手
-            if (bondLevel % 5 === 0) {
-                const photoName = this.getBondLevelPhotoName(bondLevel);
-                
-                // gifts_inventoryに写真を追加
-                await sheetsManager.logGiftInventory(
-                    userId, userName, photoName, 1,
-                    `${birdName}との絆レベル${bondLevel}達成特典`,
-                    serverId
-                );
-                
-                console.log(`📸 ${userName}が${photoName}を獲得しました`);
-            }
-            
-            // レベル1: ネスト建設権利解放
-            if (bondLevel === 1) {
-                console.log(`🏠 ${userName}が${birdName}のネスト建設権利を獲得しました`);
-                // ここで将来的にネスト建設フラグを設定
-            }
-            
-        } catch (error) {
-            console.error('絆レベル特典チェックエラー:', error);
-        }
-    },
-
-    // 🆕 絆レベル別写真名取得
-    getBondLevelPhotoName(bondLevel) {
-        const photoNames = {
-            5: '深い絆の写真',
-            10: '魂の繋がりの写真',
-            15: '永遠の瞬間の写真',
-            20: '奇跡の写真',
-            25: '運命の写真',
-            30: '無限の愛の写真'
+        // 🔧 絆レベルをスプレッドシートに記録（sheetsManagerを直接使用）
+        console.log(`🔗 絆レベル記録: ${userName} -> ${birdName} Lv.${newBondLevel} (${newBondFeedCount}回) サーバー:${serverId}`);
+        
+        await sheetsManager.logBondLevel(
+            userId, 
+            userName, 
+            birdName, 
+            newBondLevel, 
+            Math.round(newBondFeedCount * 10) / 10, 
+            serverId
+        );
+        
+        console.log(`🔗 絆レベル処理完了 - ${birdName}: Lv.${newBondLevel}`);
+        
+        return {
+            bondLevelUp,
+            newBondLevel,
+            newBondFeedCount: Math.round(newBondFeedCount * 10) / 10,
+            previousBondLevel: currentBond.bondLevel,
+            requiredForNextBond: bondLevelManager.getRequiredFeedsForBondLevel(newBondLevel + 1),
+            isProcessing: false,
+            unlockedFeatures: bondLevelManager.getUnlockedFeatures(newBondLevel)
         };
         
-        return photoNames[bondLevel] || `絆レベル${bondLevel}の記念写真`;
-    },
+    } catch (error) {
+        console.error('絆レベル処理エラー:', error);
+        console.error('エラースタック:', error.stack);
+        throw error; // エラーを上位に伝播
+    }
+},
+
+    // 🆕 絆レベル別必要餌やり回数計算（bondLevelManagerに委譲）
+getRequiredFeedsForBondLevel(targetBondLevel) {
+    const bondLevelManager = require('../utils/bondLevelManager');
+    return bondLevelManager.getRequiredFeedsForBondLevel(targetBondLevel);
+},
+
+    // 🆕 絆レベル特典チェック（bondLevelManagerに委譲）
+async checkBondLevelRewards(userId, userName, birdName, bondLevel, serverId) {
+    try {
+        const bondLevelManager = require('../utils/bondLevelManager');
+        await bondLevelManager.checkBondLevelRewards(userId, userName, birdName, bondLevel, serverId);
+    } catch (error) {
+        console.error('絆レベル特典チェックエラー:', error);
+    }
+},
+    // 🆕 絆レベル別写真名取得（bondLevelManagerに委譲）
+getBondLevelPhotoName(bondLevel) {
+    const bondLevelManager = require('../utils/bondLevelManager');
+    return bondLevelManager.getBondLevelPhotoName(bondLevel);
+},
 
     // 💖 好感度MAX通知
     async sendAffinityMaxNotification(interaction, birdName, area) {
