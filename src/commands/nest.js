@@ -371,6 +371,7 @@ class NestSystem {
             const channelId = await this.createNestChannel(userId, userName, birdName, serverId, client);
 
             // データベースに記録
+            console.log(`📝 データベース記録開始: serverId=${serverId}`);
             await sheets.logNestCreation(
                 userId,
                 userName,
@@ -381,6 +382,7 @@ class NestSystem {
                 channelId,
                 serverId
             );
+            console.log(`📝 データベース記録完了`);
 
             console.log(`✅ ネスト建設完了: ${birdName} -> ${selectedNestType}`);
 
