@@ -544,13 +544,16 @@ module.exports = {
                     }
                     
                     // 絆レベル特典表示
-                    if (bondResult.newBondLevel === 1) {
+                    if (bondResult.newBondLevel >= 1) {
                         affinityText += '\n🏠 ネスト建設可能！';
-                    } else if (bondResult.newBondLevel === 3) {
+                    }
+                    if (bondResult.newBondLevel >= 3) {
                         affinityText += '\n🚶 レア散歩ルート解放！';
-                    } else if (bondResult.newBondLevel === 5) {
+                    }
+                    if (bondResult.newBondLevel >= 5) {
                         affinityText += '\n🌟 特別散歩ルート解放！';
-                    } else if (bondResult.newBondLevel === 10) {
+                    }
+                    if (bondResult.newBondLevel >= 10) {
                         affinityText += '\n👑 最高級散歩ルート解放！';
                     }
                 }
