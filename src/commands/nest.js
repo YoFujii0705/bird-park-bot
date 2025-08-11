@@ -176,6 +176,83 @@ async function handleNestView(interaction) {
 }
 
 async function handleNestVisit(interaction) {
+        // 🐦 鳥の活動を生成
+function generateBirdActivity(birdName, nestType) {
+    const activities = {
+        '蓮池の巣': [
+            `${birdName}が蓮の花びらで遊んでいます`,
+            `${birdName}が池の水面に美しい姿を映しています`,
+            `${birdName}が蓮の葉の上でのんびりと羽を休めています`
+        ],
+        '苔むした庭': [
+            `${birdName}が苔の上に足跡をつけて遊んでいます`,
+            `朝露に濡れた苔を${birdName}が気持ちよさそうに歩いています`,
+            `${birdName}が苔のクッションでお昼寝しています`
+        ],
+        '古木の大穴': [
+            `${birdName}が古木の穴から顔を覗かせています`,
+            `${birdName}が木の年輪を興味深そうに見つめています`,
+            `${birdName}が古木の香りを楽しんでいるようです`
+        ],
+        '花畑の巣': [
+            `${birdName}が色とりどりの花に囲まれて幸せそうです`,
+            `${birdName}が花の蜜を味わっています`,
+            `${birdName}が花びらを集めて遊んでいます`
+        ]
+    };
+    
+    const typeActivities = activities[nestType] || [
+        `${birdName}が巣でゆったりと過ごしています`,
+        `${birdName}が羽づくろいをしています`,
+        `${birdName}が巣の中を整理整頓しています`
+    ];
+    
+    return typeActivities[Math.floor(Math.random() * typeActivities.length)];
+}
+
+// 🏠 ネストの雰囲気を生成
+function generateNestAtmosphere(nestType, giftCount) {
+    const baseDescriptions = {
+        '蓮池の巣': '静かな池のほとりに佇む美しい巣です。蓮の花が咲き誇り、水面が穏やかに光っています。',
+        '苔むした庭': '緑豊かな苔に覆われた静寂な庭園の巣です。しっとりとした空気が心地よく流れています。',
+        '古木の大穴': '長い年月を重ねた古木の洞に作られた歴史ある巣です。木の温もりが感じられます。',
+        '花畑の巣': '色鮮やかな花々に囲まれた華やかな巣です。甘い香りが風に乗って漂っています。',
+        '樹海の宮殿': '深い森の奥に佇む神秘的な宮殿のような巣です。古代の魔法が宿っているかのようです。',
+        '真珠の洞窟': '美しい真珠で装飾された幻想的な洞窟の巣です。光が真珠に反射して虹色に輝いています。'
+    };
+    
+    let description = baseDescriptions[nestType] || '素敵な巣です。';
+    
+    if (giftCount > 0) {
+        if (giftCount >= 10) {
+            description += '\n巣の中には数多くの贈り物が美しく展示され、まるで小さな博物館のようです。';
+        } else if (giftCount >= 5) {
+            description += '\n心のこもった贈り物がいくつか大切に飾られています。';
+        } else {
+            description += '\n贈り物が丁寧に飾られ、温かい雰囲気に包まれています。';
+        }
+    }
+    
+    return description;
+}
+
+// 🎨 ネストタイプに応じた色を取得
+function getNestColor(nestType) {
+    const colors = {
+        '蓮池の巣': 0x4FC3F7,      // 水色
+        '苔むした庭': 0x4CAF50,    // 緑
+        '古木の大穴': 0x8D6E63,    // 茶色
+        '花畑の巣': 0xE91E63,      // ピンク
+        '樹海の宮殿': 0x2E7D32,    // 深緑
+        '真珠の洞窟': 0x9C27B0,    // 紫
+        '水晶の泉': 0x00BCD4,      // シアン
+        '貝殻の宮殿': 0xFFB74D,    // オレンジ
+        '虹の丘': 0xFF9800,        // オレンジ
+        '星見台': 0x3F51B5         // 藍色
+    };
+    
+    return colors[nestType] || 0x8BC34A;
+}
     try {
         const birdName = interaction.options.getString('bird');
         const userId = interaction.user.id;
@@ -263,6 +340,7 @@ async function handleNestVisit(interaction) {
         });
     }
 }
+
 async function handleNestChange(interaction) {
     try {
         const birdName = interaction.options.getString('bird');
@@ -315,84 +393,6 @@ class NestSystem {
             '桜祭りの花見巣', '鯉のぼりの青空巣'
         ];
     }
-
-    // 🐦 鳥の活動を生成
-function generateBirdActivity(birdName, nestType) {
-    const activities = {
-        '蓮池の巣': [
-            `${birdName}が蓮の花びらで遊んでいます`,
-            `${birdName}が池の水面に美しい姿を映しています`,
-            `${birdName}が蓮の葉の上でのんびりと羽を休めています`
-        ],
-        '苔むした庭': [
-            `${birdName}が苔の上に足跡をつけて遊んでいます`,
-            `朝露に濡れた苔を${birdName}が気持ちよさそうに歩いています`,
-            `${birdName}が苔のクッションでお昼寝しています`
-        ],
-        '古木の大穴': [
-            `${birdName}が古木の穴から顔を覗かせています`,
-            `${birdName}が木の年輪を興味深そうに見つめています`,
-            `${birdName}が古木の香りを楽しんでいるようです`
-        ],
-        '花畑の巣': [
-            `${birdName}が色とりどりの花に囲まれて幸せそうです`,
-            `${birdName}が花の蜜を味わっています`,
-            `${birdName}が花びらを集めて遊んでいます`
-        ]
-    };
-    
-    const typeActivities = activities[nestType] || [
-        `${birdName}が巣でゆったりと過ごしています`,
-        `${birdName}が羽づくろいをしています`,
-        `${birdName}が巣の中を整理整頓しています`
-    ];
-    
-    return typeActivities[Math.floor(Math.random() * typeActivities.length)];
-}
-
-// 🏠 ネストの雰囲気を生成
-function generateNestAtmosphere(nestType, giftCount) {
-    const baseDescriptions = {
-        '蓮池の巣': '静かな池のほとりに佇む美しい巣です。蓮の花が咲き誇り、水面が穏やかに光っています。',
-        '苔むした庭': '緑豊かな苔に覆われた静寂な庭園の巣です。しっとりとした空気が心地よく流れています。',
-        '古木の大穴': '長い年月を重ねた古木の洞に作られた歴史ある巣です。木の温もりが感じられます。',
-        '花畑の巣': '色鮮やかな花々に囲まれた華やかな巣です。甘い香りが風に乗って漂っています。',
-        '樹海の宮殿': '深い森の奥に佇む神秘的な宮殿のような巣です。古代の魔法が宿っているかのようです。',
-        '真珠の洞窟': '美しい真珠で装飾された幻想的な洞窟の巣です。光が真珠に反射して虹色に輝いています。'
-    };
-    
-    let description = baseDescriptions[nestType] || '素敵な巣です。';
-    
-    if (giftCount > 0) {
-        if (giftCount >= 10) {
-            description += '\n巣の中には数多くの贈り物が美しく展示され、まるで小さな博物館のようです。';
-        } else if (giftCount >= 5) {
-            description += '\n心のこもった贈り物がいくつか大切に飾られています。';
-        } else {
-            description += '\n贈り物が丁寧に飾られ、温かい雰囲気に包まれています。';
-        }
-    }
-    
-    return description;
-}
-
-// 🎨 ネストタイプに応じた色を取得
-function getNestColor(nestType) {
-    const colors = {
-        '蓮池の巣': 0x4FC3F7,      // 水色
-        '苔むした庭': 0x4CAF50,    // 緑
-        '古木の大穴': 0x8D6E63,    // 茶色
-        '花畑の巣': 0xE91E63,      // ピンク
-        '樹海の宮殿': 0x2E7D32,    // 深緑
-        '真珠の洞窟': 0x9C27B0,    // 紫
-        '水晶の泉': 0x00BCD4,      // シアン
-        '貝殻の宮殿': 0xFFB74D,    // オレンジ
-        '虹の丘': 0xFF9800,        // オレンジ
-        '星見台': 0x3F51B5         // 藍色
-    };
-    
-    return colors[nestType] || 0x8BC34A;
-}
 
     // ネスト建設可能かチェック
     async canBuildNest(userId, birdName, serverId) {
