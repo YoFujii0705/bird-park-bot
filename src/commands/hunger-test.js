@@ -106,12 +106,9 @@ module.exports = {
             );
             
             if (bird) {
-                // クールダウンを完全にリセット
-                const oldTime = new Date();
-                oldTime.setMinutes(oldTime.getMinutes() - 15); // 15分前に設定（確実にクールダウン時間を超える）
-                
-                bird.lastFed = oldTime;
-                bird.lastFedBy = 'reset'; // nullではなく'reset'にして、条件を回避
+                // 🔧 修正: lastFedとlastFedByを完全にクリア
+                bird.lastFed = null;
+                bird.lastFedBy = null;
                 
                 console.log(`🧪 ${birdName}のクールダウンリセット:`, {
                     lastFed: bird.lastFed,
@@ -136,7 +133,7 @@ module.exports = {
         await zooManager.saveServerZoo(guildId);
         
         await interaction.reply({
-            content: `🧪 **${birdName}** の餌やりクールダウンをリセットしました。\n💡 すぐに餌やりができるようになりました！\n🔍 lastFed: ${bird.lastFed.toLocaleTimeString('ja-JP')}`,
+            content: `🧪 **${birdName}** の餌やりクールダウンをリセットしました。\n💡 すぐに餌やりができるようになりました！\n🔍 lastFed: ${bird.lastFed || 'null'}, lastFedBy: ${bird.lastFedBy || 'null'}`,
             ephemeral: true
         });
     },
@@ -159,16 +156,20 @@ module.exports = {
                     bird.isHungry = true;
                     bird.hungerNotified = false;
                     
-                    // lastFedを古い時刻に設定（24時間前）
-                    const oldTime = new Date();
-                    oldTime.setHours(oldTime.getHours() - 24);
-                    bird.lastFed = oldTime;
+                    // 🔧 修正: lastFedとlastFedByを完全にクリア（クールダウンを無効化）
+                    bird.lastFed = null;
                     bird.lastFedBy = null;
                     
                     // 活動を空腹状態に変更
                     bird.activity = this.generateHungryActivity();
                     
                     count++;
+                    
+                    console.log(`🧪 ${bird.name}を強制空腹に設定:`, {
+                        isHungry: bird.isHungry,
+                        lastFed: bird.lastFed,
+                        lastFedBy: bird.lastFedBy
+                    });
                     
                     if (birdName) break; // 特定の鳥の場合は1羽だけ
                 }
@@ -352,6 +353,7 @@ module.exports = {
     },
 
     getCooldownStatus(bird) {
+        // 🔧 修正: lastFedがnullの場合はクールダウンなし
         if (!bird.lastFed || !bird.lastFedBy) {
             return '✅ なし';
         }
