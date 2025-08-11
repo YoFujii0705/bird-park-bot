@@ -531,7 +531,7 @@ module.exports = {
                 } else {
                     // 通常の絆レベル表示
                     affinityText += `\n\n🔗 **絆レベル ${bondResult.newBondLevel}**`;
-                    affinityText += `\n絆: ${bondResult.newBondFeedCount}回`;
+                    affinityText += `\n餌やり回数: ${bondResult.newBondFeedCount}回`;
                     
                     if (bondResult.bondLevelUp) {
                         affinityText += '\n✨ 絆レベルアップ！';
