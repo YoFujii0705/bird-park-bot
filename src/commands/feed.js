@@ -663,10 +663,10 @@ async processAffinity(userId, userName, birdName, preference, serverId) {
     }
 },
 
-// 🆕 非同期絆レベル処理メソッド
+// 🆕 非同期絆レベル処理メソッド（修正版）
 async processBondLevelAsync(userId, userName, birdName, feedIncrement, serverId) {
     try {
-        console.log(`🔗 非同期絆レベル処理開始 - ${birdName}`);
+        console.log(`🔗 非同期絆レベル処理開始 - ${birdName}, サーバー: ${serverId}`);
         
         // 現在の絆レベルを取得
         const currentBond = await sheetsManager.getUserBondLevel(userId, birdName, serverId) || { 
@@ -674,14 +674,19 @@ async processBondLevelAsync(userId, userName, birdName, feedIncrement, serverId)
             bondFeedCount: 0 
         };
         
+        console.log(`🔗 現在の絆レベル:`, currentBond);
+        
         // 絆餌やり回数を増加
         let newBondFeedCount = currentBond.bondFeedCount + feedIncrement;
         let newBondLevel = currentBond.bondLevel;
         let bondLevelUp = false;
         
+        console.log(`🔗 新しい絆餌やり回数: ${newBondFeedCount}`);
+        
         // 絆レベルアップ判定
         while (true) {
             const requiredFeeds = this.getRequiredFeedsForBondLevel(newBondLevel + 1);
+            console.log(`🔗 レベル${newBondLevel + 1}に必要な回数: ${requiredFeeds}`);
             
             if (newBondFeedCount >= requiredFeeds) {
                 newBondLevel++;
@@ -695,8 +700,17 @@ async processBondLevelAsync(userId, userName, birdName, feedIncrement, serverId)
             }
         }
         
-        // 絆レベルをスプレッドシートに記録
-        await sheetsManager.logBondLevel(userId, userName, birdName, newBondLevel, Math.round(newBondFeedCount * 10) / 10, serverId);
+        // 🔧 絆レベルをスプレッドシートに記録（サーバーID修正）
+        console.log(`🔗 絆レベル記録: ${userName} -> ${birdName} Lv.${newBondLevel} (${newBondFeedCount}回) サーバー:${serverId}`);
+        
+        await sheetsManager.logBondLevel(
+            userId, 
+            userName, 
+            birdName, 
+            newBondLevel, 
+            Math.round(newBondFeedCount * 10) / 10, 
+            serverId
+        );
         
         console.log(`🔗 非同期絆レベル処理完了 - ${birdName}: Lv.${newBondLevel}`);
         
@@ -710,9 +724,11 @@ async processBondLevelAsync(userId, userName, birdName, feedIncrement, serverId)
         
     } catch (error) {
         console.error('非同期絆レベル処理エラー:', error);
+        console.error('エラースタック:', error.stack);
         return null;
     }
 },
+    
     // 📈 レベル別必要餌やり回数計算
     getRequiredFeedsForLevel(targetLevel) {
         const levelRequirements = {
