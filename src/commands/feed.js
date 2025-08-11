@@ -235,7 +235,7 @@ module.exports = {
 
     // 🎁 鳥からの贈り物処理
     async handleBirdGiftProcess(interaction, birdInfo, affinityResult, guildId) {
-        if (affinityResult && affinityResult.newLevel >= 5) {
+        if (affinityResult && affinityResult.newLevel >= 3) {
             const birdGift = await this.checkBirdGiftToUser(
                 interaction,
                 interaction.user.id,
