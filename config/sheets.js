@@ -243,17 +243,28 @@ async getBirdNest(userId, birdName, serverId) {
 }
 
 /**
- * ネスト建設を記録
+ * ネスト建設を記録（デバッグ版）
  */
 async logNestCreation(userId, userName, birdName, customName, nestType, ownedNests, channelId, serverId) {
     try {
+        console.log(`📝 logNestCreation 開始:`, {
+            userId,
+            userName,
+            birdName,
+            customName,
+            nestType,
+            ownedNests,
+            channelId,
+            serverId
+        });
+        
         // 同じ鳥のネストが既に存在するかチェック
         const existingNest = await this.getBirdNest(userId, birdName, serverId);
         if (existingNest) {
             throw new Error('この鳥のネストは既に建設済みです');
         }
         
-        const result = await this.addLog('userNests', {
+        const logData = {
             ユーザーID: userId,
             ユーザー名: userName,
             鳥名: birdName,
@@ -261,13 +272,18 @@ async logNestCreation(userId, userName, birdName, customName, nestType, ownedNes
             ネストタイプ: nestType,
             所持ネストリスト: JSON.stringify(ownedNests),
             チャンネルID: channelId || '',
-            サーバーID: serverId
-        });
+            サーバーID: serverId  // 🔧 確実にサーバーIDを設定
+        };
         
-        console.log(`✅ ネスト建設記録: ${userName} -> ${birdName} (${nestType})`);
+        console.log(`📝 記録するデータ:`, logData);
+        
+        const result = await this.addLog('userNests', logData);
+        
+        console.log(`✅ ネスト建設記録完了: ${userName} -> ${birdName} (${nestType})`);
         return result;
     } catch (error) {
         console.error('ネスト建設記録エラー:', error);
+        console.error('エラースタック:', error.stack);
         throw error;
     }
 }
