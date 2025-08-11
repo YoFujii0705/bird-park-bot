@@ -485,6 +485,45 @@ async getBirdVisitHistory(birdName) {
         return [];
     }
 }
+
+    /**
+ * 特定の鳥に対する全ユーザーの好感度情報を取得
+ * @param {string} birdName - 鳥の名前
+ * @param {string} serverId - サーバーID
+ * @returns {Array} 好感度情報のリスト
+ */
+async getAllUserAffinities(birdName, serverId) {
+    try {
+        await this.ensureInitialized();
+        
+        const sheet = this.sheets.userAffinity;
+        if (!sheet) {
+            console.error('userAffinity シートが見つかりません');
+            return [];
+        }
+        
+        const rows = await sheet.getRows();
+        
+        // 指定された鳥とサーバーの好感度データを抽出
+        const affinities = rows.filter(row => 
+            row.get('鳥名') === birdName && 
+            row.get('サーバーID') === serverId &&
+            parseInt(row.get('好感度レベル')) > 0  // レベル0は除外
+        );
+
+        // 好感度情報を整形して返す
+        return affinities.map(affinity => ({
+            userId: affinity.get('ユーザーID'),
+            userName: affinity.get('ユーザー名'),
+            level: parseInt(affinity.get('好感度レベル')) || 0,
+            feedCount: parseInt(affinity.get('餌やり回数')) || 0
+        }));
+
+    } catch (error) {
+        console.error('全ユーザー好感度取得エラー:', error);
+        return [];
+    }
+}
     
 }
 
