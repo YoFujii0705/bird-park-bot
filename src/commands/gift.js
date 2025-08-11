@@ -127,7 +127,6 @@ module.exports = {
 
     // 🔍 改良版鳥検索メソッド（優先順位付き）
     findBirdInZoo(birdName, guildId) {
-        const zooManager = require('../utils/zooManager');
         const zooState = zooManager.getZooState(guildId);
         
         // すべてのエリアの鳥を収集
