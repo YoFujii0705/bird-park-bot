@@ -1,6 +1,81 @@
-const { ChannelType, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
+const bondLevelManager = require('../utils/bondLevelManager');
 const sheetsManager = require('../../config/sheets');
-const bondLevelManager = require('./bondLevelManager');
+const nestSystem = require('../utils/nestSystem');
+
+// 1. 最初にSlashCommandBuilderを定義
+const data = new SlashCommandBuilder()
+    .setName('nest')
+    .setDescription('ネスト関連のコマンド')
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('create')
+            .setDescription('新しいネストを建設します')
+            .addStringOption(option =>
+                option.setName('bird')
+                    .setDescription('ネストを建設する鳥の名前')
+                    .setRequired(true)
+            )
+    )
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('view')
+            .setDescription('所有しているネストを表示します')
+    )
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('visit')
+            .setDescription('ネストの詳細を表示します')
+            .addStringOption(option =>
+                option.setName('bird')
+                    .setDescription('訪問する鳥の名前')
+                    .setRequired(true)
+            )
+    )
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('change')
+            .setDescription('ネストのタイプを変更します')
+            .addStringOption(option =>
+                option.setName('bird')
+                    .setDescription('ネストを変更する鳥の名前')
+                    .setRequired(true)
+            )
+            .addStringOption(option =>
+                option.setName('type')
+                    .setDescription('新しいネストタイプ')
+                    .setRequired(true)
+            )
+    );
+
+// 2. execute関数を定義
+async function execute(interaction) {
+    try {
+        const subcommand = interaction.options.getSubcommand();
+        
+        switch (subcommand) {
+            case 'create':
+                await handleNestCreate(interaction);
+                break;
+            case 'view':
+                await handleNestView(interaction);
+                break;
+            case 'visit':
+                await handleNestVisit(interaction);
+                break;
+            case 'change':
+                await handleNestChange(interaction);
+                break;
+            default:
+                await interaction.reply('不明なサブコマンドです。');
+        }
+    } catch (error) {
+        console.error('ネストコマンドエラー:', error);
+        if (!interaction.replied) {
+            await interaction.reply({ content: 'エラーが発生しました。', ephemeral: true });
+        }
+    }
+}
 
 class NestSystem {
     constructor() {
@@ -307,7 +382,7 @@ class NestSystem {
     }
 }
 
-// シングルトンインスタンス
-const nestSystem = new NestSystem();
-
-module.exports = nestSystem;
+module.exports = {
+    data,           // ← これが必要
+    execute,        // ← これも必要
+};
