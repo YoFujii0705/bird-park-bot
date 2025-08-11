@@ -280,31 +280,31 @@ this.sheets.userMemories = await this.getOrCreateSheet('user_memories', [
     }
 
     async getBirdGifts(birdName, serverId) {
-        try {
-            await this.ensureInitialized();
-            
-            const sheet = this.sheets.birdGifts;
-            const rows = await sheet.getRows();
-            
-            const gifts = [];
-            rows.forEach(row => {
-                if (row.get('鳥名') === birdName && row.get('サーバーID') === serverId) {
-                    gifts.push({
-                        name: row.get('贈り物名'),
-                        giver: row.get('贈り主ユーザー名'),
-                        giverId: row.get('贈り主ユーザーID'),
-                        caption: row.get('キャプション'),
-                        date: row.get('日時')
-                    });
-                }
-            });
-            
-            return gifts;
-        } catch (error) {
-            console.error('鳥の贈り物取得エラー:', error);
-            return [];
-        }
+    try {
+        await this.ensureInitialized();
+        
+        const sheet = this.sheets.birdGifts;
+        const rows = await sheet.getRows();
+        
+        const gifts = [];
+        rows.forEach(row => {
+            if (row.get('鳥名') === birdName && row.get('サーバーID') === serverId) {
+                gifts.push({
+                    name: row.get('贈り物名'),
+                    giver: row.get('送り主ユーザー名'),      // 🔧 修正: D列
+                    giverId: row.get('送り主ユーザーID'),    // 🔧 修正: C列
+                    caption: row.get('キャプション'),        // G列
+                    date: row.get('贈呈日時')              // 🔧 修正: E列
+                });
+            }
+        });
+        
+        return gifts;
+    } catch (error) {
+        console.error('鳥の贈り物取得エラー:', error);
+        return [];
     }
+}
 
     async getBirds() {
         try {
