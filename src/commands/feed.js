@@ -783,7 +783,7 @@ getBondLevelPhotoName(bondLevel) {
     };
     
     return photoNames[bondLevel] || `絆レベル${bondLevel}の記念写真`;
-}
+},
 
     // 💖 好感度MAX通知
     async sendAffinityMaxNotification(interaction, birdName, area) {
