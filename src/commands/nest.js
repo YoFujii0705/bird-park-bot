@@ -544,16 +544,31 @@ class NestSystem {
     // 鳥のエリアを取得
     getBirdArea(birdName, guildId) {
         try {
-            const zooManager = require('../utils/zooManager');
-            const zooState = zooManager.getZooState(guildId);
-            
-            for (const area of ['森林', '草原', '水辺']) {
-                const bird = zooState[area].find(b => 
-                    b.name === birdName || b.name.includes(birdName) || birdName.includes(b.name)
-                );
-                if (bird) {
-                    return area;
+            // まずzooManagerから取得を試行
+            try {
+                const zooManager = require('../utils/zooManager');
+                const zooState = zooManager.getZooState(guildId);
+                
+                for (const area of ['森林', '草原', '水辺']) {
+                    const bird = zooState[area]?.find(b => 
+                        b.name === birdName || b.name.includes(birdName) || birdName.includes(b.name)
+                    );
+                    if (bird) {
+                        return area;
+                    }
                 }
+            } catch (zooError) {
+                console.log('zooManagerが見つからないため、鳥名からエリアを推定します');
+            }
+            
+            // zooManagerが使えない場合は鳥名から推定
+            const waterBirds = ['カモ', 'サギ', 'アホウドリ', 'ペリカン', 'ウミネコ', 'カワセミ'];
+            const forestBirds = ['キツツキ', 'フクロウ', 'ヤマガラ', 'ウグイス', 'キビタキ'];
+            
+            if (waterBirds.some(bird => birdName.includes(bird))) {
+                return '水辺';
+            } else if (forestBirds.some(bird => birdName.includes(bird))) {
+                return '森林';
             }
             
             return '森林'; // デフォルト
@@ -567,4 +582,5 @@ class NestSystem {
 module.exports = {
     data,           // ← これが必要
     execute,        // ← これも必要
+    NestSystem      // ← クラスもエクスポート
 };
