@@ -92,8 +92,7 @@ async function handleNestCreate(interaction) {
         
         if (!buildCheck.canBuild) {
             await interaction.reply({
-                content: `❌ ネスト建設不可: ${buildCheck.message}`,
-                ephemeral: true
+                content: `❌ ネスト建設不可: ${buildCheck.message}`
             });
             return;
         }
@@ -127,15 +126,13 @@ async function handleNestCreate(interaction) {
                     label: `${index + 1}. ${nestType}`,
                     custom_id: `nest_select_${index}_${birdName}_${nestType}`
                 }))
-            }],
-            ephemeral: true
+            }]
         });
         
     } catch (error) {
         console.error('ネスト建設エラー:', error);
         await interaction.reply({
-            content: 'ネスト建設中にエラーが発生しました。',
-            ephemeral: true
+            content: 'ネスト建設中にエラーが発生しました。'
         });
     }
 }
@@ -150,14 +147,13 @@ async function handleNestView(interaction) {
         
         if (userNests.length === 0) {
             await interaction.reply({
-                content: '🏠 まだネストを建設していません。\n`/nest create` でネストを建設してみましょう！',
-                ephemeral: true
+                content: '🏠 まだネストを建設していません。\n`/nest create` でネストを建設してみましょう！'
             });
             return;
         }
         
         const embed = {
-            title: '🏠 あなたのネスト一覧',
+            title: `🏠 ${interaction.user.displayName || interaction.user.username}さんのネスト一覧`,
             color: 0x8BC34A,
             fields: userNests.map(nest => ({
                 name: `🐦 ${nest.鳥名}`,
@@ -169,13 +165,12 @@ async function handleNestView(interaction) {
             }
         };
         
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed] });
         
     } catch (error) {
         console.error('ネスト表示エラー:', error);
         await interaction.reply({
-            content: 'ネスト情報の取得中にエラーが発生しました。',
-            ephemeral: true
+            content: 'ネスト情報の取得中にエラーが発生しました。'
         });
     }
 }
@@ -190,25 +185,67 @@ async function handleNestVisit(interaction) {
         
         if (!nestData) {
             await interaction.reply({
-                content: `❌ ${birdName}のネストが見つかりません。`,
-                ephemeral: true
+                content: `❌ ${birdName}のネストが見つかりません。`
             });
             return;
         }
         
+        // 🎁 贈り物データを取得
+        const gifts = await sheets.getBirdGifts(birdName, serverId);
+        const userGifts = gifts.filter(gift => gift.giverId === userId);
+        
+        // 🦅 鳥の現在の様子を生成
+        const birdActivity = generateBirdActivity(birdName, nestData.ネストタイプ);
+        
+        // 🏠 ネストの雰囲気を生成
+        const nestAtmosphere = generateNestAtmosphere(nestData.ネストタイプ, userGifts.length);
+        
         const embed = {
-            title: `🏠 ${birdName}のネスト`,
-            description: `**ネストタイプ**: ${nestData.ネストタイプ}\n**カスタム名**: ${nestData.カスタム名 || '未設定'}`,
-            color: 0x2196F3,
+            title: `🏠 ${nestData.ユーザー名}さんの${birdName}のネスト`,
+            description: `**${nestData.ネストタイプ}**\n${nestAtmosphere}`,
+            color: getNestColor(nestData.ネストタイプ),
             fields: [
                 {
-                    name: '📊 ネスト情報',
-                    value: `建設日: ${nestData.日時 ? new Date(nestData.日時).toLocaleDateString('ja-JP') : '不明'}`,
+                    name: '🐦 鳥の様子',
+                    value: birdActivity,
                     inline: false
                 }
-            ]
+            ],
+            footer: {
+                text: `建設日: ${nestData.日時 ? new Date(nestData.日時).toLocaleDateString('ja-JP') : '不明'}`
+            }
         };
         
+        // 🎁 贈り物展示
+        if (userGifts.length > 0) {
+            const recentGifts = userGifts.slice(0, 5); // 最新5個まで表示
+            const giftDisplay = recentGifts.map(gift => {
+                const caption = gift.caption ? `\n*${gift.caption}*` : '';
+                return `**${gift.name}**${caption}`;
+            }).join('\n\n');
+            
+            embed.fields.push({
+                name: `🎁 展示されている贈り物 (${userGifts.length}個)`,
+                value: giftDisplay || 'まだ贈り物がありません',
+                inline: false
+            });
+            
+            if (userGifts.length > 5) {
+                embed.fields.push({
+                    name: '📦 その他の贈り物',
+                    value: `他に${userGifts.length - 5}個の贈り物が大切に保管されています`,
+                    inline: false
+                });
+            }
+        } else {
+            embed.fields.push({
+                name: '🎁 贈り物展示',
+                value: `${birdName}はまだ贈り物をもらっていません。\n\`/gift\` コマンドで贈り物をあげてみましょう！`,
+                inline: false
+            });
+        }
+        
+        // 🔗 専用チャンネルリンク
         if (nestData.チャンネルID) {
             embed.fields.push({
                 name: '🔗 専用チャンネル',
@@ -217,17 +254,15 @@ async function handleNestVisit(interaction) {
             });
         }
         
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed] });
         
     } catch (error) {
         console.error('ネスト詳細エラー:', error);
         await interaction.reply({
-            content: 'ネスト詳細の取得中にエラーが発生しました。',
-            ephemeral: true
+            content: 'ネスト詳細の取得中にエラーが発生しました。'
         });
     }
 }
-
 async function handleNestChange(interaction) {
     try {
         const birdName = interaction.options.getString('bird');
@@ -240,21 +275,18 @@ async function handleNestChange(interaction) {
         
         if (result.success) {
             await interaction.reply({
-                content: `✅ ${result.message}`,
-                ephemeral: true
+                content: `✅ ${result.message}`
             });
         } else {
             await interaction.reply({
-                content: `❌ ${result.message}`,
-                ephemeral: true
+                content: `❌ ${result.message}`
             });
         }
         
     } catch (error) {
         console.error('ネスト変更エラー:', error);
         await interaction.reply({
-            content: `❌ エラー: ${error.message}`,
-            ephemeral: true
+            content: `❌ エラー: ${error.message}`
         });
     }
 }
@@ -283,6 +315,84 @@ class NestSystem {
             '桜祭りの花見巣', '鯉のぼりの青空巣'
         ];
     }
+
+    // 🐦 鳥の活動を生成
+function generateBirdActivity(birdName, nestType) {
+    const activities = {
+        '蓮池の巣': [
+            `${birdName}が蓮の花びらで遊んでいます`,
+            `${birdName}が池の水面に美しい姿を映しています`,
+            `${birdName}が蓮の葉の上でのんびりと羽を休めています`
+        ],
+        '苔むした庭': [
+            `${birdName}が苔の上に足跡をつけて遊んでいます`,
+            `朝露に濡れた苔を${birdName}が気持ちよさそうに歩いています`,
+            `${birdName}が苔のクッションでお昼寝しています`
+        ],
+        '古木の大穴': [
+            `${birdName}が古木の穴から顔を覗かせています`,
+            `${birdName}が木の年輪を興味深そうに見つめています`,
+            `${birdName}が古木の香りを楽しんでいるようです`
+        ],
+        '花畑の巣': [
+            `${birdName}が色とりどりの花に囲まれて幸せそうです`,
+            `${birdName}が花の蜜を味わっています`,
+            `${birdName}が花びらを集めて遊んでいます`
+        ]
+    };
+    
+    const typeActivities = activities[nestType] || [
+        `${birdName}が巣でゆったりと過ごしています`,
+        `${birdName}が羽づくろいをしています`,
+        `${birdName}が巣の中を整理整頓しています`
+    ];
+    
+    return typeActivities[Math.floor(Math.random() * typeActivities.length)];
+}
+
+// 🏠 ネストの雰囲気を生成
+function generateNestAtmosphere(nestType, giftCount) {
+    const baseDescriptions = {
+        '蓮池の巣': '静かな池のほとりに佇む美しい巣です。蓮の花が咲き誇り、水面が穏やかに光っています。',
+        '苔むした庭': '緑豊かな苔に覆われた静寂な庭園の巣です。しっとりとした空気が心地よく流れています。',
+        '古木の大穴': '長い年月を重ねた古木の洞に作られた歴史ある巣です。木の温もりが感じられます。',
+        '花畑の巣': '色鮮やかな花々に囲まれた華やかな巣です。甘い香りが風に乗って漂っています。',
+        '樹海の宮殿': '深い森の奥に佇む神秘的な宮殿のような巣です。古代の魔法が宿っているかのようです。',
+        '真珠の洞窟': '美しい真珠で装飾された幻想的な洞窟の巣です。光が真珠に反射して虹色に輝いています。'
+    };
+    
+    let description = baseDescriptions[nestType] || '素敵な巣です。';
+    
+    if (giftCount > 0) {
+        if (giftCount >= 10) {
+            description += '\n巣の中には数多くの贈り物が美しく展示され、まるで小さな博物館のようです。';
+        } else if (giftCount >= 5) {
+            description += '\n心のこもった贈り物がいくつか大切に飾られています。';
+        } else {
+            description += '\n贈り物が丁寧に飾られ、温かい雰囲気に包まれています。';
+        }
+    }
+    
+    return description;
+}
+
+// 🎨 ネストタイプに応じた色を取得
+function getNestColor(nestType) {
+    const colors = {
+        '蓮池の巣': 0x4FC3F7,      // 水色
+        '苔むした庭': 0x4CAF50,    // 緑
+        '古木の大穴': 0x8D6E63,    // 茶色
+        '花畑の巣': 0xE91E63,      // ピンク
+        '樹海の宮殿': 0x2E7D32,    // 深緑
+        '真珠の洞窟': 0x9C27B0,    // 紫
+        '水晶の泉': 0x00BCD4,      // シアン
+        '貝殻の宮殿': 0xFFB74D,    // オレンジ
+        '虹の丘': 0xFF9800,        // オレンジ
+        '星見台': 0x3F51B5         // 藍色
+    };
+    
+    return colors[nestType] || 0x8BC34A;
+}
 
     // ネスト建設可能かチェック
     async canBuildNest(userId, birdName, serverId) {
@@ -431,18 +541,6 @@ class NestSystem {
                 type: ChannelType.GuildText,
                 parent: category.id,
                 permissionOverwrites: [
-                    {
-                        id: guild.id, // @everyone
-                        deny: [PermissionFlagsBits.ViewChannel]
-                    },
-                    {
-                        id: userId, // ネスト所有者
-                        allow: [
-                            PermissionFlagsBits.ViewChannel,
-                            PermissionFlagsBits.SendMessages,
-                            PermissionFlagsBits.ReadMessageHistory
-                        ]
-                    },
                     {
                         id: client.user.id, // Bot
                         allow: [
