@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 const bondLevelManager = require('../utils/bondLevelManager');
-const sheetsManager = require('../../config/sheets');
+const sheets = require('../../config/sheets');
 
 // 1. 最初にSlashCommandBuilderを定義
 const data = new SlashCommandBuilder()
@@ -186,7 +186,7 @@ async function handleNestVisit(interaction) {
         const userId = interaction.user.id;
         const serverId = interaction.guild.id;
         
-        const nestData = await sheetsManager.getBirdNest(userId, birdName, serverId);
+        const nestData = await sheets.getBirdNest(userId, birdName, serverId);
         
         if (!nestData) {
             await interaction.reply({
@@ -308,7 +308,7 @@ class NestSystem {
             }
 
             // 3. 同じ鳥のネスト未所持チェック
-            const existingNest = await sheetsManager.getBirdNest(userId, birdName, serverId);
+            const existingNest = await sheets.getBirdNest(userId, birdName, serverId);
             if (existingNest) {
                 return {
                     canBuild: false,
@@ -318,7 +318,7 @@ class NestSystem {
             }
 
             // 4. 最大所持数チェック（5個まで）
-            const nestCount = await sheetsManager.getUserNestCount(userId, serverId);
+            const nestCount = await sheets.getUserNestCount(userId, serverId);
             if (nestCount >= 5) {
                 return {
                     canBuild: false,
@@ -363,7 +363,7 @@ class NestSystem {
             }
 
             // 所持ネストリストを更新
-            const userNests = await sheetsManager.getUserNests(userId, serverId);
+            const userNests = await sheets.getUserNests(userId, serverId);
             const currentNestTypes = userNests.map(nest => nest.ネストタイプ);
             const updatedNests = [...currentNestTypes, selectedNestType];
 
@@ -371,7 +371,7 @@ class NestSystem {
             const channelId = await this.createNestChannel(userId, userName, birdName, serverId, client);
 
             // データベースに記録
-            await sheetsManager.logNestCreation(
+            await sheets.logNestCreation(
                 userId,
                 userName,
                 birdName,
@@ -514,7 +514,7 @@ class NestSystem {
             }
 
             // データベース更新
-            await sheetsManager.updateNestType(userId, birdName, newNestType, serverId);
+            await sheets.updateNestType(userId, birdName, newNestType, serverId);
 
             console.log(`✅ ネストタイプ変更完了: ${birdName} -> ${newNestType}`);
 
@@ -534,7 +534,7 @@ class NestSystem {
     // ユーザーの全ネスト取得
     async getUserNests(userId, serverId) {
         try {
-            return await sheetsManager.getUserNests(userId, serverId);
+            return await sheets.getUserNests(userId, serverId);
         } catch (error) {
             console.error('ユーザーネスト取得エラー:', error);
             return [];
