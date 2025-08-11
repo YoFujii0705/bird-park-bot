@@ -101,7 +101,7 @@ module.exports = {
         .setName('test_phase2')
         .setDescription('Phase 2機能（新しいイベント）をテスト')
 )
-        // debug.js の SlashCommandBuilder に以下のサブコマンドを追加
+       // debug.js のサブコマンド定義を以下に修正
 
 .addSubcommand(subcommand =>
     subcommand
@@ -111,11 +111,6 @@ module.exports = {
             option.setName('bird_name')
                 .setDescription('対象の鳥の名前')
                 .setRequired(true)
-        )
-        .addUserOption(option =>
-            option.setName('target_user')
-                .setDescription('対象ユーザー（省略時は実行者）')
-                .setRequired(false)
         )
         .addIntegerOption(option =>
             option.setName('level')
@@ -130,6 +125,11 @@ module.exports = {
                 .setRequired(false)
                 .setMinValue(0)
         )
+        .addUserOption(option =>
+            option.setName('target_user')
+                .setDescription('対象ユーザー（省略時は実行者）')
+                .setRequired(false)
+        )
 )
 .addSubcommand(subcommand =>
     subcommand
@@ -139,11 +139,6 @@ module.exports = {
             option.setName('bird_name')
                 .setDescription('対象の鳥の名前')
                 .setRequired(true)
-        )
-        .addUserOption(option =>
-            option.setName('target_user')
-                .setDescription('対象ユーザー（省略時は実行者）')
-                .setRequired(false)
         )
         .addIntegerOption(option =>
             option.setName('bond_level')
@@ -156,6 +151,11 @@ module.exports = {
                 .setDescription('絆餌やり回数（省略時は自動計算）')
                 .setRequired(false)
                 .setMinValue(0)
+        )
+        .addUserOption(option =>
+            option.setName('target_user')
+                .setDescription('対象ユーザー（省略時は実行者）')
+                .setRequired(false)
         )
 )
 .addSubcommand(subcommand =>
