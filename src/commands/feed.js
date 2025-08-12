@@ -880,7 +880,7 @@ module.exports = {
         }
     },
 
-    // 🔍 改良版鳥検索メソッド（複数候補対応）
+    // 🔍 改良版鳥検索メソッド（複数候補対応・エラー修正版）
     async findBirdInZoo(birdName, guildId, interaction = null) {
         const zooManager = require('../utils/zooManager');
         const zooState = zooManager.getZooState(guildId);
@@ -889,7 +889,10 @@ module.exports = {
         const allBirds = [];
         for (const area of ['森林', '草原', '水辺']) {
             zooState[area].forEach(bird => {
-                allBirds.push({ bird, area, isFromNest: false });
+                // 🔧 修正: bird.nameの存在確認
+                if (bird && bird.name) {
+                    allBirds.push({ bird, area, isFromNest: false });
+                }
             });
         }
 
@@ -899,9 +902,16 @@ module.exports = {
             const userNests = await sheetsManager.getUserNests ? 
                 await sheetsManager.getUserNests(interaction?.user?.id, guildId) : [];
             
+            console.log(`🏠 ネスト検索: ${userNests.length}個のネストを確認`);
+            
             userNests.forEach(nest => {
+                console.log(`🏠 ネスト詳細:`, nest);
+                
                 // ネスト鳥が動物園にもいるかチェック
-                const existsInZoo = allBirds.some(({ bird }) => bird.name === nest.birdName);
+                const existsInZoo = allBirds.some(({ bird }) => 
+                    bird.name === nest.birdName || bird.name === nest.customName
+                );
+                
                 if (!existsInZoo) {
                     // ネスト専用の鳥オブジェクトを作成
                     const nestBird = {
@@ -914,35 +924,48 @@ module.exports = {
                         lastFedBy: null,
                         isHungry: false
                     };
+                    
+                    console.log(`🏠 ネスト鳥追加:`, nestBird);
+                    
                     allBirds.push({ 
                         bird: nestBird, 
                         area: nest.nestType, 
                         isFromNest: true,
                         nestInfo: nest
                     });
+                } else {
+                    console.log(`🏠 ${nest.birdName}は動物園にも存在するのでスキップ`);
                 }
             });
         } catch (error) {
             console.error('ネスト鳥検索エラー:', error);
         }
 
+        console.log(`🔍 検索対象: ${allBirds.length}羽の鳥（ネスト含む）`);
+
         // 検索パターンを優先順位順に実行
         const searchPatterns = [
             // 1. 完全一致（最優先）
-            (birds, name) => birds.filter(({ bird }) => 
-                bird.name === name || bird.originalName === name
-            ),
+            (birds, name) => birds.filter(({ bird }) => {
+                // 🔧 修正: null/undefinedチェック追加
+                if (!bird || !bird.name) return false;
+                return bird.name === name || (bird.originalName && bird.originalName === name);
+            }),
             // 2. 前方一致
-            (birds, name) => birds.filter(({ bird }) => 
-                bird.name.startsWith(name) || name.startsWith(bird.name) ||
-                (bird.originalName && (bird.originalName.startsWith(name) || name.startsWith(bird.originalName)))
-            ),
+            (birds, name) => birds.filter(({ bird }) => {
+                // 🔧 修正: null/undefinedチェック追加
+                if (!bird || !bird.name || !name) return false;
+                return bird.name.startsWith(name) || name.startsWith(bird.name) ||
+                    (bird.originalName && (bird.originalName.startsWith(name) || name.startsWith(bird.originalName)));
+            }),
             // 3. 部分一致（長い名前優先）
             (birds, name) => {
-                const matches = birds.filter(({ bird }) => 
-                    bird.name.includes(name) || name.includes(bird.name) ||
-                    (bird.originalName && (bird.originalName.includes(name) || name.includes(bird.originalName)))
-                );
+                const matches = birds.filter(({ bird }) => {
+                    // 🔧 修正: null/undefinedチェック追加
+                    if (!bird || !bird.name || !name) return false;
+                    return bird.name.includes(name) || name.includes(bird.name) ||
+                        (bird.originalName && (bird.originalName.includes(name) || name.includes(bird.originalName)));
+                });
                 return matches.sort((a, b) => b.bird.name.length - a.bird.name.length);
             }
         ];
@@ -950,6 +973,8 @@ module.exports = {
         for (const searchFn of searchPatterns) {
             const matches = searchFn(allBirds, birdName);
             if (matches.length > 0) {
+                console.log(`🎯 ${matches.length}羽の候補が見つかりました`);
+                
                 // 複数候補がある場合はセレクトメニューで選択
                 if (matches.length > 1 && interaction) {
                     return await this.handleMultipleBirdCandidates(matches, birdName, interaction);
@@ -964,7 +989,7 @@ module.exports = {
         return null;
     },
 
-    // 🆕 複数鳥候補のセレクトメニュー処理
+    // 🆕 複数鳥候補のセレクトメニュー処理（全体公開版）
     async handleMultipleBirdCandidates(candidates, searchName, interaction) {
         const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
         
@@ -993,10 +1018,10 @@ module.exports = {
             timestamp: Date.now()
         });
 
+        // 🔧 修正: ephemeral: trueを削除して全体公開に
         await interaction.reply({
-            content: `🔍 **"${searchName}"** で複数の鳥が見つかりました。餌をあげる鳥を選択してください：`,
-            components: [row],
-            ephemeral: true
+            content: `🔍 **"${searchName}"** で複数の鳥が見つかりました。${interaction.user.username}さん、餌をあげる鳥を選択してください：`,
+            components: [row]
         });
 
         return 'MULTIPLE_CANDIDATES'; // 特別な戻り値
