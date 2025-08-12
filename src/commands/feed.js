@@ -77,7 +77,6 @@ module.exports = {
                     { name: '🐁 ねずみ', value: 'ねずみ' }
                 )
                 .setRequired(true)),
-
     async execute(interaction) {
         try {
             const guildId = interaction.guild.id;
@@ -109,8 +108,14 @@ module.exports = {
             const birdName = interaction.options.getString('bird');
             const food = interaction.options.getString('food');
 
-            // 🔍 鳥の検索
-            const birdInfo = this.findBirdInZoo(birdName, guildId);
+            // 🔍 鳥の検索（複数候補対応）
+            const birdInfo = await this.findBirdInZoo(birdName, guildId, interaction);
+            
+            // 複数候補の場合は処理終了（セレクトメニューで継続）
+            if (birdInfo === 'MULTIPLE_CANDIDATES') {
+                return;
+            }
+            
             if (!birdInfo) {
                 await interaction.reply({
                     content: `🔍 "${birdName}" は現在この鳥類園にいないようです。\n\`/zoo view\` で現在いる鳥を確認してください。`,
@@ -120,179 +125,17 @@ module.exports = {
             }
 
             // ⏰ クールダウンチェック（ネスト鳥は除外）
-    const cooldownResult = this.checkFeedingCooldown(birdInfo.bird, interaction.user.id, birdInfo.isFromNest);
-    if (!cooldownResult.canFeed) {
-        await interaction.reply({
-            content: `⏰ ${birdInfo.bird.name}にはまだ餌をあげられません。\n次回餌やり可能時刻: ${cooldownResult.nextFeedTime}`,
-            ephemeral: true
-        });
-        return;
-    }
-
-    // ⏰ 餌やりクールダウンチェック（修正版 - ネスト対応）
-    checkFeedingCooldown(bird, userId, isFromNest = false) {
-        // 🆕 ネストにいる鳥は常時餌やり可能
-        if (isFromNest) {
-            console.log(`🏠 ネスト鳥 ${bird.name} - 常時餌やり可能`);
-            return { canFeed: true };
-        }
-
-        const now = new Date();
-        const cooldownMinutes = 10;
-        
-        // 🔧 修正: lastFedまたはlastFedByがnullの場合はクールダウンなし
-        if (!bird.lastFed || !bird.lastFedBy) {
-            console.log(`🔧 クールダウンチェック: ${bird.name} - lastFed or lastFedBy is null, allowing feed`);
-            return { canFeed: true };
-        }
-
-        // 同じユーザーが最後に餌をあげた場合のみクールダウンチェック
-        if (bird.lastFedBy === userId) {
-            const timeDiff = now - bird.lastFed;
-            const minutesPassed = Math.floor(timeDiff / (1000 * 60));
-            
-            console.log(`🔧 クールダウンチェック: ${bird.name} - 同じユーザー(${userId}), ${minutesPassed}分経過`);
-            
-            if (minutesPassed < cooldownMinutes) {
-                const nextFeedTime = new Date(bird.lastFed.getTime() + cooldownMinutes * 60 * 1000);
-                return { 
-                    canFeed: false, 
-                    nextFeedTime: nextFeedTime.toLocaleTimeString('ja-JP', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                    })
-                };
+            const cooldownResult = this.checkFeedingCooldown(birdInfo.bird, interaction.user.id, birdInfo.isFromNest);
+            if (!cooldownResult.canFeed) {
+                await interaction.reply({
+                    content: `⏰ ${birdInfo.bird.name}にはまだ餌をあげられません。\n次回餌やり可能時刻: ${cooldownResult.nextFeedTime}`,
+                    ephemeral: true
+                });
+                return;
             }
-        }
-
-        console.log(`🔧 クールダウンチェック: ${bird.name} - 餌やり可能`);
-        return { canFeed: true };
-    },
-
-            // 🔍 改良版鳥検索メソッド（複数候補対応）
-    async findBirdInZoo(birdName, guildId, interaction = null) {
-        const zooManager = require('../utils/zooManager');
-        const zooState = zooManager.getZooState(guildId);
-        
-        // すべてのエリアの鳥を収集（ネスト情報も含む）
-        const allBirds = [];
-        for (const area of ['森林', '草原', '水辺']) {
-            zooState[area].forEach(bird => {
-                allBirds.push({ bird, area, isFromNest: false });
-            });
-        }
-
-        // 🆕 ネストにいる鳥も検索対象に追加
-        try {
-            const sheetsManager = require('../../config/sheets');
-            const userNests = await sheetsManager.getUserNests ? 
-                await sheetsManager.getUserNests(interaction?.user?.id, guildId) : [];
-            
-            userNests.forEach(nest => {
-                // ネスト鳥が動物園にもいるかチェック
-                const existsInZoo = allBirds.some(({ bird }) => bird.name === nest.birdName);
-                if (!existsInZoo) {
-                    // ネスト専用の鳥オブジェクトを作成
-                    const nestBird = {
-                        name: nest.customName || nest.birdName,
-                        originalName: nest.birdName,
-                        mood: 'happy',
-                        activity: `${nest.nestType}で安らいでいます`,
-                        feedCount: 0,
-                        lastFed: null,
-                        lastFedBy: null,
-                        isHungry: false
-                    };
-                    allBirds.push({ 
-                        bird: nestBird, 
-                        area: nest.nestType, 
-                        isFromNest: true,
-                        nestInfo: nest
-                    });
-                }
-            });
-        } catch (error) {
-            console.error('ネスト鳥検索エラー:', error);
-        }
-
-        // 検索パターンを優先順位順に実行
-        const searchPatterns = [
-            // 1. 完全一致（最優先）
-            (birds, name) => birds.filter(({ bird }) => 
-                bird.name === name || bird.originalName === name
-            ),
-            // 2. 前方一致
-            (birds, name) => birds.filter(({ bird }) => 
-                bird.name.startsWith(name) || name.startsWith(bird.name) ||
-                (bird.originalName && (bird.originalName.startsWith(name) || name.startsWith(bird.originalName)))
-            ),
-            // 3. 部分一致（長い名前優先）
-            (birds, name) => {
-                const matches = birds.filter(({ bird }) => 
-                    bird.name.includes(name) || name.includes(bird.name) ||
-                    (bird.originalName && (bird.originalName.includes(name) || name.includes(bird.originalName)))
-                );
-                return matches.sort((a, b) => b.bird.name.length - a.bird.name.length);
-            }
-        ];
-
-        for (const searchFn of searchPatterns) {
-            const matches = searchFn(allBirds, birdName);
-            if (matches.length > 0) {
-                // 複数候補がある場合はセレクトメニューで選択
-                if (matches.length > 1 && interaction) {
-                    return await this.handleMultipleBirdCandidates(matches, birdName, interaction);
-                }
-                
-                console.log(`🎯 鳥発見: ${matches[0].bird.name}${matches[0].isFromNest ? ' (ネスト)' : ''}`);
-                return matches[0];
-            }
-        }
-        
-        console.log(`❌ 鳥が見つかりません: ${birdName}`);
-        return null;
-    },
-
-    // 🆕 複数鳥候補のセレクトメニュー処理
-    async handleMultipleBirdCandidates(candidates, searchName, interaction) {
-        const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
-        
-        // 最大25個まで（Discord制限）
-        const limitedCandidates = candidates.slice(0, 25);
-        
-        const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId('bird_feed_select')
-            .setPlaceholder(`"${searchName}"で複数の鳥が見つかりました...`)
-            .addOptions(
-                limitedCandidates.map((candidate, index) => ({
-                    label: candidate.bird.name,
-                    description: `${candidate.area}${candidate.isFromNest ? ' (あなたのネスト)' : 'エリア'} - ${candidate.bird.activity || '待機中'}`,
-                    value: `bird_feed_${index}`
-                }))
-            );
-
-        const row = new ActionRowBuilder().addComponents(selectMenu);
-
-        // 候補一覧を一時保存（セッション管理）
-        if (!global.birdSelectionCache) global.birdSelectionCache = new Map();
-        const sessionKey = `${interaction.user.id}_${interaction.guild.id}`;
-        global.birdSelectionCache.set(sessionKey, {
-            candidates: limitedCandidates,
-            originalCommand: 'feed',
-            timestamp: Date.now()
-        });
-
-        await interaction.reply({
-            content: `🔍 **"${searchName}"** で複数の鳥が見つかりました。餌をあげる鳥を選択してください：`,
-            components: [row],
-            ephemeral: true
-        });
-
-        return 'MULTIPLE_CANDIDATES'; // 特別な戻り値
-    },
 
             // 🍽️ 餌やり処理
-            const preference = birdData.getFoodPreference(birdName, food);
+            const preference = birdData.getFoodPreference(birdInfo.bird.originalName || birdInfo.bird.name, food);
             const feedResult = this.processFeedingResult(birdInfo, food, preference, interaction.user);
             this.updateBirdAfterFeeding(birdInfo.bird, food, preference, interaction.user.id);
 
@@ -300,7 +143,7 @@ module.exports = {
             const affinityResult = await this.processAffinity(
                 interaction.user.id, 
                 interaction.user.username, 
-                birdInfo.bird.name, 
+                birdInfo.bird.originalName || birdInfo.bird.name, 
                 preference, 
                 guildId
             );
@@ -313,7 +156,7 @@ module.exports = {
             await logger.logFeedWithServer(
                 interaction.user.id,
                 interaction.user.username,
-                birdName,
+                birdInfo.bird.originalName || birdInfo.bird.name,
                 food,
                 feedResult.effect,
                 interaction.guild.id
@@ -358,7 +201,7 @@ module.exports = {
         if (affinityResult.levelUp && affinityResult.newLevel >= 5) {
             setTimeout(async () => {
                 try {
-                    await this.sendAffinityMaxNotification(interaction, birdInfo.bird.name, birdInfo.area);
+                    await this.sendAffinityMaxNotification(interaction, birdInfo.bird.originalName || birdInfo.bird.name, birdInfo.area);
                 } catch (error) {
                     console.error('好感度MAX通知エラー:', error);
                 }
@@ -397,19 +240,19 @@ module.exports = {
 
     // 🎁 鳥からの贈り物処理
     async handleBirdGiftProcess(interaction, birdInfo, affinityResult, guildId) {
-        if (affinityResult && affinityResult.newLevel >= 5) {
+        if (affinityResult && affinityResult.newLevel >= 3) {
             const birdGift = await this.checkBirdGiftToUser(
                 interaction,
                 interaction.user.id,
                 interaction.user.username,
-                birdInfo.bird.name,
+                birdInfo.bird.originalName || birdInfo.bird.name,
                 affinityResult.newLevel,
                 birdInfo.area,
                 guildId
             );
             
             if (birdGift) {
-                await this.sendBirdGiftNotification(interaction, birdInfo.bird.name, birdGift);
+                await this.sendBirdGiftNotification(interaction, birdInfo.bird.originalName || birdInfo.bird.name, birdGift);
                 
                 // 贈り物の思い出生成（1秒後）
                 setTimeout(async () => {
@@ -432,7 +275,7 @@ module.exports = {
         
         const actionData = {
             type: 'feed',
-            preference: birdData.getFoodPreference(birdInfo.bird.name, interaction.options.getString('food')),
+            preference: birdData.getFoodPreference(birdInfo.bird.originalName || birdInfo.bird.name, interaction.options.getString('food')),
             food: interaction.options.getString('food'),
             isFirstTime: birdInfo.bird.feedCount === 1,
             isFirstFavorite: this.isFirstFavoriteFood(birdInfo.bird, interaction.options.getString('food')),
@@ -454,7 +297,7 @@ module.exports = {
         const newMemory = await memoryManager.createMemory(
             interaction.user.id,
             interaction.user.username,
-            birdInfo.bird.name,
+            birdInfo.bird.originalName || birdInfo.bird.name,
             actionData,
             guildId
         );
@@ -474,14 +317,14 @@ module.exports = {
             previousLevel: affinityResult.previousLevel,
             details: {
                 newLevel: affinityResult.newLevel,
-                birdName: birdInfo.bird.name
+                birdName: birdInfo.bird.originalName || birdInfo.bird.name
             }
         };
         
         const affinityMemory = await memoryManager.createMemory(
             interaction.user.id,
             interaction.user.username,
-            birdInfo.bird.name,
+            birdInfo.bird.originalName || birdInfo.bird.name,
             affinityActionData,
             guildId
         );
@@ -505,7 +348,7 @@ module.exports = {
             rarity: birdGift.giftName.includes('虹色') || birdGift.giftName.includes('四つ葉') ? 'rare' : 'common',
             details: {
                 giftName: birdGift.giftName,
-                birdName: birdInfo.bird.name,
+                birdName: birdInfo.bird.originalName || birdInfo.bird.name,
                 area: birdInfo.area,
                 affinityLevel: affinityResult.newLevel
             }
@@ -514,7 +357,7 @@ module.exports = {
         const giftMemory = await memoryManager.createMemory(
             interaction.user.id,
             interaction.user.username,
-            birdInfo.bird.name,
+            birdInfo.bird.originalName || birdInfo.bird.name,
             giftActionData,
             guildId
         );
@@ -648,7 +491,7 @@ module.exports = {
             .setColor(effectColors[result.effect] || 0x00AE86)
             .addFields(
                 { name: '🐦 鳥', value: bird.name, inline: true },
-                { name: '📍 場所', value: `${area}エリア`, inline: true },
+                { name: '📍 場所', value: `${area}${birdInfo.isFromNest ? ' (あなたのネスト)' : 'エリア'}`, inline: true },
                 { name: '🍽️ 餌', value: `${foodEmojis[food]} ${food}`, inline: true },
                 { name: '😊 反応', value: result.effect, inline: true },
                 { 
@@ -697,6 +540,10 @@ module.exports = {
                     
                     if (bondResult.bondLevelUp) {
                         affinityText += '\n✨ 絆レベルアップ！';
+                        
+                        // 🆕 絆レベルアップ時のネストガチャ通知
+                        affinityText += '\n🎰 ネストガチャが利用可能になりました！';
+                        affinityText += '\n`/nest gacha` でネストを獲得しましょう！';
                     }
                     
                     // 次の絆レベルまでの進捗
@@ -731,11 +578,11 @@ module.exports = {
             }
             
             // 贈り物解放通知
-            if (affinityResult.newLevel >= 5) {
+            if (affinityResult.newLevel >= 3) {
                 affinityText += '\n🎁 贈り物可能！';
-            } else if (affinityResult.newLevel >= 4) {
+            } else if (affinityResult.newLevel >= 2) {
                 affinityText += '\n🎁 もうすぐ贈り物可能！';
-            } else if (affinityResult.newLevel >= 3) {  
+            } else if (affinityResult.newLevel >= 1) {  
                 affinityText += '\n🎁 あと少しで贈り物可能！';
             }
             
@@ -761,7 +608,7 @@ module.exports = {
     isFirstFavoriteFood(bird, food) {
         if (!bird.feedHistory) return false;
         const birdData = require('../utils/birdData');
-        const preference = birdData.getFoodPreference(bird.name, food);
+        const preference = birdData.getFoodPreference(bird.originalName || bird.name, food);
         return preference === 'favorite' && !bird.feedHistory.some(h => h.preference === 'favorite');
     },
 
@@ -1033,60 +880,136 @@ module.exports = {
         }
     },
 
-    // 🔍 改良版鳥検索メソッド（優先順位付き）
-    findBirdInZoo(birdName, guildId) {
+    // 🔍 改良版鳥検索メソッド（複数候補対応）
+    async findBirdInZoo(birdName, guildId, interaction = null) {
         const zooManager = require('../utils/zooManager');
         const zooState = zooManager.getZooState(guildId);
         
-        // すべてのエリアの鳥を収集
+        // すべてのエリアの鳥を収集（ネスト情報も含む）
         const allBirds = [];
         for (const area of ['森林', '草原', '水辺']) {
             zooState[area].forEach(bird => {
-                allBirds.push({ bird, area });
+                allBirds.push({ bird, area, isFromNest: false });
             });
         }
-        
+
+        // 🆕 ネストにいる鳥も検索対象に追加
+        try {
+            const sheetsManager = require('../../config/sheets');
+            const userNests = await sheetsManager.getUserNests ? 
+                await sheetsManager.getUserNests(interaction?.user?.id, guildId) : [];
+            
+            userNests.forEach(nest => {
+                // ネスト鳥が動物園にもいるかチェック
+                const existsInZoo = allBirds.some(({ bird }) => bird.name === nest.birdName);
+                if (!existsInZoo) {
+                    // ネスト専用の鳥オブジェクトを作成
+                    const nestBird = {
+                        name: nest.customName || nest.birdName,
+                        originalName: nest.birdName,
+                        mood: 'happy',
+                        activity: `${nest.nestType}で安らいでいます`,
+                        feedCount: 0,
+                        lastFed: null,
+                        lastFedBy: null,
+                        isHungry: false
+                    };
+                    allBirds.push({ 
+                        bird: nestBird, 
+                        area: nest.nestType, 
+                        isFromNest: true,
+                        nestInfo: nest
+                    });
+                }
+            });
+        } catch (error) {
+            console.error('ネスト鳥検索エラー:', error);
+        }
+
         // 検索パターンを優先順位順に実行
-        
-        // 1. 完全一致（最優先）
-        let foundBird = allBirds.find(({ bird }) => 
-            bird.name === birdName
-        );
-        
-        if (foundBird) {
-            console.log(`🎯 完全一致で発見: ${foundBird.bird.name}`);
-            return foundBird;
-        }
-        
-        // 2. 前方一致（「オオアカゲラ」→「オオアカ」等）
-        foundBird = allBirds.find(({ bird }) => 
-            bird.name.startsWith(birdName) || birdName.startsWith(bird.name)
-        );
-        
-        if (foundBird) {
-            console.log(`🎯 前方一致で発見: ${foundBird.bird.name}`);
-            return foundBird;
-        }
-        
-        // 3. 長い名前の鳥を優先した部分一致
-        // 名前が長い順にソートしてから部分一致チェック
-        const sortedBirds = allBirds.sort((a, b) => b.bird.name.length - a.bird.name.length);
-        
-        foundBird = sortedBirds.find(({ bird }) => 
-            bird.name.includes(birdName) || birdName.includes(bird.name)
-        );
-        
-        if (foundBird) {
-            console.log(`🎯 部分一致で発見（長い名前優先）: ${foundBird.bird.name}`);
-            return foundBird;
+        const searchPatterns = [
+            // 1. 完全一致（最優先）
+            (birds, name) => birds.filter(({ bird }) => 
+                bird.name === name || bird.originalName === name
+            ),
+            // 2. 前方一致
+            (birds, name) => birds.filter(({ bird }) => 
+                bird.name.startsWith(name) || name.startsWith(bird.name) ||
+                (bird.originalName && (bird.originalName.startsWith(name) || name.startsWith(bird.originalName)))
+            ),
+            // 3. 部分一致（長い名前優先）
+            (birds, name) => {
+                const matches = birds.filter(({ bird }) => 
+                    bird.name.includes(name) || name.includes(bird.name) ||
+                    (bird.originalName && (bird.originalName.includes(name) || name.includes(bird.originalName)))
+                );
+                return matches.sort((a, b) => b.bird.name.length - a.bird.name.length);
+            }
+        ];
+
+        for (const searchFn of searchPatterns) {
+            const matches = searchFn(allBirds, birdName);
+            if (matches.length > 0) {
+                // 複数候補がある場合はセレクトメニューで選択
+                if (matches.length > 1 && interaction) {
+                    return await this.handleMultipleBirdCandidates(matches, birdName, interaction);
+                }
+                
+                console.log(`🎯 鳥発見: ${matches[0].bird.name}${matches[0].isFromNest ? ' (ネスト)' : ''}`);
+                return matches[0];
+            }
         }
         
         console.log(`❌ 鳥が見つかりません: ${birdName}`);
         return null;
     },
 
-    // ⏰ 餌やりクールダウンチェック（修正版）
-    checkFeedingCooldown(bird, userId) {
+    // 🆕 複数鳥候補のセレクトメニュー処理
+    async handleMultipleBirdCandidates(candidates, searchName, interaction) {
+        const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
+        
+        // 最大25個まで（Discord制限）
+        const limitedCandidates = candidates.slice(0, 25);
+        
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId('bird_feed_select')
+            .setPlaceholder(`"${searchName}"で複数の鳥が見つかりました...`)
+            .addOptions(
+                limitedCandidates.map((candidate, index) => ({
+                    label: candidate.bird.name,
+                    description: `${candidate.area}${candidate.isFromNest ? ' (あなたのネスト)' : 'エリア'} - ${candidate.bird.activity || '待機中'}`,
+                    value: `bird_feed_${index}`
+                }))
+            );
+
+        const row = new ActionRowBuilder().addComponents(selectMenu);
+
+        // 候補一覧を一時保存（セッション管理）
+        if (!global.birdSelectionCache) global.birdSelectionCache = new Map();
+        const sessionKey = `${interaction.user.id}_${interaction.guild.id}`;
+        global.birdSelectionCache.set(sessionKey, {
+            candidates: limitedCandidates,
+            originalCommand: 'feed',
+            timestamp: Date.now()
+        });
+
+        await interaction.reply({
+            content: `🔍 **"${searchName}"** で複数の鳥が見つかりました。餌をあげる鳥を選択してください：`,
+            components: [row],
+            ephemeral: true
+        });
+
+        return 'MULTIPLE_CANDIDATES'; // 特別な戻り値
+    },
+
+    // ⏰ 餌やりクールダウンチェック（修正版 - ネスト対応）
+    checkFeedingCooldown(bird, userId, isFromNest = false) {
+        // 🆕 ネストにいる鳥は常時餌やり可能
+        if (isFromNest) {
+            console.log(`🏠 ネスト鳥 ${bird.name} - 常時餌やり可能`);
+            return { canFeed: true };
+        }
+
         const now = new Date();
         const cooldownMinutes = 10;
         
@@ -1149,16 +1072,18 @@ module.exports = {
     async checkBirdGiftToUser(interaction, userId, userName, birdName, affinityLevel, area, guildId) {
         try {
             // 好感度が5以上の場合のみ贈り物チャンス
-            if (affinityLevel < 5) return null;
+            if (affinityLevel < 3) return null;
             
             // 贈り物確率
             let giftChance = 0;
-            if (affinityLevel >= 5) giftChance = 0.30; // 30%
-            if (affinityLevel >= 6) giftChance = 0.35; // 35%
-            if (affinityLevel >= 7) giftChance = 0.45; // 45%
-            if (affinityLevel >= 8) giftChance = 0.55; // 55%
-            if (affinityLevel >= 9) giftChance = 0.65; // 65%
-            if (affinityLevel >= 10) giftChance = 0.75; // 75%
+            if (affinityLevel >= 3) giftChance = 0.01; // 1%
+            if (affinityLevel >= 4) giftChance = 0.05; // 5%
+            if (affinityLevel >= 5) giftChance = 0.10; // 10%
+            if (affinityLevel >= 6) giftChance = 0.15; // 15%
+            if (affinityLevel >= 7) giftChance = 0.20; // 20%
+            if (affinityLevel >= 8) giftChance = 0.25; // 25%
+            if (affinityLevel >= 9) giftChance = 0.30; // 30%
+            if (affinityLevel >= 10) giftChance = 0.35; // 35%
             
             console.log(`🎲 ${birdName}(好感度${affinityLevel}) 贈り物チャンス: ${(giftChance * 100).toFixed(0)}%`);
             
@@ -1320,7 +1245,7 @@ module.exports = {
                         return logger.logEvent(
                             '餌やりイベント',
                             event.description,
-                            birdInfo.bird.name,
+                            birdInfo.bird.originalName || birdInfo.bird.name,
                             guildId
                         );
                     })
@@ -1405,3 +1330,5 @@ module.exports = {
         }
     }
 };
+
+// 🔚 モジュールエクスポート終了
