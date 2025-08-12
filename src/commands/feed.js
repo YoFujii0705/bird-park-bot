@@ -268,45 +268,48 @@ module.exports = {
 
     // 💭 餌やり思い出生成
     async handleFeedingMemory(interaction, birdInfo, feedResult, affinityResult, guildId) {
-        const memoryManager = require('../utils/humanMemoryManager');
-        const weatherManager = require('../utils/weather');
-        
-        const currentWeather = await weatherManager.getCurrentWeather();
-        
-        const actionData = {
-            type: 'feed',
-            preference: birdData.getFoodPreference(birdInfo.bird.originalName || birdInfo.bird.name, interaction.options.getString('food')),
+    const memoryManager = require('../utils/humanMemoryManager');
+    const weatherManager = require('../utils/weather');
+    
+    const currentWeather = await weatherManager.getCurrentWeather();
+    
+    // 🔧 修正: 初回判定ロジックを修正
+    const isFirstTime = birdInfo.bird.feedCount === 1; // 餌やり後なので1が初回
+    const isFirstFavorite = this.isFirstFavoriteFood(birdInfo.bird, interaction.options.getString('food'));
+    
+    const actionData = {
+        type: 'feed',
+        preference: birdData.getFoodPreference(birdInfo.bird.originalName || birdInfo.bird.name, interaction.options.getString('food')),
+        food: interaction.options.getString('food'),
+        isFirstTime: isFirstTime,
+        isFirstFavorite: isFirstFavorite,
+        weather: currentWeather.condition,
+        weatherDescription: currentWeather.description,
+        temperature: currentWeather.temperature,
+        hour: new Date().getHours(),
+        totalFeeds: birdInfo.bird.feedCount,
+        details: {
             food: interaction.options.getString('food'),
-            isFirstTime: birdInfo.bird.feedCount === 1,
-            isFirstFavorite: this.isFirstFavoriteFood(birdInfo.bird, interaction.options.getString('food')),
+            area: birdInfo.area,
+            effect: feedResult.effect,
             weather: currentWeather.condition,
             weatherDescription: currentWeather.description,
-            temperature: currentWeather.temperature,
-            hour: new Date().getHours(),
-            totalFeeds: birdInfo.bird.feedCount,
-            details: {
-                food: interaction.options.getString('food'),
-                area: birdInfo.area,
-                effect: feedResult.effect,
-                weather: currentWeather.condition,
-                weatherDescription: currentWeather.description,
-                temperature: currentWeather.temperature
-            }
-        };
-        
-        const newMemory = await memoryManager.createMemory(
-            interaction.user.id,
-            interaction.user.username,
-            birdInfo.bird.originalName || birdInfo.bird.name,
-            actionData,
-            guildId
-        );
-        
-        if (newMemory) {
-            await memoryManager.sendMemoryNotification(interaction, newMemory);
+            temperature: currentWeather.temperature
         }
-    },
-
+    };
+    
+    const newMemory = await memoryManager.createMemory(
+        interaction.user.id,
+        interaction.user.username,
+        birdInfo.bird.originalName || birdInfo.bird.name,
+        actionData,
+        guildId
+    );
+    
+    if (newMemory) {
+        await memoryManager.sendMemoryNotification(interaction, newMemory);
+    }
+},
     // 💖 好感度アップ思い出生成
     async handleAffinityMemory(interaction, birdInfo, affinityResult, guildId) {
         const memoryManager = require('../utils/humanMemoryManager');
@@ -405,31 +408,38 @@ module.exports = {
 
     // 🐦 鳥の状態更新
     updateBirdAfterFeeding(bird, food, preference, userId) {
-        const now = new Date();
-        const result = this.processFeedingResult(null, food, preference, null);
-        
-        bird.lastFed = now;
-        bird.lastFedBy = userId;
-        bird.feedCount = (bird.feedCount || 0) + 1;
-        bird.mood = result.moodChange;
-        
-        if (result.stayExtension > 0) {
-            if (!bird.stayExtensionHours) bird.stayExtensionHours = 0;
-            bird.stayExtensionHours += result.stayExtension;
-        }
-        
-        bird.activity = this.generateFeedingActivity(food, preference);
-        
-        if (!bird.feedHistory) bird.feedHistory = [];
-        bird.feedHistory.push({
-            food,
-            preference,
-            time: now,
-            fedBy: userId
-        });
+    const now = new Date();
+    const result = this.processFeedingResult(null, food, preference, null);
+    
+    // 🔧 修正: 初回餌やり判定を修正
+    const isFirstFeed = !bird.feedCount || bird.feedCount === 0;
+    
+    bird.lastFed = now;
+    bird.lastFedBy = userId;
+    bird.feedCount = (bird.feedCount || 0) + 1;
+    bird.mood = result.moodChange;
+    
+    if (result.stayExtension > 0) {
+        if (!bird.stayExtensionHours) bird.stayExtensionHours = 0;
+        bird.stayExtensionHours += result.stayExtension;
+    }
+    
+    bird.activity = this.generateFeedingActivity(food, preference);
+    
+    if (!bird.feedHistory) bird.feedHistory = [];
+    bird.feedHistory.push({
+        food,
+        preference,
+        time: now,
+        fedBy: userId,
+        isFirstFeed: isFirstFeed  // 🆕 初回フラグを記録
+    });
 
-        bird.isHungry = false;
-    },
+    bird.isHungry = false;
+    
+    // 🔧 修正: 初回フラグを正しく設定
+    bird.isFirstFeed = isFirstFeed;
+},
 
     // 🎭 餌やり後の活動生成
     generateFeedingActivity(food, preference) {
@@ -466,151 +476,151 @@ module.exports = {
     },
 
     // 📊 餌やり結果Embed作成
-    createFeedingResultEmbed(birdInfo, food, result, affinityResult) {
-        const { bird, area } = birdInfo;
-        
-        const foodEmojis = {
-            '麦': '🌾', '🌾麦': '🌾',
-            '虫': '🐛', '🐛虫': '🐛',
-            '魚': '🐟', '🐟魚': '🐟',
-            '花蜜': '🍯', '🍯花蜜': '🍯',
-            '木の実': '🥜', '🥜木の実': '🥜',
-            '青菜': '🌿', '🌿青菜': '🌿',
-            'ねずみ': '🐁', '🐁ねずみ': '🐁'
-        };
-        
-        const effectColors = {
-            '大喜び': 0xFF69B4,
-            '満足': 0x00FF00,
-            '微妙': 0xFFA500
-        };
+    // 🔧 createFeedingResultEmbed メソッドの修正版
+createFeedingResultEmbed(birdInfo, food, result, affinityResult) {
+    const { bird, area } = birdInfo;
+    
+    const foodEmojis = {
+        '麦': '🌾', '🌾麦': '🌾',
+        '虫': '🐛', '🐛虫': '🐛',
+        '魚': '🐟', '🐟魚': '🐟',
+        '花蜜': '🍯', '🍯花蜜': '🍯',
+        '木の実': '🥜', '🥜木の実': '🥜',
+        '青菜': '🌿', '🌿青菜': '🌿',
+        'ねずみ': '🐁', '🐁ねずみ': '🐁'
+    };
+    
+    const effectColors = {
+        '大喜び': 0xFF69B4,
+        '満足': 0x00FF00,
+        '微妙': 0xFFA500
+    };
 
-        const embed = new EmbedBuilder()
-            .setTitle(`🍽️ 餌やり結果`)
-            .setDescription(`**${bird.name}**${result.message}`)
-            .setColor(effectColors[result.effect] || 0x00AE86)
-            .addFields(
-                { name: '🐦 鳥', value: bird.name, inline: true },
-                { name: '📍 場所', value: `${area}${birdInfo.isFromNest ? ' (あなたのネスト)' : 'エリア'}`, inline: true },
-                { name: '🍽️ 餌', value: `${foodEmojis[food]} ${food}`, inline: true },
-                { name: '😊 反応', value: result.effect, inline: true },
-                { 
-                    name: '📅 効果', 
-                    value: result.stayExtension > 0 ? `滞在期間 +${result.stayExtension}時間` : '効果なし', 
-                    inline: true 
-                },
-                { name: '🎭 現在の様子', value: bird.activity, inline: true }
-            )
-            .setTimestamp();
+    const embed = new EmbedBuilder()
+        .setTitle(`🍽️ 餌やり結果`)
+        .setDescription(`**${bird.name}**${result.message}`)
+        .setColor(effectColors[result.effect] || 0x00AE86)
+        .addFields(
+            { name: '🐦 鳥', value: bird.name, inline: true },
+            { name: '📍 場所', value: `${area}${birdInfo.isFromNest ? ' (あなたのネスト)' : 'エリア'}`, inline: true },
+            { name: '🍽️ 餌', value: `${foodEmojis[food]} ${food}`, inline: true },
+            { name: '😊 反応', value: result.effect, inline: true },
+            { 
+                name: '📅 効果', 
+                value: result.stayExtension > 0 ? `滞在期間 +${result.stayExtension}時間` : '効果なし', 
+                inline: true 
+            },
+            { name: '🎭 現在の様子', value: bird.activity, inline: true }
+        )
+        .setTimestamp();
 
-        // 💖 好感度情報表示（修正版）
-        if (affinityResult) {
-            const maxHearts = 10;
-            const hearts = '💖'.repeat(affinityResult.newLevel) + '🤍'.repeat(maxHearts - affinityResult.newLevel);
-            
-            let affinityText = `${hearts}\nLv.${affinityResult.newLevel}/10 (${affinityResult.newFeedCount}回)`;
-            
-            if (affinityResult.levelUp) {
-                affinityText += '\n✨ レベルアップ！';
-            }
-            
-            // 好物ボーナス表示
-            if (affinityResult.feedIncrement > 1) {
-                affinityText += '\n🌟 好物ボーナス！(×1.5)';
-            }
-            
-            // 🆕 絆レベル表示（修正版）
-            if (affinityResult.newLevel >= 10 && affinityResult.bondResult) {
-                const bondResult = affinityResult.bondResult;
-                
-                if (bondResult.error) {
-                    // エラーが発生した場合
-                    affinityText += `\n\n🔗 **絆システム**`;
-                    affinityText += `\n❌ 絆レベル処理でエラーが発生しました`;
-                    affinityText += `\n再度餌やりをお試しください`;
-                } else if (bondResult.isProcessing) {
-                    // 処理中の場合（この状態は基本的になくなる）
-                    affinityText += `\n\n🔗 **絆システム起動！**`;
-                    affinityText += `\n⏳ 絆レベル処理中...`;
-                    affinityText += `\n好物餌やりで絆レベルが上がります！`;
-                } else {
-                    // 通常の絆レベル表示
-                    affinityText += `\n\n🔗 **絆レベル ${bondResult.newBondLevel}**`;
-                    affinityText += `\n絆: ${bondResult.newBondFeedCount}回`;
-                    
-                    if (bondResult.bondLevelUp) {
-                        affinityText += '\n✨ 絆レベルアップ！';
-                        
-                        // 🆕 ネストガチャ利用可能通知（修正版）
-                        affinityText += '\n🎰 **ネストガチャ利用可能！**';
-                        affinityText += '\n`/nest gacha bird:' + birdInfo.bird.originalName || birdInfo.bird.name + '` でガチャを引こう！';
-                    }
-                    
-                    // 次の絆レベルまでの進捗
-                    if (bondResult.requiredForNextBond && bondResult.requiredForNextBond > bondResult.newBondFeedCount) {
-                        const remaining = bondResult.requiredForNextBond - bondResult.newBondFeedCount;
-                        affinityText += `\n次の絆レベルまで: ${remaining.toFixed(1)}回`;
-                    }
-                    
-                    // 絆レベル特典表示
-                    if (bondResult.newBondLevel >= 1) {
-                        affinityText += '\n🏠 ネスト建設可能！';
-                    }
-                    if (bondResult.newBondLevel >= 3) {
-                        affinityText += '\n🚶 レア散歩ルート解放！';
-                    }
-                    if (bondResult.newBondLevel >= 5) {
-                        affinityText += '\n🌟 特別散歩ルート解放！';
-                    }
-                    if (bondResult.newBondLevel >= 10) {
-                        affinityText += '\n👑 最高級散歩ルート解放！';
-                    }
-                }
-            } else if (affinityResult.newLevel >= 10) {
-                affinityText += '\n\n🔗 **絆システム解放済み**';
-                affinityText += '\n好物餌やりで絆レベルが上がります！';
-            } else {
-                // 次のレベルまでの進捗
-                if (affinityResult.requiredForNext) {
-                    const remaining = affinityResult.requiredForNext - affinityResult.newFeedCount;
-                    affinityText += `\n次のレベルまで: ${remaining.toFixed(1)}回`;
-                }
-            }
-            
-            // 贈り物解放通知
-            if (affinityResult.newLevel >= 3) {
-                affinityText += '\n🎁 贈り物可能！';
-            } else if (affinityResult.newLevel >= 2) {
-                affinityText += '\n🎁 もうすぐ贈り物可能！';
-            } else if (affinityResult.newLevel >= 1) {  
-                affinityText += '\n🎁 あと少しで贈り物可能！';
-            }
-            
-            embed.addFields({
-                name: '💝 好感度',
-                value: affinityText,
-                inline: false
-            });
+    // 💖 好感度情報表示（修正版）
+    if (affinityResult) {
+        const maxHearts = 10;
+        const hearts = '💖'.repeat(affinityResult.newLevel) + '🤍'.repeat(maxHearts - affinityResult.newLevel);
+        
+        let affinityText = `${hearts}\nLv.${affinityResult.newLevel}/10 (${affinityResult.newFeedCount}回)`;
+        
+        if (affinityResult.levelUp) {
+            affinityText += '\n✨ レベルアップ！';
         }
-
-        // 📊 統計情報
-        const feedCount = bird.feedCount || 1;
+        
+        // 好物ボーナス表示
+        if (affinityResult.feedIncrement > 1) {
+            affinityText += '\n🌟 好物ボーナス！(×1.5)';
+        }
+        
+        // 🆕 絆レベル表示（修正版）
+        if (affinityResult.newLevel >= 10 && affinityResult.bondResult) {
+            const bondResult = affinityResult.bondResult;
+            
+            if (bondResult.error) {
+                affinityText += `\n\n🔗 **絆システム**`;
+                affinityText += `\n❌ 絆レベル処理でエラーが発生しました`;
+                affinityText += `\n再度餌やりをお試しください`;
+            } else {
+                affinityText += `\n\n🔗 **絆レベル ${bondResult.newBondLevel}**`;
+                affinityText += `\n絆: ${bondResult.newBondFeedCount}回`;
+                
+                if (bondResult.bondLevelUp) {
+                    affinityText += '\n✨ 絆レベルアップ！';
+                    
+                    // 🆕 ネストガチャ利用可能通知（修正版）
+                    affinityText += '\n🎰 **ネストガチャ利用可能！**';
+                    affinityText += `\n\`/nest gacha bird:${bird.originalName || bird.name}\` でガチャを引こう！`;
+                }
+                
+                // 次の絆レベルまでの進捗
+                if (bondResult.requiredForNextBond && bondResult.requiredForNextBond > bondResult.newBondFeedCount) {
+                    const remaining = bondResult.requiredForNextBond - bondResult.newBondFeedCount;
+                    affinityText += `\n次の絆レベルまで: ${remaining.toFixed(1)}回`;
+                }
+                
+                // 絆レベル特典表示
+                if (bondResult.newBondLevel >= 1) {
+                    affinityText += '\n🏠 ネスト建設可能！';
+                }
+                if (bondResult.newBondLevel >= 3) {
+                    affinityText += '\n🚶 レア散歩ルート解放！';
+                }
+                if (bondResult.newBondLevel >= 5) {
+                    affinityText += '\n🌟 特別散歩ルート解放！';
+                }
+                if (bondResult.newBondLevel >= 10) {
+                    affinityText += '\n👑 最高級散歩ルート解放！';
+                }
+            }
+        } else if (affinityResult.newLevel >= 10) {
+            affinityText += '\n\n🔗 **絆システム解放済み**';
+            affinityText += '\n好物餌やりで絆レベルが上がります！';
+        } else {
+            // 次のレベルまでの進捗
+            if (affinityResult.requiredForNext) {
+                const remaining = affinityResult.requiredForNext - affinityResult.newFeedCount;
+                affinityText += `\n次のレベルまで: ${remaining.toFixed(1)}回`;
+            }
+        }
+        
+        // 贈り物解放通知
+        if (affinityResult.newLevel >= 3) {
+            affinityText += '\n🎁 贈り物可能！';
+        } else if (affinityResult.newLevel >= 2) {
+            affinityText += '\n🎁 もうすぐ贈り物可能！';
+        } else if (affinityResult.newLevel >= 1) {  
+            affinityText += '\n🎁 あと少しで贈り物可能！';
+        }
+        
         embed.addFields({
-            name: '📊 餌やり統計',
-            value: `この鳥への餌やり回数: ${feedCount}回`,
+            name: '💝 好感度',
+            value: affinityText,
             inline: false
         });
+    }
 
-        return embed;
-    },
+    // 📊 統計情報（修正版）
+    const feedCount = bird.feedCount || 1;
+    embed.addFields({
+        name: '📊 餌やり統計',
+        value: `この鳥への餌やり回数: ${feedCount}回`,
+        inline: false
+    });
+
+    return embed;
+},
 
     // 🔍 好物初回チェック
     isFirstFavoriteFood(bird, food) {
-        if (!bird.feedHistory) return false;
-        const birdData = require('../utils/birdData');
-        const preference = birdData.getFoodPreference(bird.originalName || bird.name, food);
-        return preference === 'favorite' && !bird.feedHistory.some(h => h.preference === 'favorite');
-    },
+    if (!bird.feedHistory || bird.feedHistory.length === 0) return false;
+    
+    const birdData = require('../utils/birdData');
+    const preference = birdData.getFoodPreference(bird.originalName || bird.name, food);
+    
+    if (preference !== 'favorite') return false;
+    
+    // 🔧 修正: 現在の餌やりを除いて過去の履歴をチェック
+    const pastFavoriteFeeds = bird.feedHistory.slice(0, -1).filter(h => h.preference === 'favorite');
+    return pastFavoriteFeeds.length === 0;
+},
 
     // 💖 好感度処理メソッド（絆レベル表示修正版）
     async processAffinity(userId, userName, birdName, preference, serverId) {
