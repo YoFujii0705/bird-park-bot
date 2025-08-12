@@ -397,6 +397,123 @@ async updateNestChannelId(userId, birdName, channelId, serverId) {
         });
     }
 
+    // 🆕 ネストガチャチケットを記録
+    async logNestGachaTicket(userId, userName, birdName, bondLevel, status, serverId) {
+        try {
+            console.log(`🎰 ネストガチャチケット記録: ${userName} -> ${birdName} (絆レベル${bondLevel})`);
+            
+            // ネストガチャチケット用シートを初期化
+            if (!this.sheets.nestGachaTickets) {
+                this.sheets.nestGachaTickets = await this.getOrCreateSheet('nest_gacha_tickets', [
+                    '日時', 'ユーザーID', 'ユーザー名', '鳥名', '絆レベル', 
+                    '使用状況', 'サーバーID'
+                ]);
+            }
+            
+            const logData = {
+                ユーザーID: userId,
+                ユーザー名: userName,
+                鳥名: birdName,
+                絆レベル: bondLevel,
+                使用状況: status, // 'available' または 'used'
+                サーバーID: serverId
+            };
+            
+            const result = await this.addLog('nestGachaTickets', logData);
+            console.log(`🎫 ネストガチャチケット記録完了:`, result);
+            
+            return result;
+            
+        } catch (error) {
+            console.error('ネストガチャチケット記録エラー:', error);
+            return false;
+        }
+    }
+
+    // 🆕 利用可能なネストガチャを取得
+    async getAvailableNestGacha(userId, birdName, serverId) {
+        try {
+            await this.ensureInitialized();
+            
+            // ネストガチャチケット用シートを初期化
+            if (!this.sheets.nestGachaTickets) {
+                this.sheets.nestGachaTickets = await this.getOrCreateSheet('nest_gacha_tickets', [
+                    '日時', 'ユーザーID', 'ユーザー名', '鳥名', '絆レベル', 
+                    '使用状況', 'サーバーID'
+                ]);
+            }
+            
+            const sheet = this.sheets.nestGachaTickets;
+            const rows = await sheet.getRows();
+            
+            const availableGacha = [];
+            rows.forEach(row => {
+                if (row.get('ユーザーID') === userId && 
+                    row.get('鳥名') === birdName && 
+                    row.get('サーバーID') === serverId &&
+                    row.get('使用状況') === 'available') {
+                    
+                    availableGacha.push({
+                        id: row.get('日時'), // 一意識別子として日時を使用
+                        bondLevel: parseInt(row.get('絆レベル')) || 1,
+                        日時: row.get('日時')
+                    });
+                }
+            });
+            
+            // 絆レベル順でソート
+            return availableGacha.sort((a, b) => a.bondLevel - b.bondLevel);
+            
+        } catch (error) {
+            console.error('利用可能ネストガチャ取得エラー:', error);
+            return [];
+        }
+    }
+
+    // 🆕 ネストガチャを使用済みにマーク
+    async markNestGachaAsUsed(userId, birdName, bondLevel, serverId) {
+        try {
+            await this.ensureInitialized();
+            
+            if (!this.sheets.nestGachaTickets) {
+                console.error('nest_gacha_tickets シートが見つかりません');
+                return false;
+            }
+            
+            const sheet = this.sheets.nestGachaTickets;
+            const rows = await sheet.getRows();
+            
+            // 該当するガチャチケットを見つけて使用済みに更新
+            let updated = false;
+            for (const row of rows) {
+                if (row.get('ユーザーID') === userId && 
+                    row.get('鳥名') === birdName && 
+                    row.get('サーバーID') === serverId &&
+                    parseInt(row.get('絆レベル')) === bondLevel &&
+                    row.get('使用状況') === 'available') {
+                    
+                    row.set('使用状況', 'used');
+                    row.set('日時', new Date().toLocaleString('ja-JP'));
+                    await row.save();
+                    
+                    updated = true;
+                    console.log(`🎰 ガチャチケット使用済み: ${birdName} (絆レベル${bondLevel})`);
+                    break;
+                }
+            }
+            
+            if (!updated) {
+                console.error(`❌ 該当するガチャチケットが見つかりません: ${userId} - ${birdName} - 絆レベル${bondLevel}`);
+            }
+            
+            return updated;
+            
+        } catch (error) {
+            console.error('ネストガチャ使用済みマークエラー:', error);
+            return false;
+        }
+    }
+
     async logBirdGift(birdName, giftName, giverId, giverName, caption, serverId) {
     try {
         console.log(`🔍 logBirdGift呼び出し: ${birdName}, ${giftName}, ${giverId}, ${giverName}, ${serverId}`);
@@ -901,34 +1018,55 @@ async updateBondFeedCount(userId, birdName, newBondFeedCount, serverId) {
     }
 }
     
-    // ネスト取得を記録
+    // 🆕 ネスト取得を記録（改良版）
     async logNestAcquisition(userId, userName, birdName, nestType, bondLevel, acquisitionMethod, updatedNestList, serverId) {
         try {
-            const data = [
-                new Date().toISOString(),
-                userId,
-                userName,
-                birdName,
-                nestType,
-                bondLevel,
-                acquisitionMethod, // 'bond_level_gacha', 'holiday_distribution', etc.
-                JSON.stringify(updatedNestList), // 現在の所持ネストリスト
-                serverId
-            ];
-
-            await this.appendToSheet('nestAcquisitions', data);
             console.log(`🏠 ネスト取得記録: ${userName} -> ${nestType} (${acquisitionMethod})`);
-
+            
+            // ネスト取得履歴用シートを初期化
+            if (!this.sheets.nestAcquisitions) {
+                this.sheets.nestAcquisitions = await this.getOrCreateSheet('nest_acquisitions', [
+                    '日時', 'ユーザーID', 'ユーザー名', '鳥名', 'ネストタイプ', 
+                    '絆レベル', '取得方法', '所持ネストリスト', 'サーバーID'
+                ]);
+            }
+            
+            const logData = {
+                ユーザーID: userId,
+                ユーザー名: userName,
+                鳥名: birdName,
+                ネストタイプ: nestType,
+                絆レベル: bondLevel,
+                取得方法: acquisitionMethod, // 'bond_level_gacha', 'holiday_distribution', etc.
+                所持ネストリスト: JSON.stringify(updatedNestList),
+                サーバーID: serverId
+            };
+            
+            const result = await this.addLog('nestAcquisitions', logData);
+            console.log(`🏠 ネスト取得記録完了:`, result);
+            
+            return result;
+            
         } catch (error) {
             console.error('ネスト取得記録エラー:', error);
-            throw error;
+            return false;
         }
     }
 
-    // ユーザーの所持ネストリストを取得
+   // 🆕 ユーザーの所持ネストタイプを取得（改良版）
     async getUserOwnedNestTypes(userId, serverId) {
         try {
-            const sheet = await this.getSheet('nestAcquisitions');
+            await this.ensureInitialized();
+            
+            // まずnest_acquisitionsシートから取得を試行
+            if (!this.sheets.nestAcquisitions) {
+                this.sheets.nestAcquisitions = await this.getOrCreateSheet('nest_acquisitions', [
+                    '日時', 'ユーザーID', 'ユーザー名', '鳥名', 'ネストタイプ', 
+                    '絆レベル', '取得方法', '所持ネストリスト', 'サーバーID'
+                ]);
+            }
+            
+            const sheet = this.sheets.nestAcquisitions;
             const rows = await sheet.getRows();
             
             // 該当ユーザーのネスト取得記録を取得
@@ -938,6 +1076,7 @@ async updateBondFeedCount(userId, birdName, newBondFeedCount, serverId) {
             );
 
             if (userNestRecords.length === 0) {
+                console.log(`📊 ${userId}の所持ネスト記録が見つかりません`);
                 return []; // 所持ネストなし
             }
 
@@ -946,7 +1085,9 @@ async updateBondFeedCount(userId, birdName, newBondFeedCount, serverId) {
             const nestListStr = latestRecord.get('所持ネストリスト') || '[]';
             
             try {
-                return JSON.parse(nestListStr);
+                const ownedNests = JSON.parse(nestListStr);
+                console.log(`📊 ${userId}の所持ネスト:`, ownedNests);
+                return ownedNests;
             } catch (parseError) {
                 console.error('ネストリスト解析エラー:', parseError);
                 return [];
@@ -995,26 +1136,37 @@ async updateBondFeedCount(userId, birdName, newBondFeedCount, serverId) {
         }
     }
 
-    // ネスト変更を記録
+    // 🆕 ネスト変更を記録（改良版）
     async logNestChange(userId, userName, birdName, oldNestType, newNestType, serverId) {
         try {
-            const data = [
-                new Date().toISOString(),
-                userId,
-                userName,
-                birdName,
-                oldNestType,
-                newNestType,
-                'manual_change', // 変更方法
-                serverId
-            ];
-
-            await this.appendToSheet('nestChanges', data);
             console.log(`🔄 ネスト変更記録: ${userName} -> ${birdName} (${oldNestType} → ${newNestType})`);
-
+            
+            // ネスト変更履歴用シートを初期化
+            if (!this.sheets.nestChanges) {
+                this.sheets.nestChanges = await this.getOrCreateSheet('nest_changes', [
+                    '日時', 'ユーザーID', 'ユーザー名', '鳥名', '旧ネストタイプ', 
+                    '新ネストタイプ', '変更方法', 'サーバーID'
+                ]);
+            }
+            
+            const logData = {
+                ユーザーID: userId,
+                ユーザー名: userName,
+                鳥名: birdName,
+                旧ネストタイプ: oldNestType,
+                新ネストタイプ: newNestType,
+                変更方法: 'manual_change',
+                サーバーID: serverId
+            };
+            
+            const result = await this.addLog('nestChanges', logData);
+            console.log(`🔄 ネスト変更記録完了:`, result);
+            
+            return result;
+            
         } catch (error) {
             console.error('ネスト変更記録エラー:', error);
-            throw error;
+            return false;
         }
     }
 
