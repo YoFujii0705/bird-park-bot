@@ -178,6 +178,10 @@ async function handleComponentInteraction(interaction) {
         else if (customId.startsWith('nest_select_')) {
             await handleNestSelection(interaction);
         }
+        // 🆕 餌やり鳥選択セレクトメニュー
+        else if (customId === 'bird_feed_select') {
+            await handleBirdFeedSelection(interaction);
+        }
         // 🎁 贈り物関連のセレクトメニュー（新規追加）
         else if (customId === 'gift_bird_select') {
             // gift.jsで処理済みなので何もしない
@@ -201,6 +205,10 @@ async function handleComponentInteraction(interaction) {
         else if (customId === 'bird_detail_select') {
             await handleBirdDetailSelect(interaction);
         }
+            // 🆕 餌選択セレクトメニュー  
+        else if (customId === 'food_select') {
+            await handleFoodSelection(interaction);
+        }
         // その他
         else {
             console.log(`未処理のコンポーネント: ${customId}`);
@@ -220,6 +228,94 @@ async function handleComponentInteraction(interaction) {
             }
         }
     }
+}
+
+// 🆕 餌やり鳥選択処理関数
+async function handleBirdFeedSelection(interaction) {
+    try {
+        if (!interaction.values || interaction.values.length === 0) {
+            await interaction.reply({
+                content: '鳥が選択されていません。',
+                ephemeral: true
+            });
+            return;
+        }
+
+        const selectedValue = interaction.values[0]; // 例: "bird_feed_0"
+        const birdIndex = parseInt(selectedValue.split('_')[2]);
+        
+        // セッションキャッシュから候補を取得
+        const sessionKey = `${interaction.user.id}_${interaction.guild.id}`;
+        const session = global.birdSelectionCache?.get(sessionKey);
+        
+        if (!session || !session.candidates || birdIndex >= session.candidates.length) {
+            await interaction.reply({
+                content: '❌ 選択セッションが期限切れです。再度コマンドを実行してください。',
+                ephemeral: true
+            });
+            return;
+        }
+
+        // 選択された鳥の情報を取得
+        const selectedBird = session.candidates[birdIndex];
+        
+        // セッションをクリア
+        global.birdSelectionCache.delete(sessionKey);
+        
+        // 餌やりダイアログを表示
+        await showFeedingDialog(interaction, selectedBird);
+        
+    } catch (error) {
+        console.error('餌やり鳥選択エラー:', error);
+        await interaction.reply({
+            content: '鳥の選択処理中にエラーが発生しました。',
+            ephemeral: true
+        });
+    }
+}
+
+// 🆕 餌やりダイアログ表示関数
+async function showFeedingDialog(interaction, birdInfo) {
+    const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
+    
+    const foodOptions = [
+        { name: '🌾 麦', value: '麦' },
+        { name: '🐛 虫', value: '虫' },
+        { name: '🐟 魚', value: '魚' },
+        { name: '🍯 花蜜', value: '花蜜' },
+        { name: '🥜 木の実', value: '木の実' },
+        { name: '🌿 青菜', value: '青菜' },
+        { name: '🐁 ねずみ', value: 'ねずみ' }
+    ];
+
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('food_select')
+        .setPlaceholder('餌の種類を選択してください...')
+        .addOptions(
+            foodOptions.map(food => ({
+                label: food.name,
+                value: food.value
+            }))
+        );
+
+    const row = new ActionRowBuilder().addComponents(selectMenu);
+
+    // 餌やりセッションを保存
+    const sessionKey = `${interaction.user.id}_${interaction.guild.id}`;
+    if (!global.feedingSessionCache) global.feedingSessionCache = new Map();
+    global.feedingSessionCache.set(sessionKey, {
+        birdInfo: birdInfo,
+        timestamp: Date.now()
+    });
+
+    const locationText = birdInfo.isFromNest ? 
+        `${birdInfo.area} (あなたのネスト)` : 
+        `${birdInfo.area}エリア`;
+
+    await interaction.update({
+        content: `🍽️ **${birdInfo.bird.name}** に餌をあげます\n📍 場所: ${locationText}\n\n餌の種類を選択してください：`,
+        components: [row]
+    });
 }
     
 // 鳥詳細選択メニュー処理
