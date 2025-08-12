@@ -32,6 +32,16 @@ const data = new SlashCommandBuilder()
             )
     )
     .addSubcommand(subcommand =>
+    subcommand
+        .setName('gacha')
+        .setDescription('絆レベルアップ報酬でネストガチャを引きます')
+        .addStringOption(option =>
+            option.setName('bird')
+                .setDescription('ガチャを引く鳥の名前')
+                .setRequired(true)
+        )
+)
+    .addSubcommand(subcommand =>
         subcommand
             .setName('change')
             .setDescription('ネストのタイプを変更します')
@@ -64,6 +74,9 @@ async function execute(interaction) {
                 break;
             case 'change':
                 await handleNestChange(interaction);
+                break;
+            case 'gacha':
+                await handleNestGacha(interaction);
                 break;
             default:
                 await interaction.reply('不明なサブコマンドです。');
@@ -172,6 +185,134 @@ async function handleNestView(interaction) {
         await interaction.reply({
             content: 'ネスト情報の取得中にエラーが発生しました。'
         });
+    }
+}
+
+// 🆕 ネストガチャハンドラー
+async function handleNestGacha(interaction) {
+    try {
+        const birdName = interaction.options.getString('bird');
+        const userId = interaction.user.id;
+        const userName = interaction.user.displayName || interaction.user.username;
+        const serverId = interaction.guild.id;
+        
+        await interaction.deferReply();
+        
+        // 絆レベルとガチャ利用可能チェック
+        const gachaCheck = await checkNestGachaAvailability(userId, birdName, serverId);
+        
+        if (!gachaCheck.canUse) {
+            await interaction.editReply({
+                content: `❌ ネストガチャ利用不可: ${gachaCheck.message}`
+            });
+            return;
+        }
+        
+        // NestSystemインスタンスを作成
+        const nestSystem = new NestSystem();
+        
+        // 鳥のエリアを取得してネストタイプを生成
+        const birdArea = nestSystem.getBirdArea(birdName, serverId);
+        const nestOptions = nestSystem.generateNestOptions(birdArea);
+        
+        // ガチャ形式で3つの選択肢を提示
+        const embed = {
+            title: `🎰 ${birdName}との絆レベル${gachaCheck.bondLevel} ネストガチャ`,
+            description: `${birdArea}エリアに適したネストタイプが登場しました！\n絆の証として、特別なネストを1つ選んでください：`,
+            color: 0xFFD700,
+            fields: nestOptions.map((nestType, index) => ({
+                name: `${index + 1}. ${nestType}`,
+                value: getNestDescription(nestType),
+                inline: false
+            })),
+            footer: {
+                text: `絆レベル${gachaCheck.bondLevel}達成報酬 | ${userName}さん専用`
+            }
+        };
+        
+        // 選択ボタンを作成
+        const components = [{
+            type: 1,
+            components: nestOptions.map((nestType, index) => ({
+                type: 2,
+                style: 1,
+                label: `${index + 1}. ${nestType.length > 20 ? nestType.substring(0, 17) + '...' : nestType}`,
+                custom_id: `nest_gacha_${index}_${userId}_${birdName}_${nestType}_${gachaCheck.bondLevel}`
+            }))
+        }];
+        
+        await interaction.editReply({
+            embeds: [embed],
+            components: components
+        });
+        
+        // ガチャ使用済みフラグを設定
+        await markNestGachaAsUsed(userId, birdName, gachaCheck.bondLevel, serverId);
+        
+    } catch (error) {
+        console.error('ネストガチャエラー:', error);
+        
+        if (interaction.deferred) {
+            await interaction.editReply({
+                content: 'ネストガチャ中にエラーが発生しました。'
+            });
+        } else {
+            await interaction.reply({
+                content: 'ネストガチャ中にエラーが発生しました。',
+                ephemeral: true
+            });
+        }
+    }
+}
+
+// 🆕 ネストガチャ利用可能チェック
+async function checkNestGachaAvailability(userId, birdName, serverId) {
+    try {
+        // 現在の絆レベルを取得
+        const bondLevel = await sheets.getUserBondLevel(userId, birdName, serverId);
+        
+        if (!bondLevel || bondLevel.bondLevel < 1) {
+            return {
+                canUse: false,
+                message: 'この鳥との絆レベル1以上が必要です'
+            };
+        }
+        
+        // 未使用のガチャチケットがあるかチェック
+        const availableGacha = await sheets.getAvailableNestGacha(userId, birdName, serverId);
+        
+        if (!availableGacha || availableGacha.length === 0) {
+            return {
+                canUse: false,
+                message: '利用可能なネストガチャがありません。絆レベルを上げると新しいガチャが利用できます'
+            };
+        }
+        
+        // 最新の未使用ガチャを取得
+        const latestGacha = availableGacha[availableGacha.length - 1];
+        
+        return {
+            canUse: true,
+            bondLevel: latestGacha.bondLevel,
+            gachaId: latestGacha.id
+        };
+        
+    } catch (error) {
+        console.error('ネストガチャ利用可能チェックエラー:', error);
+        return {
+            canUse: false,
+            message: 'チェック中にエラーが発生しました'
+        };
+    }
+}
+
+// 🆕 ネストガチャ使用済みマーク
+async function markNestGachaAsUsed(userId, birdName, bondLevel, serverId) {
+    try {
+        await sheets.markNestGachaAsUsed(userId, birdName, bondLevel, serverId);
+        console.log(`🎰 ネストガチャ使用済み記録: ${userId} -> ${birdName} (絆レベル${bondLevel})`);
+    } catch (error) {
+        console.error('ネストガチャ使用済みマークエラー:', error);
     }
 }
 
@@ -1335,11 +1476,11 @@ class NestSystem {
 }
 
 module.exports = {
+    data,
+    execute,
+    NestSystem,
     handleNestChange,
     displayNestChangeOptions,
     changeNestType,
-    getNestDescription,
-    data,           // ← これが必要
-    execute,        // ← これも必要
-    NestSystem      // ← クラスもエクスポート
+    getNestDescription
 };
