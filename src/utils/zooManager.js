@@ -3111,7 +3111,7 @@ async removeBirdFromZooForNest(birdName, guildId) {
 }
 
     // ===========================================
-// 🚨 緊急用：重複鳥の整理機能
+// 🚨 緊急用：重複鳥の整理機能（修正版）
 // ===========================================
 
 /**
@@ -3123,26 +3123,42 @@ async emergencyCleanupDuplicateBirds(guildId) {
         console.log(`🚨 サーバー ${guildId} で重複鳥の緊急整理開始...`);
         
         // ネストシステムを安全に取得
-        const nestSystem = this.getNestSystem();
-        if (!nestSystem) {
-            console.error('❌ NestSystemが利用できません');
-            return { success: false, message: 'NestSystemが利用できません' };
+        let nestBirds = [];
+        
+        try {
+            // bondLevelManagerを通じてネスト情報を取得
+            const bondLevelManager = require('./bondLevelManager');
+            if (bondLevelManager && bondLevelManager.getAllUserNests) {
+                const allNests = await bondLevelManager.getAllUserNests(guildId);
+                nestBirds = allNests.map(nest => nest.birdName || nest.鳥名).filter(name => name);
+            } else {
+                console.log('⚠️ bondLevelManagerからネスト情報を取得できませんでした');
+            }
+        } catch (nestError) {
+            console.log('⚠️ ネスト情報の取得に失敗、代替手段を試行:', nestError.message);
+            
+            // 代替: nestSystemから直接取得を試行
+            try {
+                const nestSystem = this.getNestSystem();
+                if (nestSystem && nestSystem.getAllNests) {
+                    const nests = await nestSystem.getAllNests(guildId);
+                    nestBirds = nests.map(nest => nest.birdName || nest.鳥名).filter(name => name);
+                }
+            } catch (altError) {
+                console.log('⚠️ 代替手段も失敗:', altError.message);
+            }
         }
-
-        if (!this.sheetsManager) {
-            console.error('❌ SheetsManagerが利用できません');
-            return { success: false, message: 'SheetsManagerが利用できません' };
-        }
-
-        // ネストにいる全ての鳥を取得
-        const allNests = await this.sheetsManager.getAllNests(guildId);
-        const nestBirds = allNests.map(nest => nest.鳥名);
         
         console.log(`🔍 ネストにいる鳥: ${nestBirds.join(', ')}`);
         
         if (nestBirds.length === 0) {
-            console.log('ℹ️ ネストに鳥がいないため処理をスキップします');
-            return { success: true, message: 'ネストに鳥がいないため処理不要', removed: [] };
+            console.log('ℹ️ ネストに鳥がいないか、ネスト情報を取得できませんでした');
+            return { 
+                success: true, 
+                message: 'ネストに鳥がいないか、ネスト情報を取得できませんでした', 
+                removed: [],
+                nestBirds: []
+            };
         }
 
         const zooState = this.getZooState(guildId);
@@ -3249,7 +3265,7 @@ async emergencyCleanupDuplicateBirds(guildId) {
 }
 
 /**
- * 特定の鳥の重複状態をチェック
+ * 特定の鳥の重複状態をチェック（修正版）
  */
 async checkBirdDuplication(birdName, guildId) {
     try {
@@ -3262,10 +3278,30 @@ async checkBirdDuplication(birdName, guildId) {
             isDuplicated: false
         };
         
-        // ネストにいるかチェック
-        if (this.sheetsManager) {
-            const allNests = await this.sheetsManager.getAllNests(guildId);
-            result.inNest = allNests.some(nest => nest.鳥名 === birdName);
+        // ネストにいるかチェック（複数の方法を試行）
+        try {
+            // bondLevelManagerを通じてチェック
+            const bondLevelManager = require('./bondLevelManager');
+            if (bondLevelManager && bondLevelManager.getAllUserNests) {
+                const allNests = await bondLevelManager.getAllUserNests(guildId);
+                result.inNest = allNests.some(nest => 
+                    (nest.birdName || nest.鳥名) === birdName
+                );
+            }
+            
+            // 代替手段
+            if (!result.inNest) {
+                const nestSystem = this.getNestSystem();
+                if (nestSystem && nestSystem.getAllNests) {
+                    const nests = await nestSystem.getAllNests(guildId);
+                    result.inNest = nests.some(nest => 
+                        (nest.birdName || nest.鳥名) === birdName
+                    );
+                }
+            }
+        } catch (nestError) {
+            console.log(`⚠️ ネスト情報の取得に失敗: ${nestError.message}`);
+            result.inNest = false; // ネスト情報が取得できない場合はfalse
         }
         
         // 鳥類園にいるかチェック
@@ -3313,7 +3349,6 @@ async checkBirdDuplication(birdName, guildId) {
         };
     }
 }
-
 /**
  * 緊急用：特定の鳥だけを鳥類園から退園（デバッグ用）
  */
