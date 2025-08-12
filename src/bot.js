@@ -317,6 +317,152 @@ async function showFeedingDialog(interaction, birdInfo) {
         components: [row]
     });
 }
+
+// 🆕 餌選択処理関数
+async function handleFoodSelection(interaction) {
+    try {
+        if (!interaction.values || interaction.values.length === 0) {
+            await interaction.reply({
+                content: '餌が選択されていません。',
+                ephemeral: true
+            });
+            return;
+        }
+
+        const selectedFood = interaction.values[0];
+        
+        // セッションキャッシュから鳥情報を取得
+        const sessionKey = `${interaction.user.id}_${interaction.guild.id}`;
+        const session = global.feedingSessionCache?.get(sessionKey);
+        
+        if (!session || !session.birdInfo) {
+            await interaction.reply({
+                content: '❌ 餌やりセッションが期限切れです。再度コマンドを実行してください。',
+                ephemeral: true
+            });
+            return;
+        }
+
+        // セッションをクリア
+        global.feedingSessionCache.delete(sessionKey);
+        
+        // 餌やりコマンドを実行
+        await executeFeedingCommand(interaction, session.birdInfo, selectedFood);
+        
+    } catch (error) {
+        console.error('餌選択処理エラー:', error);
+        await interaction.reply({
+            content: '餌の選択処理中にエラーが発生しました。',
+            ephemeral: true
+        });
+    }
+}
+
+// 🆕 餌やりコマンド実行関数
+async function executeFeedingCommand(interaction, birdInfo, food) {
+    try {
+        // feedコマンドを取得して実行
+        const feedCommand = client.commands.get('feed');
+        if (!feedCommand) {
+            await interaction.update({
+                content: '❌ 餌やりコマンドが利用できません。',
+                components: []
+            });
+            return;
+        }
+
+        // 🌙 睡眠時間チェック
+        const sleepCheck = feedCommand.checkBirdSleepTime();
+        if (sleepCheck.isSleeping) {
+            await interaction.update({
+                content: sleepCheck.message,
+                components: []
+            });
+            return;
+        }
+
+        // ⏰ クールダウンチェック（ネスト対応）
+        const cooldownResult = feedCommand.checkFeedingCooldown(
+            birdInfo.bird, 
+            interaction.user.id, 
+            birdInfo.isFromNest
+        );
+        if (!cooldownResult.canFeed) {
+            await interaction.update({
+                content: `⏰ ${birdInfo.bird.name}にはまだ餌をあげられません。\n次回餌やり可能時刻: ${cooldownResult.nextFeedTime}`,
+                components: []
+            });
+            return;
+        }
+
+        const guildId = interaction.guild.id;
+        
+        // 🔄 鳥データ初期化チェック
+        const birdData = require('./utils/birdData');
+        if (!birdData.initialized) {
+            await interaction.update({
+                content: '🔄 鳥データを読み込み中です...少々お待ちください',
+                components: []
+            });
+            await birdData.initialize();
+        }
+
+        // 🏗️ 動物園初期化
+        const zooManager = require('./utils/zooManager');
+        await zooManager.initializeServer(guildId);
+
+        // 🍽️ 餌やり処理
+        const preference = birdData.getFoodPreference(
+            birdInfo.bird.originalName || birdInfo.bird.name, 
+            food
+        );
+        const feedResult = feedCommand.processFeedingResult(birdInfo, food, preference, interaction.user);
+        feedCommand.updateBirdAfterFeeding(birdInfo.bird, food, preference, interaction.user.id);
+
+        // 💖 好感度処理
+        const affinityResult = await feedCommand.processAffinity(
+            interaction.user.id, 
+            interaction.user.username, 
+            birdInfo.bird.originalName || birdInfo.bird.name, 
+            preference, 
+            guildId
+        );
+
+        // 📊 結果表示
+        const embed = feedCommand.createFeedingResultEmbed(birdInfo, food, feedResult, affinityResult);
+        await interaction.update({ 
+            embeds: [embed], 
+            components: [] 
+        });
+
+        // 📋 ログ記録
+        const logger = require('./utils/logger');
+        await logger.logFeedWithServer(
+            interaction.user.id,
+            interaction.user.username,
+            birdInfo.bird.originalName || birdInfo.bird.name,
+            food,
+            feedResult.effect,
+            guildId
+        );
+
+        // 🎯 非同期処理を開始
+        feedCommand.startAsyncProcesses(interaction, birdInfo, feedResult, affinityResult, guildId);
+
+        // ✨ 特別イベントチェック
+        feedCommand.checkForSpecialEvents(birdInfo, food, preference, interaction, guildId);
+
+        // 💾 動物園状態保存
+        await zooManager.saveServerZoo(guildId);
+
+    } catch (error) {
+        console.error('餌やりコマンド実行エラー:', error);
+        await interaction.update({
+            content: '餌やりの実行中にエラーが発生しました。',
+            components: []
+        });
+    }
+}
     
 // 鳥詳細選択メニュー処理
 async function handleBirdDetailSelect(interaction) {
