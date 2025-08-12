@@ -78,10 +78,10 @@ class SheetsManager {
                 '日時', 'イベント種類', '内容', '関連する鳥', 'サーバーID'
             ]);
 
-            // 🆕 新しいシート - 好感度システム
-            this.sheets.userAffinity = await this.getOrCreateSheet('user_affinity', [
-                '日時', 'ユーザーID', 'ユーザー名', '鳥名', '好感度レベル', '餌やり回数', 'サーバーID'
-            ]);
+            // 🆕 新しいシート - 好感度システム（絆餌やり回数列を追加）
+this.sheets.userAffinity = await this.getOrCreateSheet('user_affinity', [
+    '日時', 'ユーザーID', 'ユーザー名', '鳥名', '好感度レベル', '餌やり回数', '絆餌やり回数', 'サーバーID'
+]);
 
             // 🆕 新しいシート - ユーザーの贈り物インベントリ
             this.sheets.giftsInventory = await this.getOrCreateSheet('gifts_inventory', [
@@ -721,7 +721,7 @@ async getAllUserAffinities(birdName, serverId) {
 }
 
 /**
- * 絆レベルをログに記録（修正版）
+ * 絆レベルをログに記録（統合版）
  */
 async logBondLevel(userId, userName, birdName, bondLevel, bondFeedCount, serverId) {
     try {
@@ -734,8 +734,8 @@ async logBondLevel(userId, userName, birdName, bondLevel, bondFeedCount, serverI
             ユーザー名: userName,
             鳥名: birdName,
             絆レベル: bondLevel,
-            絆餌やり回数: bondFeedCount,
-            サーバーID: serverId  // 🔧 確実にサーバーIDを設定
+            絆餌やり回数: bondFeedCount || 0,  // 未定義の場合は0
+            サーバーID: serverId
         };
         
         console.log(`📊 記録するデータ:`, logData);
@@ -752,9 +752,9 @@ async logBondLevel(userId, userName, birdName, bondLevel, bondFeedCount, serverI
         return false;
     }
 }
-
+    
 /**
- * ユーザーの絆レベル情報を取得（修正版）
+ * ユーザーの絆レベル情報を取得（統合版）
  */
 async getUserBondLevel(userId, birdName, serverId) {
     try {
@@ -777,11 +777,6 @@ async getUserBondLevel(userId, birdName, serverId) {
             const rowBirdName = row.get('鳥名');
             const rowServerId = row.get('サーバーID');
             
-            console.log(`🔍 検索中の行:`, {
-                rowUserId, rowBirdName, rowServerId,
-                match: rowUserId === userId && rowBirdName === birdName && rowServerId === serverId
-            });
-            
             if (rowUserId === userId && 
                 rowBirdName === birdName && 
                 rowServerId === serverId) {
@@ -793,45 +788,119 @@ async getUserBondLevel(userId, birdName, serverId) {
                         bondLevel: parseInt(row.get('絆レベル')) || 0,
                         bondFeedCount: parseFloat(row.get('絆餌やり回数')) || 0
                     };
-                    
-                    console.log(`🔍 最新の絆レベル記録を更新:`, latestBond);
                 }
             }
         });
         
         console.log(`🔍 最終的な絆レベル結果:`, latestBond);
         
-        return latestBond;
+        // bondLevelManagerで期待される形式で返す
+        return latestBond ? {
+            bondLevel: latestBond.bondLevel,
+            bondFeedCount: latestBond.bondFeedCount
+        } : {
+            bondLevel: 0,
+            bondFeedCount: 0
+        };
         
     } catch (error) {
         console.error('絆レベル取得エラー:', error);
         console.error('エラースタック:', error.stack);
+        return {
+            bondLevel: 0,
+            bondFeedCount: 0
+        };
+    }
+}
+
+    /**
+ * 特定の鳥に対するユーザーの好感度データを取得
+ */
+async getUserAffinityData(userId, birdName, serverId) {
+    try {
+        await this.ensureInitialized();
+        
+        const sheet = this.sheets.userAffinity;
+        if (!sheet) {
+            console.error('userAffinity シートが見つかりません');
+            return null;
+        }
+        
+        const rows = await sheet.getRows();
+        
+        // 最新の好感度記録を取得
+        let latestAffinity = null;
+        rows.forEach(row => {
+            if (row.get('ユーザーID') === userId && 
+                row.get('鳥名') === birdName && 
+                row.get('サーバーID') === serverId) {
+                
+                const rowDate = new Date(row.get('日時'));
+                if (!latestAffinity || rowDate > new Date(latestAffinity.日時)) {
+                    latestAffinity = {
+                        日時: row.get('日時'),
+                        好感度レベル: parseInt(row.get('好感度レベル')) || 0,
+                        餌やり回数: parseFloat(row.get('餌やり回数')) || 0,
+                        絆餌やり回数: parseFloat(row.get('絆餌やり回数')) || 0
+                    };
+                }
+            }
+        });
+        
+        return latestAffinity;
+        
+    } catch (error) {
+        console.error('好感度データ取得エラー:', error);
         return null;
     }
 }
 
-    // 絆レベルを記録
-    async logBondLevel(userId, userName, birdName, bondLevel, serverId) {
-        try {
-            const data = [
-                new Date().toISOString(),
-                userId,
-                userName,
-                birdName,
-                bondLevel,
-                new Date().toISOString(), // 達成日時
-                serverId
-            ];
-
-            await this.appendToSheet('bondLevels', data);
-            console.log(`📊 絆レベル記録: ${userName} -> ${birdName} (レベル${bondLevel})`);
-
-        } catch (error) {
-            console.error('絆レベル記録エラー:', error);
-            throw error;
+/**
+ * 絆餌やり回数を更新
+ */
+async updateBondFeedCount(userId, birdName, newBondFeedCount, serverId) {
+    try {
+        await this.ensureInitialized();
+        
+        const sheet = this.sheets.userAffinity;
+        const rows = await sheet.getRows();
+        
+        // 最新の好感度記録を見つけて更新
+        let targetRow = null;
+        let latestDate = null;
+        
+        rows.forEach(row => {
+            if (row.get('ユーザーID') === userId && 
+                row.get('鳥名') === birdName && 
+                row.get('サーバーID') === serverId) {
+                
+                const rowDate = new Date(row.get('日時'));
+                if (!latestDate || rowDate > latestDate) {
+                    latestDate = rowDate;
+                    targetRow = row;
+                }
+            }
+        });
+        
+        if (targetRow) {
+            // 既存の行に絆餌やり回数列を追加/更新
+            targetRow.set('絆餌やり回数', newBondFeedCount);
+            targetRow.set('日時', new Date().toLocaleString('ja-JP'));
+            await targetRow.save();
+            
+            console.log(`✅ 絆餌やり回数更新: ${birdName} -> ${newBondFeedCount}`);
+            return true;
+        } else {
+            console.error(`❌ 対象の好感度記録が見つかりません: ${userId} - ${birdName}`);
+            return false;
         }
+        
+    } catch (error) {
+        console.error('絆餌やり回数更新エラー:', error);
+        return false;
     }
-
+}
+    
     // ネスト取得を記録
     async logNestAcquisition(userId, userName, birdName, nestType, bondLevel, acquisitionMethod, updatedNestList, serverId) {
         try {
@@ -853,33 +922,6 @@ async getUserBondLevel(userId, birdName, serverId) {
         } catch (error) {
             console.error('ネスト取得記録エラー:', error);
             throw error;
-        }
-    }
-
-    // ユーザーの絆レベルを取得
-    async getUserBondLevel(userId, birdName, serverId) {
-        try {
-            const sheet = await this.getSheet('bondLevels');
-            const rows = await sheet.getRows();
-            
-            // 該当するユーザーと鳥の最新の絆レベルを取得
-            const userBondRecords = rows.filter(row => 
-                row.get('ユーザーID') === userId && 
-                row.get('鳥名') === birdName &&
-                row.get('サーバーID') === serverId
-            );
-
-            if (userBondRecords.length === 0) {
-                return 0; // 絆レベル記録なし
-            }
-
-            // 最新の絆レベルを返す
-            const latestRecord = userBondRecords[userBondRecords.length - 1];
-            return parseInt(latestRecord.get('絆レベル')) || 0;
-
-        } catch (error) {
-            console.error('絆レベル取得エラー:', error);
-            return 0;
         }
     }
 
