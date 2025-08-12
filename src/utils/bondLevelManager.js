@@ -50,16 +50,17 @@ class BondLevelManager {
         }
     }
 
-    // 現在の絆餌やり回数を取得
-    async getBondFeedCount(userId, birdName, serverId) {
-        try {
-            const affinityData = await sheets.getUserAffinityData(userId, birdName, serverId);
-            return parseInt(affinityData?.絆餌やり回数) || 0;
-        } catch (error) {
-            console.error('絆餌やり回数取得エラー:', error);
-            return 0;
-        }
+    // 🆕 絆餌やり回数を正確に取得
+async getBondFeedCount(userId, birdName, serverId) {
+    try {
+        const sheets = require('../../config/sheets');
+        const bondData = await sheets.getUserBondLevel(userId, birdName, serverId);
+        return bondData ? bondData.bondFeedCount : 0;
+    } catch (error) {
+        console.error('絆餌やり回数取得エラー:', error);
+        return 0;
     }
+}
 
     // 現在の絆レベルを取得
     async getCurrentBondLevel(userId, birdName, serverId) {
@@ -108,60 +109,57 @@ class BondLevelManager {
 
     // 絆レベルアップ時の処理
     async processBondLevelUp(userId, userName, birdName, newBondLevel, serverId, client) {
-        try {
-            console.log(`🌟 絆レベルアップ処理: ${userName} -> ${birdName} (レベル${newBondLevel})`);
+    try {
+        console.log(`🌟 絆レベルアップ処理: ${userName} -> ${birdName} (レベル${newBondLevel})`);
 
-            // 1. データベースに絆レベルを記録
-            await this.updateBondLevel(userId, userName, birdName, newBondLevel, serverId);
+        // 1. データベースに絆レベルを記録
+        await this.updateBondLevel(userId, userName, birdName, newBondLevel, serverId);
 
-            // 2. ネストガチャを発動（レベル1以上で毎回）
-            if (newBondLevel >= 1) {
-                await this.triggerNestGacha(userId, userName, birdName, newBondLevel, serverId, client);
-            }
-
-            // 3. 特別な報酬（写真など）
-            if (this.isSpecialBondLevel(newBondLevel)) {
-                await this.grantSpecialBondReward(userId, userName, birdName, newBondLevel, serverId);
-            }
-
-            return {
-                success: true,
-                newLevel: newBondLevel,
-                nestGachaTriggered: newBondLevel >= 1
-            };
-
-        } catch (error) {
-            console.error('絆レベルアップ処理エラー:', error);
-            throw error;
+        // 2. ネストガチャチケットを付与（レベル1以上で毎回）
+        if (newBondLevel >= 1) {
+            await this.grantNestGachaTicket(userId, userName, birdName, newBondLevel, serverId);
         }
-    }
 
-    // ネストガチャを発動
-    async triggerNestGacha(userId, userName, birdName, bondLevel, serverId, client) {
-        try {
-            console.log(`🎰 ネストガチャ発動: ${birdName} (絆レベル${bondLevel})`);
-
-            // 鳥のエリアを取得
-            const birdArea = this.getBirdArea(birdName, serverId);
-            
-            // そのエリアの未所持ネストを取得
-            const availableNests = await this.getAvailableNestsForArea(userId, birdArea, serverId);
-            
-            if (availableNests.length === 0) {
-                console.log(`❌ ${birdArea}エリアの未所持ネストがありません`);
-                return;
-            }
-
-            // ランダムに3種類選択（重複なし）
-            const nestOptions = this.selectRandomNests(availableNests, 3);
-
-            // ガチャ結果をDiscordで表示
-            await this.displayNestGacha(userId, userName, birdName, bondLevel, birdArea, nestOptions, serverId, client);
-
-        } catch (error) {
-            console.error('ネストガチャエラー:', error);
+        // 3. 特別な報酬（写真など）
+        if (this.isSpecialBondLevel(newBondLevel)) {
+            await this.grantSpecialBondReward(userId, userName, birdName, newBondLevel, serverId);
         }
+
+        return {
+            success: true,
+            newLevel: newBondLevel,
+            nestGachaTriggered: newBondLevel >= 1
+        };
+
+    } catch (error) {
+        console.error('絆レベルアップ処理エラー:', error);
+        throw error;
     }
+}
+
+    // 🆕 ネストガチャチケット付与メソッド（修正版）
+async grantNestGachaTicket(userId, userName, birdName, bondLevel, serverId) {
+    try {
+        console.log(`🎰 ネストガチャチケット付与: ${userName} -> ${birdName} (絆レベル${bondLevel})`);
+        
+        const sheetsManager = require('../../config/sheets');
+        
+        // ネストガチャチケットをデータベースに記録
+        await sheetsManager.logNestGachaTicket(
+            userId,
+            userName,
+            birdName,
+            bondLevel,
+            'available', // 使用状況
+            serverId
+        );
+        
+        console.log(`🎫 ネストガチャチケット付与完了: ${birdName} (絆レベル${bondLevel})`);
+        
+    } catch (error) {
+        console.error('ネストガチャチケット付与エラー:', error);
+    }
+}
 
     // エリア別の未所持ネスト取得
     async getAvailableNestsForArea(userId, area, serverId) {
@@ -213,52 +211,50 @@ class BondLevelManager {
         return shuffled.slice(0, Math.min(count, availableNests.length));
     }
 
-    // ネストガチャをDiscordで表示
-    async displayNestGacha(userId, userName, birdName, bondLevel, area, nestOptions, serverId, client) {
-        try {
-            const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-
-            // ガチャ画面のEmbed
-            const embed = {
-                title: `🌟 絆レベル${bondLevel}達成！ネスト解放ガチャ 🏠`,
-                description: `**${birdName}**との絆が深まり、${area}エリアの新しいネストが解放されました！\n\n以下の3つから1つを選んでください：`,
-                color: 0xFF6B6B,
-                fields: nestOptions.map((nestType, index) => ({
-                    name: `${index + 1}. ${nestType}`,
-                    value: this.getNestDescription(nestType),
-                    inline: false
-                })),
-                footer: {
-                    text: `${userName}さん専用 | 絆レベル${bondLevel}報酬`
+    async displayNestGachaNotification(userId, userName, birdName, bondLevel, serverId, client) {
+    try {
+        // ガチャ利用可能通知のみ送信
+        const embed = {
+            title: '🌟 絆レベルアップ！',
+            description: `**${birdName}**との絆レベルが${bondLevel}に上がりました！\n\n🎰 **ネストガチャが利用可能になりました！**\n\`/nest gacha bird:${birdName}\` でガチャを引いてみましょう！`,
+            color: 0xFF6B6B,
+            fields: [
+                {
+                    name: '🐦 対象の鳥',
+                    value: birdName,
+                    inline: true
                 },
-                timestamp: new Date().toISOString()
-            };
+                {
+                    name: '🌟 達成した絆レベル',
+                    value: `レベル${bondLevel}`,
+                    inline: true
+                },
+                {
+                    name: '🎁 報酬',
+                    value: 'ネストガチャチケット',
+                    inline: true
+                }
+            ],
+            footer: {
+                text: `${userName}さん専用`
+            },
+            timestamp: new Date().toISOString()
+        };
 
-            // 選択ボタンを作成
-            const buttons = nestOptions.map((nestType, index) => 
-                new ButtonBuilder()
-                    .setCustomId(`nest_gacha_${index}_${userId}_${birdName}_${nestType}_${bondLevel}`)
-                    .setLabel(`${index + 1}. ${nestType}`)
-                    .setStyle(ButtonStyle.Primary)
-                    .setEmoji('🏠')
-            );
-
-            const row = new ActionRowBuilder().addComponents(buttons);
-
-            // 通知チャンネルに送信
-            const channel = await this.getNotificationChannel(serverId, client);
-            if (channel) {
-                await channel.send({
-                    content: `<@${userId}> 🎉`,
-                    embeds: [embed],
-                    components: [row]
-                });
-            }
-
-        } catch (error) {
-            console.error('ネストガチャ表示エラー:', error);
+        // 通知チャンネルに送信
+        const channel = await this.getNotificationChannel(serverId, client);
+        if (channel) {
+            await channel.send({
+                content: `<@${userId}> 🎉`,
+                embeds: [embed]
+            });
         }
+
+    } catch (error) {
+        console.error('ネストガチャ通知エラー:', error);
     }
+}
+
 
     // ネストの簡単な説明を取得
     getNestDescription(nestType) {
@@ -404,14 +400,28 @@ class BondLevelManager {
     }
 
     // データベースに絆レベルを更新
-    async updateBondLevel(userId, userName, birdName, bondLevel, serverId) {
-        try {
-            const sheets = require('../../config/sheets');
-            await sheets.logBondLevel(userId, userName, birdName, bondLevel, serverId);
-        } catch (error) {
-            console.error('絆レベル更新エラー:', error);
-        }
+    async updateBondLevel(userId, userName, birdName, bondLevel, bondFeedCount, serverId) {
+    try {
+        const sheets = require('../../config/sheets');
+        await sheets.logBondLevel(userId, userName, birdName, bondLevel, bondFeedCount, serverId);
+        console.log(`✅ 絆レベル更新完了: ${userName} -> ${birdName} (レベル${bondLevel})`);
+    } catch (error) {
+        console.error('絆レベル更新エラー:', error);
+        throw error;
     }
+}
+
+    // 🆕 現在の絆レベルを正確に取得
+async getBondLevel(userId, birdName, serverId) {
+    try {
+        const sheets = require('../../config/sheets');
+        const bondData = await sheets.getUserBondLevel(userId, birdName, serverId);
+        return bondData ? bondData.bondLevel : 0;
+    } catch (error) {
+        console.error('絆レベル取得エラー:', error);
+        return 0;
+    }
+}
 
     // 現在の絆レベルを取得
     async getCurrentBondLevel(userId, birdName, serverId) {
