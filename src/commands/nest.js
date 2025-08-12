@@ -283,14 +283,51 @@ async function handleNestVisit(interaction) {
         
     } catch (error) {
         console.error('ネスト詳細エラー:', error);
-        const errorMessage = 'ネスト詳細の取得中にエラーが発生しました。';
         
-        if (!interaction.replied) {
-            await interaction.reply({ content: errorMessage });
-        } else {
-            await interaction.editReply({ content: errorMessage });
+        // エラーハンドリングを修正
+        if (interaction.deferred) {
+            await interaction.editReply({ 
+                content: 'ネスト詳細の取得中にエラーが発生しました。' 
+            });
+        } else if (!interaction.replied) {
+            await interaction.reply({ 
+                content: 'ネスト詳細の取得中にエラーが発生しました。',
+                flags: [4096] // EPHEMERAL
+            });
         }
     }
+}
+
+// 🎨 ネストタイプに応じた色を取得（修正版）
+function getNestColor(nestType) {
+    const colors = {
+        '蓮池の巣': 0x4FC3F7,      // 水色
+        '苔むした庭': 0x4CAF50,    // 緑
+        '古木の大穴': 0x8D6E63,    // 茶色
+        '花畑の巣': 0xE91E63,      // ピンク
+        '樹海の宮殿': 0x2E7D32,    // 深緑
+        '真珠の洞窟': 0x9C27B0,    // 紫
+        '水晶の泉': 0x00BCD4,      // シアン
+        '貝殻の宮殿': 0xFFB74D,    // オレンジ
+        '虹の丘': 0xFF9800,        // オレンジ
+        '星見台': 0x3F51B5,        // 藍色
+        '木漏れ日の巣': 0x66BB6A,  // 明るい緑
+        '妖精の隠れ家': 0xAB47BC,  // 薄紫
+        'きのこの家': 0x8D6E63,    // 茶色
+        '蔦の回廊': 0x4CAF50,      // 緑
+        '森の神殿': 0x2E7D32,      // 深緑
+        '軒先の鳥かご': 0xFFA726,  // オレンジ
+        '風車小屋': 0x42A5F5,      // 青
+        '蝶の舞台': 0xEC407A,      // ピンク
+        '花冠の宮殿': 0xEF5350,    // 赤
+        'そよ風の家': 0x26C6DA,    // 水色
+        '滝のしぶきの巣': 0x29B6F6, // 明るい青
+        '虹の水辺': 0xFF7043,      // オレンジレッド
+        '流木の隠れ家': 0x8D6E63,  // 茶色
+        '月光の池': 0x5C6BC0       // 紫青
+    };
+    
+    return colors[nestType] || 0x8BC34A; // デフォルト色
 }
 
 // 🌤️ 現在の時間帯と天気情報を取得
@@ -445,24 +482,6 @@ function generateEnhancedNestAtmosphere(nestType, giftCount, timeInfo) {
             morning: '朝の光に花々が輝き、蜂や蝶が花から花へと舞い踊っています。',
             evening: '夕焼け空の下で花畑が黄金色に染まり、一日の終わりを美しく彩っています。',
             night: '夜風に花々が優しく揺れ、月光の下で夜香木が甘い香りを放っています。'
-        },
-        '古木の大穴': {
-            base: '長い年月を重ねた古木の洞に作られた歴史ある巣です。木の温もりが感じられます。',
-            morning: '朝日が古木の洞を暖かく照らし、長い歴史の重みと自然の力強さを感じさせます。',
-            evening: '夕日が古木の年輪を浮かび上がらせ、悠久の時の流れを物語っています。',
-            night: '月光が古木の洞に差し込み、静寂の中で自然の神秘を感じることができます。'
-        },
-        '樹海の宮殿': {
-            base: '深い森の奥に佇む神秘的な宮殿のような巣です。古代の魔法が宿っているかのようです。',
-            morning: '朝霧に包まれた宮殿が幻想的で、森の精霊たちの囁きが聞こえてきそうです。',
-            evening: '夕暮れの光が宮殿の石造りを温かく照らし、古代の物語が蘇ってくるようです。',
-            night: '星明かりの下で宮殿が神秘的に浮かび上がり、魔法の世界への扉が開かれそうです。'
-        },
-        '真珠の洞窟': {
-            base: '美しい真珠で装飾された幻想的な洞窟の巣です。光が真珠に反射して虹色に輝いています。',
-            morning: '朝の光が真珠に反射して洞窟全体が虹色に輝き、まるで宝石箱のようです。',
-            evening: '夕日の光が真珠を通して洞窟内に美しい光の模様を描いています。',
-            night: '月光が真珠の表面で踊り、洞窟が幻想的な光の宮殿と化しています。'
         }
     };
     
