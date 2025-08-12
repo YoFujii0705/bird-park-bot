@@ -821,7 +821,7 @@ async function processNestGachaSelection(userId, userName, birdName, nestType, b
             birdName,
             nestType,
             bondLevel,
-            bond_level_gacha,
+            'bond_level_gacha',
             updatedNests,
             serverId
         );
