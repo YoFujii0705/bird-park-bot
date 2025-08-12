@@ -249,7 +249,7 @@ module.exports = {
             const affinities = await sheetsManager.getUserAffinity(userId, guildId);
             const birdAffinity = affinities[birdInfo.bird.name];
             
-            if (!birdAffinity || birdAffinity.level < 5) {
+            if (!birdAffinity || birdAffinity.level < 3) {
                 const currentLevel = birdAffinity ? birdAffinity.level : 0;
                 const currentHearts = '💖'.repeat(currentLevel) + '🤍'.repeat(10 - currentLevel);
                 
