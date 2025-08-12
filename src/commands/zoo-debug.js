@@ -22,6 +22,26 @@ module.exports = {
             subcommand
                 .setName('schedule')
                 .setDescription('今後24時間の鳥の出入りスケジュール'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('cleanup-duplicates')
+                .setDescription('ネストと鳥類園の重複鳥を整理'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('check-bird')
+                .setDescription('特定の鳥の重複状態をチェック')
+                .addStringOption(option =>
+                    option.setName('bird')
+                        .setDescription('チェックする鳥の名前')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('remove-bird')
+                .setDescription('特定の鳥を鳥類園から強制退園')
+                .addStringOption(option =>
+                    option.setName('bird')
+                        .setDescription('退園させる鳥の名前')
+                        .setRequired(true)))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
@@ -44,6 +64,15 @@ module.exports = {
                     break;
                 case 'schedule':
                     await this.showSchedule(interaction, guildId);
+                    break;
+                case 'cleanup-duplicates':
+                    await this.cleanupDuplicates(interaction, guildId);
+                    break;
+                case 'check-bird':
+                    await this.checkBirdDuplication(interaction, guildId);
+                    break;
+                case 'remove-bird':
+                    await this.removeBirdFromZoo(interaction, guildId);
                     break;
                 default:
                     await interaction.reply({
@@ -239,6 +268,150 @@ module.exports = {
             inline: true
         });
 
+        await interaction.editReply({ embeds: [embed] });
+    },
+
+    async cleanupDuplicates(interaction, guildId) {
+        const zooManager = require('../utils/zooManager');
+        
+        await interaction.deferReply({ ephemeral: true });
+        
+        const result = await zooManager.emergencyCleanupDuplicateBirds(guildId);
+        
+        const embed = new EmbedBuilder()
+            .setTitle('🚨 重複鳥整理結果')
+            .setColor(result.success ? 0x00ff00 : 0xff0000)
+            .setDescription(result.message)
+            .setTimestamp();
+        
+        if (result.removed && result.removed.length > 0) {
+            const removedList = result.removed.map(bird => 
+                `• **${bird.name}** (${bird.area} - ${bird.type})`
+            ).join('\n');
+            
+            embed.addFields({ 
+                name: `🛫 退園させた鳥 (${result.removed.length}羽)`, 
+                value: removedList, 
+                inline: false 
+            });
+        }
+        
+        if (result.nestBirds && result.nestBirds.length > 0) {
+            embed.addFields({ 
+                name: `🏠 ネストにいる鳥 (${result.nestBirds.length}羽)`, 
+                value: result.nestBirds.join(', '), 
+                inline: false 
+            });
+        }
+        
+        if (result.removed && result.removed.length === 0) {
+            embed.addFields({ 
+                name: '✅ 結果', 
+                value: '重複している鳥はありませんでした', 
+                inline: false 
+            });
+        }
+        
+        await interaction.editReply({ embeds: [embed] });
+    },
+
+    async checkBirdDuplication(interaction, guildId) {
+        const zooManager = require('../utils/zooManager');
+        const birdName = interaction.options.getString('bird');
+        
+        await interaction.deferReply({ ephemeral: true });
+        
+        const result = await zooManager.checkBirdDuplication(birdName, guildId);
+        
+        const embed = new EmbedBuilder()
+            .setTitle(`🔍 ${birdName}の重複チェック結果`)
+            .setColor(result.isDuplicated ? 0xff9900 : 0x00ff00)
+            .setTimestamp()
+            .addFields(
+                { name: '🏠 ネストにいる', value: result.inNest ? 'はい' : 'いいえ', inline: true },
+                { name: '🏞️ 鳥類園にいる', value: result.inZoo.length > 0 ? 'はい' : 'いいえ', inline: true },
+                { name: '⚠️ 重複状態', value: result.isDuplicated ? '重複あり' : '正常', inline: true }
+            );
+        
+        if (result.inZoo.length > 0) {
+            const zooList = result.inZoo.map(location => 
+                `• **${location.area}** (${location.type})`
+            ).join('\n');
+            
+            embed.addFields({ 
+                name: '📍 鳥類園での場所', 
+                value: zooList, 
+                inline: false 
+            });
+            
+            if (result.isDuplicated) {
+                embed.addFields({ 
+                    name: '🔧 対処方法', 
+                    value: '`/zoo-debug remove-bird bird:' + birdName + '` で鳥類園から退園させることができます', 
+                    inline: false 
+                });
+            }
+        }
+        
+        if (result.error) {
+            embed.addFields({ 
+                name: '❌ エラー', 
+                value: result.error, 
+                inline: false 
+            });
+        }
+        
+        await interaction.editReply({ embeds: [embed] });
+    },
+
+    async removeBirdFromZoo(interaction, guildId) {
+        const zooManager = require('../utils/zooManager');
+        const birdName = interaction.options.getString('bird');
+        
+        await interaction.deferReply({ ephemeral: true });
+        
+        // まず重複チェック
+        const checkResult = await zooManager.checkBirdDuplication(birdName, guildId);
+        
+        const embed = new EmbedBuilder()
+            .setTitle(`🚨 ${birdName}の強制退園処理`)
+            .setTimestamp();
+        
+        if (checkResult.inZoo.length === 0) {
+            embed.setColor(0xffaa00)
+                .setDescription(`${birdName}は鳥類園にいないため、処理は不要です`)
+                .addFields({ 
+                    name: '🏠 ネスト状況', 
+                    value: checkResult.inNest ? 'ネストにいます' : 'ネストにもいません', 
+                    inline: false 
+                });
+        } else {
+            // 実際に退園処理を実行
+            const removeResult = await zooManager.emergencyRemoveSpecificBird(birdName, guildId);
+            
+            embed.setColor(removeResult.success ? 0x00ff00 : 0xff0000)
+                .setDescription(removeResult.message);
+            
+            if (removeResult.success) {
+                const locationList = checkResult.inZoo.map(location => 
+                    `• ${location.area} (${location.type})`
+                ).join('\n');
+                
+                embed.addFields(
+                    { 
+                        name: '🛫 退園した場所', 
+                        value: locationList, 
+                        inline: false 
+                    },
+                    { 
+                        name: '🏠 ネスト状況', 
+                        value: checkResult.inNest ? 'ネストに残ります' : 'ネストにはいません', 
+                        inline: false 
+                    }
+                );
+            }
+        }
+        
         await interaction.editReply({ embeds: [embed] });
     }
 };
