@@ -188,7 +188,7 @@ async function handleNestView(interaction) {
     }
 }
 
-// 🆕 ネストガチャハンドラー
+// 🆕 ネストガチャハンドラー（修正版）
 async function handleNestGacha(interaction) {
     try {
         const birdName = interaction.options.getString('bird');
@@ -209,6 +209,7 @@ async function handleNestGacha(interaction) {
         }
         
         // NestSystemインスタンスを作成
+        const { NestSystem } = require('./nest');
         const nestSystem = new NestSystem();
         
         // 鳥のエリアを取得してネストタイプを生成
@@ -246,8 +247,8 @@ async function handleNestGacha(interaction) {
             components: components
         });
         
-        // ガチャ使用済みフラグを設定
-        await markNestGachaAsUsed(userId, birdName, gachaCheck.bondLevel, serverId);
+        // 🔧 修正：ガチャ表示後ではなく、選択完了後に使用済みマークする
+        console.log(`🎰 ネストガチャ表示完了: ${birdName} (絆レベル${gachaCheck.bondLevel})`);
         
     } catch (error) {
         console.error('ネストガチャエラー:', error);
@@ -265,13 +266,13 @@ async function handleNestGacha(interaction) {
     }
 }
 
-// 🆕 ネストガチャ利用可能チェック
+// 🆕 ネストガチャ利用可能チェック（修正版）
 async function checkNestGachaAvailability(userId, birdName, serverId) {
     try {
         // 現在の絆レベルを取得
-        const bondLevel = await sheets.getUserBondLevel(userId, birdName, serverId);
+        const bondData = await sheets.getUserBondLevel(userId, birdName, serverId);
         
-        if (!bondLevel || bondLevel.bondLevel < 1) {
+        if (!bondData || bondData.bondLevel < 1) {
             return {
                 canUse: false,
                 message: 'この鳥との絆レベル1以上が必要です'
@@ -306,13 +307,20 @@ async function checkNestGachaAvailability(userId, birdName, serverId) {
     }
 }
 
-// 🆕 ネストガチャ使用済みマーク
+
+// 🔧 ネストガチャ使用済みマーク（選択完了時に呼び出し）
 async function markNestGachaAsUsed(userId, birdName, bondLevel, serverId) {
     try {
-        await sheets.markNestGachaAsUsed(userId, birdName, bondLevel, serverId);
-        console.log(`🎰 ネストガチャ使用済み記録: ${userId} -> ${birdName} (絆レベル${bondLevel})`);
+        const success = await sheets.markNestGachaAsUsed(userId, birdName, bondLevel, serverId);
+        if (success) {
+            console.log(`🎰 ネストガチャ使用済み記録: ${userId} -> ${birdName} (絆レベル${bondLevel})`);
+        } else {
+            console.error(`❌ ネストガチャ使用済み記録失敗: ${userId} -> ${birdName} (絆レベル${bondLevel})`);
+        }
+        return success;
     } catch (error) {
         console.error('ネストガチャ使用済みマークエラー:', error);
+        return false;
     }
 }
 
