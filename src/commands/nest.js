@@ -794,27 +794,234 @@ async function handleNestChange(interaction) {
         const birdName = interaction.options.getString('bird');
         const newNestType = interaction.options.getString('type');
         const userId = interaction.user.id;
+        const userName = interaction.user.displayName || interaction.user.username;
         const serverId = interaction.guild.id;
         
-        const nestSystem = new NestSystem();
-        const result = await nestSystem.changeNestType(userId, birdName, newNestType, serverId);
+        await interaction.deferReply();
+
+        // 現在のネスト情報を取得
+        const existingNest = await sheets.getBirdNest(userId, birdName, serverId);
+        if (!existingNest) {
+            await interaction.editReply({
+                content: `❌ ${birdName}のネストが見つかりません。まず \`/nest create\` でネストを建設してください。`
+            });
+            return;
+        }
+
+        // 所持ネストリストを取得
+        const ownedNestTypes = await sheets.getUserOwnedNestTypes(userId, serverId);
+        
+        if (ownedNestTypes.length === 0) {
+            await interaction.editReply({
+                content: `❌ 所持しているネストタイプがありません。絆レベルを上げてネストを取得してください。`
+            });
+            return;
+        }
+
+        // newNestTypeが指定されていない場合は選択肢を表示
+        if (!newNestType) {
+            await displayNestChangeOptions(interaction, birdName, ownedNestTypes, existingNest.ネストタイプ);
+            return;
+        }
+
+        // 所持チェック
+        if (!ownedNestTypes.includes(newNestType)) {
+            await interaction.editReply({
+                content: `❌ 「${newNestType}」は所持していません。\n\n**所持しているネスト:**\n${ownedNestTypes.map(nest => `• ${nest}`).join('\n')}`
+            });
+            return;
+        }
+
+        // 同じネストタイプチェック
+        if (existingNest.ネストタイプ === newNestType) {
+            await interaction.editReply({
+                content: `❌ ${birdName}のネストは既に「${newNestType}」です。`
+            });
+            return;
+        }
+
+        // ネストタイプを変更
+        const result = await changeNestType(userId, userName, birdName, existingNest.ネストタイプ, newNestType, serverId);
         
         if (result.success) {
-            await interaction.reply({
-                content: `✅ ${result.message}`
+            const successEmbed = {
+                title: `🔄 ネスト変更完了！`,
+                description: `${birdName}のネストを変更しました`,
+                color: 0x00FF00,
+                fields: [
+                    {
+                        name: '🏠 変更前',
+                        value: result.oldType,
+                        inline: true
+                    },
+                    {
+                        name: '🏠 変更後',
+                        value: result.newType,
+                        inline: true
+                    },
+                    {
+                        name: '🐦 対象の鳥',
+                        value: birdName,
+                        inline: true
+                    }
+                ],
+                footer: {
+                    text: `変更者: ${userName} | ${new Date().toLocaleString('ja-JP')}`
+                },
+                timestamp: new Date().toISOString()
+            };
+
+            await interaction.editReply({
+                embeds: [successEmbed]
             });
         } else {
-            await interaction.reply({
-                content: `❌ ${result.message}`
+            await interaction.editReply({
+                content: `❌ ネスト変更に失敗しました: ${result.message}`
             });
         }
         
     } catch (error) {
         console.error('ネスト変更エラー:', error);
-        await interaction.reply({
-            content: `❌ エラー: ${error.message}`
+        
+        if (interaction.deferred) {
+            await interaction.editReply({
+                content: '❌ エラーが発生しました。時間をおいて再度お試しください。'
+            });
+        } else {
+            await interaction.reply({
+                content: '❌ エラーが発生しました。時間をおいて再度お試しください。',
+                ephemeral: true
+            });
+        }
+    }
+}
+
+// ネスト変更選択肢を表示
+async function displayNestChangeOptions(interaction, birdName, ownedNestTypes, currentNestType) {
+    try {
+        // 現在のネストタイプ以外を表示
+        const availableNests = ownedNestTypes.filter(nest => nest !== currentNestType);
+        
+        if (availableNests.length === 0) {
+            await interaction.editReply({
+                content: `❌ ${birdName}は現在「${currentNestType}」にいます。\n他に変更できるネストがありません。絆レベルを上げて新しいネストを取得してください。`
+            });
+            return;
+        }
+
+        // 最大25個まで（Discordの制限）
+        const displayNests = availableNests.slice(0, 25);
+        
+        const embed = {
+            title: `🔄 ${birdName}のネスト変更`,
+            description: `現在: **${currentNestType}**\n\n変更先を選択してください：`,
+            color: 0x4CAF50,
+            fields: displayNests.map((nestType, index) => ({
+                name: `${index + 1}. ${nestType}`,
+                value: getNestDescription(nestType),
+                inline: true
+            })),
+            footer: {
+                text: `所持ネスト数: ${ownedNestTypes.length}個`
+            }
+        };
+
+        // 選択ボタンを作成（最大5個ずつ表示）
+        const components = [];
+        const maxButtonsPerRow = 5;
+        
+        for (let i = 0; i < displayNests.length; i += maxButtonsPerRow) {
+            const rowNests = displayNests.slice(i, i + maxButtonsPerRow);
+            const buttons = rowNests.map((nestType, rowIndex) => ({
+                type: 2,
+                style: 1,
+                label: `${i + rowIndex + 1}. ${nestType.length > 20 ? nestType.substring(0, 17) + '...' : nestType}`,
+                custom_id: `nest_change_${interaction.user.id}_${birdName}_${nestType}`
+            }));
+            
+            components.push({
+                type: 1,
+                components: buttons
+            });
+        }
+
+        await interaction.editReply({
+            embeds: [embed],
+            components: components
+        });
+
+    } catch (error) {
+        console.error('ネスト変更選択肢表示エラー:', error);
+        await interaction.editReply({
+            content: '❌ 選択肢の表示中にエラーが発生しました。'
         });
     }
+}
+
+// ネストタイプを変更
+async function changeNestType(userId, userName, birdName, oldNestType, newNestType, serverId) {
+    try {
+        console.log(`🔄 ネストタイプ変更: ${birdName} (${oldNestType} → ${newNestType})`);
+
+        // データベース更新
+        await sheets.updateNestType(userId, birdName, newNestType, serverId);
+        
+        // 変更ログを記録
+        await sheets.logNestChange(userId, userName, birdName, oldNestType, newNestType, serverId);
+
+        console.log(`✅ ネストタイプ変更完了: ${birdName} -> ${newNestType}`);
+
+        return {
+            success: true,
+            oldType: oldNestType,
+            newType: newNestType,
+            message: `${birdName}のネストを${newNestType}に変更しました！`
+        };
+
+    } catch (error) {
+        console.error('ネストタイプ変更エラー:', error);
+        return {
+            success: false,
+            message: 'データベースの更新に失敗しました'
+        };
+    }
+}
+
+// ネストの説明を取得（前回作成した関数を再利用）
+function getNestDescription(nestType) {
+    const descriptions = {
+        // 森林エリア
+        '苔むした庭': '静寂に包まれた緑豊かな庭園',
+        '古木の大穴': '長い歴史を刻んだ古木の洞',
+        '木漏れ日の巣': '美しい光と影が踊る森の巣',
+        '妖精の隠れ家': '小さな妖精たちに守られた秘密の場所',
+        '樹海の宮殿': '深い森の奥にある神秘的な宮殿',
+        'きのこの家': '巨大なきのこの中の不思議な住まい',
+        '蔦の回廊': '蔦に覆われた美しい回廊',
+        '森の神殿': '森の精霊が宿る神聖な神殿',
+
+        // 草原エリア
+        '花畑の巣': '色鮮やかな花々に囲まれた華やかな巣',
+        '軒先の鳥かご': '職人の技が光る美しい鳥かご',
+        '風車小屋': '風の歌声が響く牧歌的な小屋',
+        '蝶の舞台': '蝶々と一緒に舞い踊る特別な舞台',
+        '虹の丘': '虹がかかる美しい丘の上の巣',
+        '星見台': '満天の星空を眺められる特別な場所',
+        '花冠の宮殿': '花の冠に包まれた優雅な宮殿',
+        'そよ風の家': 'やわらかな風に包まれた心地よい家',
+
+        // 水辺エリア
+        '蓮池の巣': '静かな池のほとりの美しい巣',
+        '滝のしぶきの巣': '爽やかな滝のしぶきに包まれた巣',
+        '真珠の洞窟': '真珠の輝きに満ちた幻想的な洞窟',
+        '虹の水辺': '虹色に輝く神秘的な水辺',
+        '水晶の泉': '透明な水晶のように美しい泉',
+        '貝殻の宮殿': '美しい貝殻で装飾された海の宮殿',
+        '流木の隠れ家': '自然の造形美が光る流木の家',
+        '月光の池': '月光に照らされた幻想的な池'
+    };
+
+    return descriptions[nestType] || '特別なネスト';
 }
 
 class NestSystem {
@@ -1128,6 +1335,10 @@ class NestSystem {
 }
 
 module.exports = {
+    handleNestChange,
+    displayNestChangeOptions,
+    changeNestType,
+    getNestDescription,
     data,           // ← これが必要
     execute,        // ← これも必要
     NestSystem      // ← クラスもエクスポート
