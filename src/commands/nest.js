@@ -1242,18 +1242,24 @@ async function displayNestChangeOptions(interaction, birdName, availableNests, c
             }
         };
 
-        // 🆕 セレクトメニューを使用（最大25個まで対応）
+        // 🔧 修正：セレクトメニューの値の形式を修正
         if (availableNests.length <= 25) {
             const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId('nest_change_select')
                 .setPlaceholder('変更先のネストを選択してください...')
                 .addOptions(
-                    availableNests.map((nestType, index) => ({
-                        label: nestType,
-                        description: getNestDescription(nestType),
-                        value: `${interaction.user.id}_${birdName}_${nestType}`, // ユーザーID_鳥名_ネストタイプ
-                        emoji: getAreaEmoji(getNestArea(nestType))
-                    }))
+                    availableNests.map((nestType, index) => {
+                        // 🔧 修正：値の形式を変更（アンダースコアではなくパイプで区切り）
+                        const valueString = `${interaction.user.id}|${birdName}|${nestType}`;
+                        console.log(`🔧 セレクトメニューオプション作成: ${index} -> ${valueString}`);
+                        
+                        return {
+                            label: nestType,
+                            description: getNestDescription(nestType),
+                            value: valueString,
+                            emoji: getAreaEmoji(getNestArea(nestType))
+                        };
+                    })
                 );
 
             const row = new ActionRowBuilder().addComponents(selectMenu);
@@ -1295,7 +1301,6 @@ async function displayNestChangeOptions(interaction, birdName, availableNests, c
         });
     }
 }
-
 // 🆕 ネストのエリアを取得する関数
 function getNestArea(nestType) {
     const areaMap = {
