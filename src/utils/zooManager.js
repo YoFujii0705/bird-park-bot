@@ -3111,6 +3111,233 @@ async removeBirdFromZooForNest(birdName, guildId) {
 }
 
     // ===========================================
+// 🚨 緊急用：重複鳥の整理機能
+// ===========================================
+
+/**
+ * 緊急用：ネストと鳥類園の重複鳥を整理
+ * ネストにいる鳥は鳥類園から強制退園
+ */
+async emergencyCleanupDuplicateBirds(guildId) {
+    try {
+        console.log(`🚨 サーバー ${guildId} で重複鳥の緊急整理開始...`);
+        
+        // ネストシステムを安全に取得
+        const nestSystem = this.getNestSystem();
+        if (!nestSystem) {
+            console.error('❌ NestSystemが利用できません');
+            return { success: false, message: 'NestSystemが利用できません' };
+        }
+
+        if (!this.sheetsManager) {
+            console.error('❌ SheetsManagerが利用できません');
+            return { success: false, message: 'SheetsManagerが利用できません' };
+        }
+
+        // ネストにいる全ての鳥を取得
+        const allNests = await this.sheetsManager.getAllNests(guildId);
+        const nestBirds = allNests.map(nest => nest.鳥名);
+        
+        console.log(`🔍 ネストにいる鳥: ${nestBirds.join(', ')}`);
+        
+        if (nestBirds.length === 0) {
+            console.log('ℹ️ ネストに鳥がいないため処理をスキップします');
+            return { success: true, message: 'ネストに鳥がいないため処理不要', removed: [] };
+        }
+
+        const zooState = this.getZooState(guildId);
+        const removedBirds = [];
+        
+        // 通常エリアから重複鳥を削除
+        for (const area of ['森林', '草原', '水辺']) {
+            const birds = zooState[area];
+            
+            for (let i = birds.length - 1; i >= 0; i--) {
+                const bird = birds[i];
+                
+                if (nestBirds.includes(bird.name)) {
+                    console.log(`🚨 重複発見: ${bird.name} (${area}エリア) - 鳥類園から退園`);
+                    
+                    birds.splice(i, 1);
+                    removedBirds.push({ name: bird.name, area: area, type: '通常エリア' });
+                    
+                    // 退園イベント
+                    await this.addEvent(
+                        guildId,
+                        '重複整理',
+                        `🏠🔧 ${bird.name}がネスト生活のため鳥類園を卒業しました（重複整理）`,
+                        bird.name
+                    );
+                }
+            }
+        }
+        
+        // 見学鳥から重複鳥を削除
+        if (zooState.visitors) {
+            for (let i = zooState.visitors.length - 1; i >= 0; i--) {
+                const visitor = zooState.visitors[i];
+                
+                if (nestBirds.includes(visitor.name)) {
+                    console.log(`🚨 重複発見: ${visitor.name} (見学鳥) - 見学終了`);
+                    
+                    zooState.visitors.splice(i, 1);
+                    removedBirds.push({ name: visitor.name, area: '見学鳥', type: '見学鳥' });
+                    
+                    await this.addEvent(
+                        guildId,
+                        '重複整理',
+                        `🏠👀 見学中の${visitor.name}がネスト入居のため見学を終了しました（重複整理）`,
+                        visitor.name
+                    );
+                }
+            }
+        }
+        
+        // お出かけ鳥から重複鳥を削除
+        if (zooState.outingBirds) {
+            for (let i = zooState.outingBirds.length - 1; i >= 0; i--) {
+                const outingBird = zooState.outingBirds[i];
+                
+                if (nestBirds.includes(outingBird.name)) {
+                    console.log(`🚨 重複発見: ${outingBird.name} (お出かけ鳥) - 強制帰宅`);
+                    
+                    // お出かけリストから削除
+                    zooState.outingBirds.splice(i, 1);
+                    
+                    // 該当エリアからも削除
+                    const areaIndex = zooState[outingBird.area].findIndex(bird => 
+                        bird.name === outingBird.name && bird.isOuting
+                    );
+                    
+                    if (areaIndex !== -1) {
+                        zooState[outingBird.area].splice(areaIndex, 1);
+                    }
+                    
+                    removedBirds.push({ name: outingBird.name, area: outingBird.area, type: 'お出かけ鳥' });
+                    
+                    await this.addEvent(
+                        guildId,
+                        '重複整理',
+                        `🏠🚶 お出かけ中の${outingBird.name}がネスト生活のため帰宅しました（重複整理）`,
+                        outingBird.name
+                    );
+                }
+            }
+        }
+        
+        // データ保存
+        await this.saveServerZoo(guildId);
+        
+        const result = {
+            success: true,
+            message: `重複整理完了: ${removedBirds.length}羽を鳥類園から退園`,
+            removed: removedBirds,
+            nestBirds: nestBirds
+        };
+        
+        console.log(`✅ 重複整理完了:`, result);
+        return result;
+        
+    } catch (error) {
+        console.error(`❌ 重複鳥整理エラー:`, error);
+        return { 
+            success: false, 
+            message: `エラーが発生しました: ${error.message}`,
+            removed: [] 
+        };
+    }
+}
+
+/**
+ * 特定の鳥の重複状態をチェック
+ */
+async checkBirdDuplication(birdName, guildId) {
+    try {
+        console.log(`🔍 ${birdName}の重複状態チェック開始...`);
+        
+        const result = {
+            birdName: birdName,
+            inNest: false,
+            inZoo: [],
+            isDuplicated: false
+        };
+        
+        // ネストにいるかチェック
+        if (this.sheetsManager) {
+            const allNests = await this.sheetsManager.getAllNests(guildId);
+            result.inNest = allNests.some(nest => nest.鳥名 === birdName);
+        }
+        
+        // 鳥類園にいるかチェック
+        const zooState = this.getZooState(guildId);
+        
+        // 通常エリアをチェック
+        for (const area of ['森林', '草原', '水辺']) {
+            const birds = zooState[area];
+            const foundBird = birds.find(bird => bird.name === birdName);
+            if (foundBird) {
+                result.inZoo.push({ area: area, type: '通常エリア', bird: foundBird });
+            }
+        }
+        
+        // 見学鳥をチェック
+        if (zooState.visitors) {
+            const foundVisitor = zooState.visitors.find(visitor => visitor.name === birdName);
+            if (foundVisitor) {
+                result.inZoo.push({ area: '見学鳥', type: '見学鳥', bird: foundVisitor });
+            }
+        }
+        
+        // お出かけ鳥をチェック
+        if (zooState.outingBirds) {
+            const foundOuting = zooState.outingBirds.find(outing => outing.name === birdName);
+            if (foundOuting) {
+                result.inZoo.push({ area: foundOuting.area, type: 'お出かけ鳥', bird: foundOuting });
+            }
+        }
+        
+        // 重複判定
+        result.isDuplicated = result.inNest && result.inZoo.length > 0;
+        
+        console.log(`🔍 ${birdName}の状態:`, result);
+        return result;
+        
+    } catch (error) {
+        console.error(`❌ ${birdName}の重複チェックエラー:`, error);
+        return {
+            birdName: birdName,
+            inNest: false,
+            inZoo: [],
+            isDuplicated: false,
+            error: error.message
+        };
+    }
+}
+
+/**
+ * 緊急用：特定の鳥だけを鳥類園から退園（デバッグ用）
+ */
+async emergencyRemoveSpecificBird(birdName, guildId) {
+    try {
+        console.log(`🚨 ${birdName}の緊急退園処理開始...`);
+        
+        const removed = await this.removeBirdFromZooForNest(birdName, guildId);
+        
+        if (removed) {
+            console.log(`✅ ${birdName}を鳥類園から退園させました`);
+            return { success: true, message: `${birdName}を鳥類園から退園させました` };
+        } else {
+            console.log(`⚠️ ${birdName}は鳥類園にいませんでした`);
+            return { success: false, message: `${birdName}は鳥類園にいませんでした` };
+        }
+        
+    } catch (error) {
+        console.error(`❌ ${birdName}の緊急退園エラー:`, error);
+        return { success: false, message: `エラーが発生しました: ${error.message}` };
+    }
+}
+
+    // ===========================================
 // 🆕 ネスト関連の新メソッド
 // ===========================================
 
