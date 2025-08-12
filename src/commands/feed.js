@@ -119,15 +119,177 @@ module.exports = {
                 return;
             }
 
-            // ⏰ クールダウンチェック
-            const cooldownResult = this.checkFeedingCooldown(birdInfo.bird, interaction.user.id);
-            if (!cooldownResult.canFeed) {
-                await interaction.reply({
-                    content: `⏰ ${birdInfo.bird.name}にはまだ餌をあげられません。\n次回餌やり可能時刻: ${cooldownResult.nextFeedTime}`,
-                    ephemeral: true
-                });
-                return;
+            // ⏰ クールダウンチェック（ネスト鳥は除外）
+    const cooldownResult = this.checkFeedingCooldown(birdInfo.bird, interaction.user.id, birdInfo.isFromNest);
+    if (!cooldownResult.canFeed) {
+        await interaction.reply({
+            content: `⏰ ${birdInfo.bird.name}にはまだ餌をあげられません。\n次回餌やり可能時刻: ${cooldownResult.nextFeedTime}`,
+            ephemeral: true
+        });
+        return;
+    }
+
+    // ⏰ 餌やりクールダウンチェック（修正版 - ネスト対応）
+    checkFeedingCooldown(bird, userId, isFromNest = false) {
+        // 🆕 ネストにいる鳥は常時餌やり可能
+        if (isFromNest) {
+            console.log(`🏠 ネスト鳥 ${bird.name} - 常時餌やり可能`);
+            return { canFeed: true };
+        }
+
+        const now = new Date();
+        const cooldownMinutes = 10;
+        
+        // 🔧 修正: lastFedまたはlastFedByがnullの場合はクールダウンなし
+        if (!bird.lastFed || !bird.lastFedBy) {
+            console.log(`🔧 クールダウンチェック: ${bird.name} - lastFed or lastFedBy is null, allowing feed`);
+            return { canFeed: true };
+        }
+
+        // 同じユーザーが最後に餌をあげた場合のみクールダウンチェック
+        if (bird.lastFedBy === userId) {
+            const timeDiff = now - bird.lastFed;
+            const minutesPassed = Math.floor(timeDiff / (1000 * 60));
+            
+            console.log(`🔧 クールダウンチェック: ${bird.name} - 同じユーザー(${userId}), ${minutesPassed}分経過`);
+            
+            if (minutesPassed < cooldownMinutes) {
+                const nextFeedTime = new Date(bird.lastFed.getTime() + cooldownMinutes * 60 * 1000);
+                return { 
+                    canFeed: false, 
+                    nextFeedTime: nextFeedTime.toLocaleTimeString('ja-JP', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    })
+                };
             }
+        }
+
+        console.log(`🔧 クールダウンチェック: ${bird.name} - 餌やり可能`);
+        return { canFeed: true };
+    },
+
+            // 🔍 改良版鳥検索メソッド（複数候補対応）
+    async findBirdInZoo(birdName, guildId, interaction = null) {
+        const zooManager = require('../utils/zooManager');
+        const zooState = zooManager.getZooState(guildId);
+        
+        // すべてのエリアの鳥を収集（ネスト情報も含む）
+        const allBirds = [];
+        for (const area of ['森林', '草原', '水辺']) {
+            zooState[area].forEach(bird => {
+                allBirds.push({ bird, area, isFromNest: false });
+            });
+        }
+
+        // 🆕 ネストにいる鳥も検索対象に追加
+        try {
+            const sheetsManager = require('../../config/sheets');
+            const userNests = await sheetsManager.getUserNests ? 
+                await sheetsManager.getUserNests(interaction?.user?.id, guildId) : [];
+            
+            userNests.forEach(nest => {
+                // ネスト鳥が動物園にもいるかチェック
+                const existsInZoo = allBirds.some(({ bird }) => bird.name === nest.birdName);
+                if (!existsInZoo) {
+                    // ネスト専用の鳥オブジェクトを作成
+                    const nestBird = {
+                        name: nest.customName || nest.birdName,
+                        originalName: nest.birdName,
+                        mood: 'happy',
+                        activity: `${nest.nestType}で安らいでいます`,
+                        feedCount: 0,
+                        lastFed: null,
+                        lastFedBy: null,
+                        isHungry: false
+                    };
+                    allBirds.push({ 
+                        bird: nestBird, 
+                        area: nest.nestType, 
+                        isFromNest: true,
+                        nestInfo: nest
+                    });
+                }
+            });
+        } catch (error) {
+            console.error('ネスト鳥検索エラー:', error);
+        }
+
+        // 検索パターンを優先順位順に実行
+        const searchPatterns = [
+            // 1. 完全一致（最優先）
+            (birds, name) => birds.filter(({ bird }) => 
+                bird.name === name || bird.originalName === name
+            ),
+            // 2. 前方一致
+            (birds, name) => birds.filter(({ bird }) => 
+                bird.name.startsWith(name) || name.startsWith(bird.name) ||
+                (bird.originalName && (bird.originalName.startsWith(name) || name.startsWith(bird.originalName)))
+            ),
+            // 3. 部分一致（長い名前優先）
+            (birds, name) => {
+                const matches = birds.filter(({ bird }) => 
+                    bird.name.includes(name) || name.includes(bird.name) ||
+                    (bird.originalName && (bird.originalName.includes(name) || name.includes(bird.originalName)))
+                );
+                return matches.sort((a, b) => b.bird.name.length - a.bird.name.length);
+            }
+        ];
+
+        for (const searchFn of searchPatterns) {
+            const matches = searchFn(allBirds, birdName);
+            if (matches.length > 0) {
+                // 複数候補がある場合はセレクトメニューで選択
+                if (matches.length > 1 && interaction) {
+                    return await this.handleMultipleBirdCandidates(matches, birdName, interaction);
+                }
+                
+                console.log(`🎯 鳥発見: ${matches[0].bird.name}${matches[0].isFromNest ? ' (ネスト)' : ''}`);
+                return matches[0];
+            }
+        }
+        
+        console.log(`❌ 鳥が見つかりません: ${birdName}`);
+        return null;
+    },
+
+    // 🆕 複数鳥候補のセレクトメニュー処理
+    async handleMultipleBirdCandidates(candidates, searchName, interaction) {
+        const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
+        
+        // 最大25個まで（Discord制限）
+        const limitedCandidates = candidates.slice(0, 25);
+        
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId('bird_feed_select')
+            .setPlaceholder(`"${searchName}"で複数の鳥が見つかりました...`)
+            .addOptions(
+                limitedCandidates.map((candidate, index) => ({
+                    label: candidate.bird.name,
+                    description: `${candidate.area}${candidate.isFromNest ? ' (あなたのネスト)' : 'エリア'} - ${candidate.bird.activity || '待機中'}`,
+                    value: `bird_feed_${index}`
+                }))
+            );
+
+        const row = new ActionRowBuilder().addComponents(selectMenu);
+
+        // 候補一覧を一時保存（セッション管理）
+        if (!global.birdSelectionCache) global.birdSelectionCache = new Map();
+        const sessionKey = `${interaction.user.id}_${interaction.guild.id}`;
+        global.birdSelectionCache.set(sessionKey, {
+            candidates: limitedCandidates,
+            originalCommand: 'feed',
+            timestamp: Date.now()
+        });
+
+        await interaction.reply({
+            content: `🔍 **"${searchName}"** で複数の鳥が見つかりました。餌をあげる鳥を選択してください：`,
+            components: [row],
+            ephemeral: true
+        });
+
+        return 'MULTIPLE_CANDIDATES'; // 特別な戻り値
+    },
 
             // 🍽️ 餌やり処理
             const preference = birdData.getFoodPreference(birdName, food);
