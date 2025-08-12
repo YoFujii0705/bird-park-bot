@@ -230,13 +230,13 @@ async function handleComponentInteraction(interaction) {
     }
 }
 
-// 🆕 餌やり鳥選択処理関数
+// 🆕 餌やり鳥選択処理関数（修正版）
 async function handleBirdFeedSelection(interaction) {
     try {
         if (!interaction.values || interaction.values.length === 0) {
-            await interaction.reply({
-                content: '鳥が選択されていません。',
-                ephemeral: true
+            await interaction.update({
+                content: '❌ 鳥が選択されていません。',
+                components: []
             });
             return;
         }
@@ -249,9 +249,9 @@ async function handleBirdFeedSelection(interaction) {
         const session = global.birdSelectionCache?.get(sessionKey);
         
         if (!session || !session.candidates || birdIndex >= session.candidates.length) {
-            await interaction.reply({
+            await interaction.update({
                 content: '❌ 選択セッションが期限切れです。再度コマンドを実行してください。',
-                ephemeral: true
+                components: []
             });
             return;
         }
@@ -267,14 +267,14 @@ async function handleBirdFeedSelection(interaction) {
         
     } catch (error) {
         console.error('餌やり鳥選択エラー:', error);
-        await interaction.reply({
+        await interaction.update({
             content: '鳥の選択処理中にエラーが発生しました。',
-            ephemeral: true
+            components: []
         });
     }
 }
 
-// 🆕 餌やりダイアログ表示関数
+// 🆕 餌やりダイアログ表示関数（全体公開版）
 async function showFeedingDialog(interaction, birdInfo) {
     const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
     
@@ -309,22 +309,23 @@ async function showFeedingDialog(interaction, birdInfo) {
     });
 
     const locationText = birdInfo.isFromNest ? 
-        `${birdInfo.area} (あなたのネスト)` : 
+        `${birdInfo.area} (${interaction.user.username}さんのネスト)` : 
         `${birdInfo.area}エリア`;
 
+    // 🔧 修正: 全体公開で餌選択ダイアログを表示
     await interaction.update({
-        content: `🍽️ **${birdInfo.bird.name}** に餌をあげます\n📍 場所: ${locationText}\n\n餌の種類を選択してください：`,
+        content: `🍽️ **${birdInfo.bird.name}** に餌をあげます\n📍 場所: ${locationText}\n\n${interaction.user.username}さん、餌の種類を選択してください：`,
         components: [row]
     });
 }
 
-// 🆕 餌選択処理関数
+// 🆕 餌選択処理関数（修正版）
 async function handleFoodSelection(interaction) {
     try {
         if (!interaction.values || interaction.values.length === 0) {
-            await interaction.reply({
-                content: '餌が選択されていません。',
-                ephemeral: true
+            await interaction.update({
+                content: '❌ 餌が選択されていません。',
+                components: []
             });
             return;
         }
@@ -336,9 +337,9 @@ async function handleFoodSelection(interaction) {
         const session = global.feedingSessionCache?.get(sessionKey);
         
         if (!session || !session.birdInfo) {
-            await interaction.reply({
+            await interaction.update({
                 content: '❌ 餌やりセッションが期限切れです。再度コマンドを実行してください。',
-                ephemeral: true
+                components: []
             });
             return;
         }
@@ -351,9 +352,9 @@ async function handleFoodSelection(interaction) {
         
     } catch (error) {
         console.error('餌選択処理エラー:', error);
-        await interaction.reply({
+        await interaction.update({
             content: '餌の選択処理中にエラーが発生しました。',
-            ephemeral: true
+            components: []
         });
     }
 }
