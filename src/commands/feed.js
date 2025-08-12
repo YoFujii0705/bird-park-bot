@@ -541,9 +541,9 @@ module.exports = {
                     if (bondResult.bondLevelUp) {
                         affinityText += '\n✨ 絆レベルアップ！';
                         
-                        // 🆕 絆レベルアップ時のネストガチャ通知
-                        affinityText += '\n🎰 ネストガチャが利用可能になりました！';
-                        affinityText += '\n`/nest gacha` でネストを獲得しましょう！';
+                        // 🆕 ネストガチャ利用可能通知（修正版）
+                        affinityText += '\n🎰 **ネストガチャ利用可能！**';
+                        affinityText += '\n`/nest gacha bird:' + birdInfo.bird.originalName || birdInfo.bird.name + '` でガチャを引こう！';
                     }
                     
                     // 次の絆レベルまでの進捗
@@ -799,7 +799,7 @@ module.exports = {
         return totalRequired;
     },
 
-    // 🆕 絆レベル特典チェック
+    // 🆕 絆レベル特典チェック（ガチャチケット付与追加版）
     async checkBondLevelRewards(userId, userName, birdName, bondLevel, serverId) {
         try {
             console.log(`🎁 絆レベル${bondLevel}特典チェック - ${birdName}`);
@@ -820,6 +820,9 @@ module.exports = {
                 console.log(`📸 ${userName}が${photoName}を獲得しました`);
             }
             
+            // 🆕 全絆レベルアップでネストガチャチケット付与
+            await this.grantNestGachaTicket(userId, userName, birdName, bondLevel, serverId);
+            
             // レベル1: ネスト建設権利解放
             if (bondLevel === 1) {
                 console.log(`🏠 ${userName}が${birdName}のネスト建設権利を獲得しました`);
@@ -830,7 +833,30 @@ module.exports = {
             console.error('絆レベル特典チェックエラー:', error);
         }
     },
-
+    
+    // 🆕 ネストガチャチケット付与
+    async grantNestGachaTicket(userId, userName, birdName, bondLevel, serverId) {
+        try {
+            console.log(`🎰 ネストガチャチケット付与: ${userName} -> ${birdName} (絆レベル${bondLevel})`);
+            
+            const sheetsManager = require('../../config/sheets');
+            
+            // ネストガチャチケットをデータベースに記録
+            await sheetsManager.logNestGachaTicket(
+                userId,
+                userName,
+                birdName,
+                bondLevel,
+                'available', // 使用状況
+                serverId
+            );
+            
+            console.log(`🎫 ネストガチャチケット付与完了: ${birdName} (絆レベル${bondLevel})`);
+            
+        } catch (error) {
+            console.error('ネストガチャチケット付与エラー:', error);
+        }
+    },
     // 🆕 絆レベル別写真名取得
     getBondLevelPhotoName(bondLevel) {
         const photoNames = {
