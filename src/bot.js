@@ -178,6 +178,14 @@ async function handleComponentInteraction(interaction) {
         else if (customId.startsWith('nest_select_')) {
             await handleNestSelection(interaction);
         }
+        // 🆕 ネストガチャボタン処理を追加
+        else if (customId.startsWith('nest_gacha_')) {
+            await handleNestGachaSelection(interaction);
+        }
+        // 🆕 ネスト変更ボタン
+        else if (customId.startsWith('nest_change_')) {
+            await handleNestChangeSelection(interaction);
+        }
         // 🆕 餌やり鳥選択セレクトメニュー
         else if (customId === 'bird_feed_select') {
             await handleBirdFeedSelection(interaction);
@@ -626,6 +634,212 @@ async function handleNestSelection(interaction) {
             nestType,
             serverId
         });
+    }
+}
+
+// 🆕 ネストガチャ選択処理関数
+async function handleNestGachaSelection(interaction) {
+    try {
+        // カスタムIDを解析: nest_gacha_1_406748284942548992_アホウドリ_真珠の洞窟_3
+        const parts = interaction.customId.split('_');
+        const index = parseInt(parts[2]);
+        const userId = parts[3];
+        const birdName = parts[4];
+        const nestType = parts.slice(5, -1).join('_'); // 最後の数字(絆レベル)を除く
+        const bondLevel = parseInt(parts[parts.length - 1]);
+        
+        console.log(`🎰 ネストガチャ選択:`, { index, userId, birdName, nestType, bondLevel });
+        
+        // 権限チェック
+        if (interaction.user.id !== userId) {
+            await interaction.reply({
+                content: '❌ このガチャはあなた専用ではありません。',
+                ephemeral: true
+            });
+            return;
+        }
+        
+        // ネスト取得処理
+        const result = await processNestGachaSelection(userId, interaction.user.username, birdName, nestType, bondLevel, interaction.guild.id);
+        
+        if (result.success) {
+            const embed = {
+                title: '🎉 ネスト取得完了！',
+                description: `**${nestType}**を取得しました！`,
+                color: 0x00FF00,
+                fields: [
+                    {
+                        name: '🐦 対象の鳥',
+                        value: birdName,
+                        inline: true
+                    },
+                    {
+                        name: '🏠 取得したネスト',
+                        value: nestType,
+                        inline: true
+                    },
+                    {
+                        name: '🌟 絆レベル',
+                        value: `レベル${bondLevel}`,
+                        inline: true
+                    },
+                    {
+                        name: '🔧 次にできること',
+                        value: `• \`/nest create bird:${birdName}\` - ネスト建設\n• \`/nest view\` - 所有ネスト一覧\n• \`/nest gacha bird:${birdName}\` - 他の絆レベル報酬`,
+                        inline: false
+                    }
+                ],
+                footer: {
+                    text: `絆レベル${bondLevel}達成報酬`
+                }
+            };
+            
+            await interaction.update({
+                embeds: [embed],
+                components: [] // ボタンを削除
+            });
+            
+        } else {
+            await interaction.update({
+                content: `❌ ネスト取得に失敗しました: ${result.message}`,
+                embeds: [],
+                components: []
+            });
+        }
+        
+    } catch (error) {
+        console.error('ネストガチャ選択エラー:', error);
+        
+        try {
+            await interaction.update({
+                content: '❌ ネスト取得中にエラーが発生しました。',
+                embeds: [],
+                components: []
+            });
+        } catch (updateError) {
+            console.error('ネストガチャエラー応答失敗:', updateError);
+        }
+    }
+}
+
+// 🆕 ネスト変更選択処理関数
+async function handleNestChangeSelection(interaction) {
+    try {
+        // カスタムIDを解析: nest_change_406748284942548992_アホウドリ_蓮池の巣
+        const parts = interaction.customId.split('_');
+        const userId = parts[2];
+        const birdName = parts[3];
+        const newNestType = parts.slice(4).join('_');
+        
+        console.log(`🔄 ネスト変更選択:`, { userId, birdName, newNestType });
+        
+        // 権限チェック
+        if (interaction.user.id !== userId) {
+            await interaction.reply({
+                content: '❌ この操作はあなた専用ではありません。',
+                ephemeral: true
+            });
+            return;
+        }
+        
+        // ネスト変更処理
+        const { changeNestType } = require('./commands/nest');
+        const result = await changeNestType(
+            userId, 
+            interaction.user.username, 
+            birdName, 
+            '現在のネスト', // 旧ネスト名（実際には取得が必要）
+            newNestType, 
+            interaction.guild.id
+        );
+        
+        if (result.success) {
+            const embed = {
+                title: '🔄 ネスト変更完了！',
+                description: `${birdName}のネストを **${newNestType}** に変更しました！`,
+                color: 0x00FF00,
+                fields: [
+                    {
+                        name: '🐦 対象の鳥',
+                        value: birdName,
+                        inline: true
+                    },
+                    {
+                        name: '🏠 新しいネスト',
+                        value: newNestType,
+                        inline: true
+                    }
+                ],
+                footer: {
+                    text: `変更者: ${interaction.user.username}`
+                }
+            };
+            
+            await interaction.update({
+                embeds: [embed],
+                components: []
+            });
+            
+        } else {
+            await interaction.update({
+                content: `❌ ネスト変更に失敗しました: ${result.message}`,
+                embeds: [],
+                components: []
+            });
+        }
+        
+    } catch (error) {
+        console.error('ネスト変更選択エラー:', error);
+        
+        try {
+            await interaction.update({
+                content: '❌ ネスト変更中にエラーが発生しました。',
+                embeds: [],
+                components: []
+            });
+        } catch (updateError) {
+            console.error('ネスト変更エラー応答失敗:', updateError);
+        }
+    }
+}
+
+// 🆕 ネストガチャ選択を処理する関数
+async function processNestGachaSelection(userId, userName, birdName, nestType, bondLevel, serverId) {
+    try {
+        const sheetsManager = require('../config/sheets');
+        
+        // 1. 現在の所持ネストリストを取得
+        const currentNests = await sheetsManager.getUserOwnedNestTypes(userId, serverId);
+        
+        // 2. 新しいネストを追加
+        const updatedNests = [...currentNests, nestType];
+        
+        // 3. ネスト取得を記録
+        await sheetsManager.logNestAcquisition(
+            userId,
+            userName,
+            birdName,
+            nestType,
+            bondLevel,
+            bond_level_gacha,
+            updatedNests,
+            serverId
+        );
+        
+        console.log(`✅ ネスト取得記録完了: ${userName} -> ${nestType}`);
+        
+        return {
+            success: true,
+            nestType: nestType,
+            message: `${nestType}を取得しました！`
+        };
+        
+    } catch (error) {
+        console.error('ネストガチャ選択処理エラー:', error);
+        return {
+            success: false,
+            message: 'データベースの更新に失敗しました'
+        };
     }
 }
 
