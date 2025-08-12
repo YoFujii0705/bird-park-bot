@@ -49,7 +49,7 @@ module.exports = {
         if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
             await interaction.reply({
                 content: '❌ このコマンドは管理者のみ使用できます。',
-                ephemeral: true
+                flags: [4096] // EPHEMERAL flag
             });
             return;
         }
@@ -77,22 +77,30 @@ module.exports = {
                 default:
                     await interaction.reply({
                         content: '❌ 不明なサブコマンドです。',
-                        ephemeral: true
+                        flags: [4096] // EPHEMERAL flag
                     });
             }
         } catch (error) {
             console.error('zoo-debugエラー:', error);
-            await interaction.reply({
-                content: '❌ コマンドの実行中にエラーが発生しました。',
-                ephemeral: true
-            });
+            
+            // インタラクションがまだ応答されていない場合のみ応答
+            if (!interaction.replied && !interaction.deferred) {
+                try {
+                    await interaction.reply({
+                        content: '❌ コマンドの実行中にエラーが発生しました。',
+                        flags: [4096] // EPHEMERAL flag
+                    });
+                } catch (replyError) {
+                    console.error('エラー応答の送信に失敗:', replyError);
+                }
+            }
         }
     },
 
     async showDetailedStatus(interaction, guildId) {
         const zooManager = require('../utils/zooManager');
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [4096] }); // EPHEMERAL flag
         await zooManager.initializeServer(guildId);
         
         const selectedArea = interaction.options.getString('area');
@@ -200,7 +208,7 @@ module.exports = {
     async showSchedule(interaction, guildId) {
         const zooManager = require('../utils/zooManager');
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [4096] }); // EPHEMERAL flag
         await zooManager.initializeServer(guildId);
         
         const zooState = zooManager.getZooState(guildId);
@@ -274,7 +282,7 @@ module.exports = {
     async cleanupDuplicates(interaction, guildId) {
         const zooManager = require('../utils/zooManager');
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [4096] }); // EPHEMERAL flag
         
         const result = await zooManager.emergencyCleanupDuplicateBirds(guildId);
         
@@ -319,7 +327,7 @@ module.exports = {
         const zooManager = require('../utils/zooManager');
         const birdName = interaction.options.getString('bird');
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [4096] }); // EPHEMERAL flag
         
         const result = await zooManager.checkBirdDuplication(birdName, guildId);
         
@@ -368,7 +376,7 @@ module.exports = {
         const zooManager = require('../utils/zooManager');
         const birdName = interaction.options.getString('bird');
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [4096] }); // EPHEMERAL flag
         
         // まず重複チェック
         const checkResult = await zooManager.checkBirdDuplication(birdName, guildId);
