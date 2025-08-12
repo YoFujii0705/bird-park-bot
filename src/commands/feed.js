@@ -3,7 +3,6 @@ const birdData = require('../utils/birdData');
 const logger = require('../utils/logger');
 const sheetsManager = require('../../config/sheets');
 const achievementHelper = require('../utils/achievementHelper');
-const bondLevelManager = require('../utils/bondLevelManager');
 
 // 🎁 人間から鳥への贈り物（人工的・意図的なもの）
 const HUMAN_TO_BIRD_GIFTS = {
@@ -78,6 +77,7 @@ module.exports = {
                     { name: '🐁 ねずみ', value: 'ねずみ' }
                 )
                 .setRequired(true)),
+
     async execute(interaction) {
         try {
             const guildId = interaction.guild.id;
@@ -231,148 +231,11 @@ module.exports = {
                 }
             }, 8000);
         }
-
-        // 🔗 絆レベル処理（1秒後）- 新しい処理
-        if (affinityResult.newLevel >= 10) {
-            setTimeout(async () => {
-                try {
-                    await this.handleBondLevelProcess(interaction, birdInfo, affinityResult, guildId);
-                } catch (error) {
-                    console.error('絆レベル処理エラー:', error);
-                }
-            }, 1000);
-        }
-    },
-
-    // 🔗 絆レベル処理（新規追加）
-    async handleBondLevelProcess(interaction, birdInfo, affinityResult, guildId) {
-        try {
-            const userId = interaction.user.id;
-            const userName = interaction.user.displayName || interaction.user.username;
-            const birdName = birdInfo.bird.name;
-
-            console.log(`💖 好感度MAX達成済み: ${userName} -> ${birdName} (${affinityResult.newLevel})`);
-            
-            // 絆餌やり回数を増加
-            const bondFeedCount = await bondLevelManager.incrementBondFeedCount(
-                userId, userName, birdName, guildId
-            );
-            
-            console.log(`🔗 絆餌やり回数: ${bondFeedCount}`);
-            
-            // 絆レベルアップチェック
-            const levelUpResult = await bondLevelManager.checkBondLevelUp(
-                userId, userName, birdName, bondFeedCount, guildId, interaction.client
-            );
-            
-            if (levelUpResult.leveledUp) {
-                console.log(`🌟 絆レベルアップ！: ${userName} -> ${birdName} (レベル${levelUpResult.newLevel})`);
-                
-                // 絆レベルアップ通知を送信
-                const bondEmbed = {
-                    title: '🌟 絆レベルアップ！',
-                    description: `**${birdName}**との絆レベルが **${levelUpResult.newLevel}** に到達しました！`,
-                    color: 0xFF6B6B,
-                    fields: [
-                        {
-                            name: '🔗 絆レベル',
-                            value: `レベル ${levelUpResult.newLevel}`,
-                            inline: true
-                        }
-                    ],
-                    footer: {
-                        text: `絆レベル${levelUpResult.newLevel}達成！`
-                    },
-                    timestamp: new Date().toISOString()
-                };
-
-                // 特別な絆レベルの場合
-                if ([1, 3, 5, 10, 15, 20].includes(levelUpResult.newLevel)) {
-                    bondEmbed.fields.push({
-                        name: '📸 特別報酬',
-                        value: `絆レベル${levelUpResult.newLevel}達成記念の写真を受け取りました！`,
-                        inline: false
-                    });
-                }
-
-                // ネストガチャ発動通知
-                if (levelUpResult.newLevel >= 1) {
-                    bondEmbed.fields.push({
-                        name: '🎰 ネストガチャ発動！',
-                        value: '新しいネストタイプが解放されました！\n選択肢が表示されるのをお待ちください。',
-                        inline: false
-                    });
-                }
-
-                await interaction.followUp({ embeds: [bondEmbed] });
-            }
-
-        } catch (error) {
-            console.error('絆レベル処理エラー:', error);
-        }
-    },
-
-    // 💖 好感度処理メソッド（簡略化版）
-    async processAffinity(userId, userName, birdName, preference, serverId) {
-        try {
-            // 現在の好感度を取得
-            const affinities = await sheetsManager.getUserAffinity(userId, serverId);
-            const currentAffinity = affinities[birdName] || { level: 0, feedCount: 0 };
-            
-            // 餌やり回数を増加（小数点対応）
-            let feedIncrement = 1;
-            
-            // 好物の場合は1.5倍ボーナス
-            if (preference === 'favorite') {
-                feedIncrement = 1.5;
-            }
-            
-            let newFeedCount = currentAffinity.feedCount + feedIncrement;
-            let newLevel = currentAffinity.level;
-            let levelUp = false;
-            
-            // 好感度レベルアップ判定（最大レベル10）
-            while (newLevel < 10) {
-                const requiredFeeds = this.getRequiredFeedsForLevel(newLevel + 1);
-                
-                if (newFeedCount >= requiredFeeds) {
-                    newLevel++;
-                    levelUp = true;
-                } else {
-                    break;
-                }
-            }
-            
-            // スプレッドシートに好感度記録
-            await sheetsManager.logAffinity(userId, userName, birdName, newLevel, Math.round(newFeedCount * 10) / 10, serverId);
-            
-            return {
-                levelUp,
-                newLevel,
-                newFeedCount: Math.round(newFeedCount * 10) / 10,
-                previousLevel: currentAffinity.level,
-                feedIncrement,
-                requiredForNext: newLevel < 10 ? this.getRequiredFeedsForLevel(newLevel + 1) : null
-            };
-            
-        } catch (error) {
-            console.error('好感度処理エラー:', error);
-            return { levelUp: false, newLevel: 0, newFeedCount: 1, previousLevel: 0 };
-        }
-    },
-
-    // 📊 好感度レベル別必要餌やり回数
-    getRequiredFeedsForLevel(level) {
-        const requirements = {
-            1: 3,   2: 7,   3: 12,  4: 18,  5: 25,
-            6: 33,  7: 42,  8: 52,  9: 63,  10: 75
-        };
-        return requirements[level] || 75;
     },
 
     // 🎁 鳥からの贈り物処理
     async handleBirdGiftProcess(interaction, birdInfo, affinityResult, guildId) {
-        if (affinityResult && affinityResult.newLevel >= 3) {
+        if (affinityResult && affinityResult.newLevel >= 5) {
             const birdGift = await this.checkBirdGiftToUser(
                 interaction,
                 interaction.user.id,
@@ -400,114 +263,102 @@ module.exports = {
 
     // 💭 餌やり思い出生成
     async handleFeedingMemory(interaction, birdInfo, feedResult, affinityResult, guildId) {
-        try {
-            const memoryManager = require('../utils/humanMemoryManager');
-            const weatherManager = require('../utils/weather');
-            
-            const currentWeather = await weatherManager.getCurrentWeather();
-            
-            const actionData = {
-                type: 'feed',
-                preference: birdData.getFoodPreference(birdInfo.bird.name, interaction.options.getString('food')),
+        const memoryManager = require('../utils/humanMemoryManager');
+        const weatherManager = require('../utils/weather');
+        
+        const currentWeather = await weatherManager.getCurrentWeather();
+        
+        const actionData = {
+            type: 'feed',
+            preference: birdData.getFoodPreference(birdInfo.bird.name, interaction.options.getString('food')),
+            food: interaction.options.getString('food'),
+            isFirstTime: birdInfo.bird.feedCount === 1,
+            isFirstFavorite: this.isFirstFavoriteFood(birdInfo.bird, interaction.options.getString('food')),
+            weather: currentWeather.condition,
+            weatherDescription: currentWeather.description,
+            temperature: currentWeather.temperature,
+            hour: new Date().getHours(),
+            totalFeeds: birdInfo.bird.feedCount,
+            details: {
                 food: interaction.options.getString('food'),
-                isFirstTime: birdInfo.bird.feedCount === 1,
-                isFirstFavorite: this.isFirstFavoriteFood(birdInfo.bird, interaction.options.getString('food')),
+                area: birdInfo.area,
+                effect: feedResult.effect,
                 weather: currentWeather.condition,
                 weatherDescription: currentWeather.description,
-                temperature: currentWeather.temperature,
-                hour: new Date().getHours(),
-                totalFeeds: birdInfo.bird.feedCount,
-                details: {
-                    food: interaction.options.getString('food'),
-                    area: birdInfo.area,
-                    effect: feedResult.effect,
-                    weather: currentWeather.condition,
-                    weatherDescription: currentWeather.description,
-                    temperature: currentWeather.temperature
-                }
-            };
-            
-            const newMemory = await memoryManager.createMemory(
-                interaction.user.id,
-                interaction.user.username,
-                birdInfo.bird.name,
-                actionData,
-                guildId
-            );
-            
-            if (newMemory) {
-                await memoryManager.sendMemoryNotification(interaction, newMemory);
+                temperature: currentWeather.temperature
             }
-        } catch (error) {
-            console.error('餌やり思い出生成エラー:', error);
+        };
+        
+        const newMemory = await memoryManager.createMemory(
+            interaction.user.id,
+            interaction.user.username,
+            birdInfo.bird.name,
+            actionData,
+            guildId
+        );
+        
+        if (newMemory) {
+            await memoryManager.sendMemoryNotification(interaction, newMemory);
         }
     },
 
     // 💖 好感度アップ思い出生成
     async handleAffinityMemory(interaction, birdInfo, affinityResult, guildId) {
-        try {
-            const memoryManager = require('../utils/humanMemoryManager');
-            
-            const affinityActionData = {
-                type: 'affinity',
+        const memoryManager = require('../utils/humanMemoryManager');
+        
+        const affinityActionData = {
+            type: 'affinity',
+            newLevel: affinityResult.newLevel,
+            previousLevel: affinityResult.previousLevel,
+            details: {
                 newLevel: affinityResult.newLevel,
-                previousLevel: affinityResult.previousLevel,
-                details: {
-                    newLevel: affinityResult.newLevel,
-                    birdName: birdInfo.bird.name
-                }
-            };
-            
-            const affinityMemory = await memoryManager.createMemory(
-                interaction.user.id,
-                interaction.user.username,
-                birdInfo.bird.name,
-                affinityActionData,
-                guildId
-            );
-            
-            if (affinityMemory) {
-                await memoryManager.sendMemoryNotification(interaction, affinityMemory);
+                birdName: birdInfo.bird.name
             }
-        } catch (error) {
-            console.error('好感度思い出生成エラー:', error);
+        };
+        
+        const affinityMemory = await memoryManager.createMemory(
+            interaction.user.id,
+            interaction.user.username,
+            birdInfo.bird.name,
+            affinityActionData,
+            guildId
+        );
+        
+        if (affinityMemory) {
+            await memoryManager.sendMemoryNotification(interaction, affinityMemory);
         }
     },
 
-    // 🎁 贈り物受取思い出生成
+   // 🎁 贈り物受取思い出生成
     async handleGiftReceivedMemory(interaction, birdInfo, birdGift, affinityResult, guildId) {
-        try {
-            const memoryManager = require('../utils/humanMemoryManager');
-            
-            const receivedGifts = await sheetsManager.getUserReceivedGifts ? 
-                await sheetsManager.getUserReceivedGifts(interaction.user.id, guildId) : [];
-            const isFirstReceived = receivedGifts.length === 1;
-            
-            const giftActionData = {
-                type: 'gift_received',
-                isFirstReceived: isFirstReceived,
-                rarity: birdGift.giftName.includes('虹色') || birdGift.giftName.includes('四つ葉') ? 'rare' : 'common',
-                details: {
-                    giftName: birdGift.giftName,
-                    birdName: birdInfo.bird.name,
-                    area: birdInfo.area,
-                    affinityLevel: affinityResult.newLevel
-                }
-            };
-            
-            const giftMemory = await memoryManager.createMemory(
-                interaction.user.id,
-                interaction.user.username,
-                birdInfo.bird.name,
-                giftActionData,
-                guildId
-            );
-            
-            if (giftMemory) {
-                await memoryManager.sendMemoryNotification(interaction, giftMemory);
+        const memoryManager = require('../utils/humanMemoryManager');
+        
+        const receivedGifts = await sheetsManager.getUserReceivedGifts ? 
+            await sheetsManager.getUserReceivedGifts(interaction.user.id, guildId) : [];
+        const isFirstReceived = receivedGifts.length === 1;
+        
+        const giftActionData = {
+            type: 'gift_received',
+            isFirstReceived: isFirstReceived,
+            rarity: birdGift.giftName.includes('虹色') || birdGift.giftName.includes('四つ葉') ? 'rare' : 'common',
+            details: {
+                giftName: birdGift.giftName,
+                birdName: birdInfo.bird.name,
+                area: birdInfo.area,
+                affinityLevel: affinityResult.newLevel
             }
-        } catch (error) {
-            console.error('贈り物思い出生成エラー:', error);
+        };
+        
+        const giftMemory = await memoryManager.createMemory(
+            interaction.user.id,
+            interaction.user.username,
+            birdInfo.bird.name,
+            giftActionData,
+            guildId
+        );
+        
+        if (giftMemory) {
+            await memoryManager.sendMemoryNotification(interaction, giftMemory);
         }
     },
 
@@ -647,7 +498,7 @@ module.exports = {
             )
             .setTimestamp();
 
-        // 💖 好感度情報表示
+        // 💖 好感度情報表示（修正版）
         if (affinityResult) {
             const maxHearts = 10;
             const hearts = '💖'.repeat(affinityResult.newLevel) + '🤍'.repeat(maxHearts - affinityResult.newLevel);
@@ -663,8 +514,50 @@ module.exports = {
                 affinityText += '\n🌟 好物ボーナス！(×1.5)';
             }
             
-            // 絆レベル情報表示
-            if (affinityResult.newLevel >= 10) {
+            // 🆕 絆レベル表示（修正版）
+            if (affinityResult.newLevel >= 10 && affinityResult.bondResult) {
+                const bondResult = affinityResult.bondResult;
+                
+                if (bondResult.error) {
+                    // エラーが発生した場合
+                    affinityText += `\n\n🔗 **絆システム**`;
+                    affinityText += `\n❌ 絆レベル処理でエラーが発生しました`;
+                    affinityText += `\n再度餌やりをお試しください`;
+                } else if (bondResult.isProcessing) {
+                    // 処理中の場合（この状態は基本的になくなる）
+                    affinityText += `\n\n🔗 **絆システム起動！**`;
+                    affinityText += `\n⏳ 絆レベル処理中...`;
+                    affinityText += `\n好物餌やりで絆レベルが上がります！`;
+                } else {
+                    // 通常の絆レベル表示
+                    affinityText += `\n\n🔗 **絆レベル ${bondResult.newBondLevel}**`;
+                    affinityText += `\n絆: ${bondResult.newBondFeedCount}回`;
+                    
+                    if (bondResult.bondLevelUp) {
+                        affinityText += '\n✨ 絆レベルアップ！';
+                    }
+                    
+                    // 次の絆レベルまでの進捗
+                    if (bondResult.requiredForNextBond && bondResult.requiredForNextBond > bondResult.newBondFeedCount) {
+                        const remaining = bondResult.requiredForNextBond - bondResult.newBondFeedCount;
+                        affinityText += `\n次の絆レベルまで: ${remaining.toFixed(1)}回`;
+                    }
+                    
+                    // 絆レベル特典表示
+                    if (bondResult.newBondLevel >= 1) {
+                        affinityText += '\n🏠 ネスト建設可能！';
+                    }
+                    if (bondResult.newBondLevel >= 3) {
+                        affinityText += '\n🚶 レア散歩ルート解放！';
+                    }
+                    if (bondResult.newBondLevel >= 5) {
+                        affinityText += '\n🌟 特別散歩ルート解放！';
+                    }
+                    if (bondResult.newBondLevel >= 10) {
+                        affinityText += '\n👑 最高級散歩ルート解放！';
+                    }
+                }
+            } else if (affinityResult.newLevel >= 10) {
                 affinityText += '\n\n🔗 **絆システム解放済み**';
                 affinityText += '\n好物餌やりで絆レベルが上がります！';
             } else {
@@ -676,11 +569,11 @@ module.exports = {
             }
             
             // 贈り物解放通知
-            if (affinityResult.newLevel >= 3) {
+            if (affinityResult.newLevel >= 5) {
                 affinityText += '\n🎁 贈り物可能！';
-            } else if (affinityResult.newLevel >= 2) {
+            } else if (affinityResult.newLevel >= 4) {
                 affinityText += '\n🎁 もうすぐ贈り物可能！';
-            } else if (affinityResult.newLevel >= 1) {  
+            } else if (affinityResult.newLevel >= 3) {  
                 affinityText += '\n🎁 あと少しで贈り物可能！';
             }
             
@@ -708,6 +601,239 @@ module.exports = {
         const birdData = require('../utils/birdData');
         const preference = birdData.getFoodPreference(bird.name, food);
         return preference === 'favorite' && !bird.feedHistory.some(h => h.preference === 'favorite');
+    },
+
+    // 💖 好感度処理メソッド（絆レベル表示修正版）
+    async processAffinity(userId, userName, birdName, preference, serverId) {
+        try {
+            // 現在の好感度を取得
+            const affinities = await sheetsManager.getUserAffinity(userId, serverId);
+            const currentAffinity = affinities[birdName] || { level: 0, feedCount: 0 };
+            
+            // 餌やり回数を増加（小数点対応）
+            let feedIncrement = 1;
+            
+            // 好物の場合は1.5倍ボーナス（絆レベル時も継続）
+            if (preference === 'favorite') {
+                feedIncrement = 1.5;
+            }
+            
+            let newFeedCount = currentAffinity.feedCount + feedIncrement;
+            let newLevel = currentAffinity.level;
+            let levelUp = false;
+            
+            // 好感度レベルアップ判定（最大レベル10）
+            while (newLevel < 10) {
+                const requiredFeeds = this.getRequiredFeedsForLevel(newLevel + 1);
+                
+                if (newFeedCount >= requiredFeeds) {
+                    newLevel++;
+                    levelUp = true;
+                } else {
+                    break;
+                }
+            }
+            
+            // スプレッドシートに好感度記録
+            await sheetsManager.logAffinity(userId, userName, birdName, newLevel, Math.round(newFeedCount * 10) / 10, serverId);
+            
+            // 🆕 絆レベル処理（修正版）
+            let bondResult = null;
+            if (newLevel >= 10) {
+                try {
+                    // 🔧 修正: 同期的に絆レベル処理を実行
+                    bondResult = await this.processBondLevel(userId, userName, birdName, feedIncrement, serverId);
+                    console.log('🔗 絆レベル処理完了:', bondResult);
+                } catch (error) {
+                    console.error('絆レベル処理エラー:', error);
+                    // エラーの場合は処理中状態を返す
+                    bondResult = {
+                        bondLevelUp: false,
+                        newBondLevel: 0,
+                        newBondFeedCount: feedIncrement,
+                        previousBondLevel: 0,
+                        requiredForNextBond: this.getRequiredFeedsForBondLevel(1),
+                        isProcessing: true,
+                        error: true
+                    };
+                }
+            }
+            
+            return {
+                levelUp,
+                newLevel,
+                newFeedCount: Math.round(newFeedCount * 10) / 10,
+                previousLevel: currentAffinity.level,
+                feedIncrement,
+                requiredForNext: newLevel < 10 ? this.getRequiredFeedsForLevel(newLevel + 1) : null,
+                bondResult: bondResult
+            };
+            
+        } catch (error) {
+            console.error('好感度処理エラー:', error);
+            return { levelUp: false, newLevel: 0, newFeedCount: 1, previousLevel: 0, bondResult: null };
+        }
+    },
+
+    // 🆕 同期版絆レベル処理メソッド（修正版）
+    async processBondLevel(userId, userName, birdName, feedIncrement, serverId) {
+        try {
+            console.log(`🔗 絆レベル処理開始 - ${birdName}, サーバー: ${serverId}`);
+            
+            const sheetsManager = require('../../config/sheets');
+            
+            // 現在の絆レベルを取得
+            const currentBond = await sheetsManager.getUserBondLevel(userId, birdName, serverId) || { 
+                bondLevel: 0, 
+                bondFeedCount: 0 
+            };
+            
+            console.log(`🔗 現在の絆レベル:`, currentBond);
+            
+            // 絆餌やり回数を増加
+            let newBondFeedCount = currentBond.bondFeedCount + feedIncrement;
+            let newBondLevel = currentBond.bondLevel;
+            let bondLevelUp = false;
+            
+            console.log(`🔗 新しい絆餌やり回数: ${newBondFeedCount}`);
+            
+            // 絆レベルアップ判定
+            while (true) {
+                const requiredFeeds = this.getRequiredFeedsForBondLevel(newBondLevel + 1);
+                console.log(`🔗 レベル${newBondLevel + 1}に必要な回数: ${requiredFeeds}`);
+                
+                if (newBondFeedCount >= requiredFeeds) {
+                    newBondLevel++;
+                    bondLevelUp = true;
+                    console.log(`🔗 絆レベルアップ！ ${birdName}: Lv.${newBondLevel}`);
+                    
+                    // 絆レベル特典チェック
+                    await this.checkBondLevelRewards(userId, userName, birdName, newBondLevel, serverId);
+                } else {
+                    break;
+                }
+            }
+            
+            // 🔧 絆レベルをスプレッドシートに記録（サーバーID修正）
+            console.log(`🔗 絆レベル記録: ${userName} -> ${birdName} Lv.${newBondLevel} (${newBondFeedCount}回) サーバー:${serverId}`);
+            
+            await sheetsManager.logBondLevel(
+                userId, 
+                userName, 
+                birdName, 
+                newBondLevel, 
+                Math.round(newBondFeedCount * 10) / 10, 
+                serverId
+            );
+            
+            console.log(`🔗 絆レベル処理完了 - ${birdName}: Lv.${newBondLevel}`);
+            
+            return {
+                bondLevelUp,
+                newBondLevel,
+                newBondFeedCount: Math.round(newBondFeedCount * 10) / 10,
+                previousBondLevel: currentBond.bondLevel,
+                requiredForNextBond: this.getRequiredFeedsForBondLevel(newBondLevel + 1),
+                isProcessing: false // 🔧 修正: 処理完了フラグ
+            };
+            
+        } catch (error) {
+            console.error('絆レベル処理エラー:', error);
+            console.error('エラースタック:', error.stack);
+            throw error; // エラーを上位に伝播
+        }
+    },
+
+    // 📈 レベル別必要餌やり回数計算
+    getRequiredFeedsForLevel(targetLevel) {
+        const levelRequirements = {
+            1: 2,      // レベル0→1: 2回
+            2: 4,      // レベル1→2: 2回追加 (累計4回)
+            3: 7,      // レベル2→3: 3回追加 (累計7回)
+            4: 11,     // レベル3→4: 4回追加 (累計11回)
+            5: 16,     // レベル4→5: 5回追加 (累計16回) ← 贈り物解放
+            6: 22,     // レベル5→6: 6回追加 (累計22回)
+            7: 29,     // レベル6→7: 7回追加 (累計29回)
+            8: 37,     // レベル7→8: 8回追加 (累計37回)
+            9: 46,     // レベル8→9: 9回追加 (累計46回)
+            10: 56     // レベル9→10: 10回追加 (累計56回)
+        };
+        
+        return levelRequirements[targetLevel] || 999;
+    },
+
+    // 🆕 絆レベル別必要餌やり回数計算
+    getRequiredFeedsForBondLevel(targetBondLevel) {
+        if (targetBondLevel <= 0) return 0;
+        
+        // 企画書通りの段階的増加（15→20→25→30→35...）
+        let totalRequired = 0;
+        for (let level = 1; level <= targetBondLevel; level++) {
+            let requiredForThisLevel;
+            
+            if (level === 1) {
+                requiredForThisLevel = 15;
+            } else if (level === 2) {
+                requiredForThisLevel = 20;
+            } else if (level === 3) {
+                requiredForThisLevel = 25;
+            } else if (level === 4) {
+                requiredForThisLevel = 30;
+            } else {
+                // レベル5以降は5回ずつ増加
+                requiredForThisLevel = 30 + (level - 4) * 5;
+            }
+            
+            totalRequired += requiredForThisLevel;
+        }
+        
+        return totalRequired;
+    },
+
+    // 🆕 絆レベル特典チェック
+    async checkBondLevelRewards(userId, userName, birdName, bondLevel, serverId) {
+        try {
+            console.log(`🎁 絆レベル${bondLevel}特典チェック - ${birdName}`);
+            
+            const sheetsManager = require('../../config/sheets');
+            
+            // きりのいいレベルで「写真」確定入手
+            if (bondLevel % 5 === 0) {
+                const photoName = this.getBondLevelPhotoName(bondLevel);
+                
+                // gifts_inventoryに写真を追加
+                await sheetsManager.logGiftInventory(
+                    userId, userName, photoName, 1,
+                    `${birdName}との絆レベル${bondLevel}達成特典`,
+                    serverId
+                );
+                
+                console.log(`📸 ${userName}が${photoName}を獲得しました`);
+            }
+            
+            // レベル1: ネスト建設権利解放
+            if (bondLevel === 1) {
+                console.log(`🏠 ${userName}が${birdName}のネスト建設権利を獲得しました`);
+                // ここで将来的にネスト建設フラグを設定
+            }
+            
+        } catch (error) {
+            console.error('絆レベル特典チェックエラー:', error);
+        }
+    },
+
+    // 🆕 絆レベル別写真名取得
+    getBondLevelPhotoName(bondLevel) {
+        const photoNames = {
+            5: '深い絆の写真',
+            10: '魂の繋がりの写真',
+            15: '永遠の瞬間の写真',
+            20: '奇跡の写真',
+            25: '運命の写真',
+            30: '無限の愛の写真'
+        };
+        
+        return photoNames[bondLevel] || `絆レベル${bondLevel}の記念写真`;
     },
 
     // 💖 好感度MAX通知
@@ -753,11 +879,9 @@ module.exports = {
         // すべてのエリアの鳥を収集
         const allBirds = [];
         for (const area of ['森林', '草原', '水辺']) {
-            if (zooState[area]) {
-                zooState[area].forEach(bird => {
-                    allBirds.push({ bird, area });
-                });
-            }
+            zooState[area].forEach(bird => {
+                allBirds.push({ bird, area });
+            });
         }
         
         // 検索パターンを優先順位順に実行
@@ -832,7 +956,7 @@ module.exports = {
         console.log(`🔧 クールダウンチェック: ${bird.name} - 餌やり可能`);
         return { canFeed: true };
     },
-    
+
     // 🌙 鳥の睡眠時間チェック
     checkBirdSleepTime() {
         const now = new Date();
@@ -862,19 +986,17 @@ module.exports = {
     // 🎁 鳥からの贈り物チェック
     async checkBirdGiftToUser(interaction, userId, userName, birdName, affinityLevel, area, guildId) {
         try {
-            // 好感度が3以上の場合のみ贈り物チャンス
-            if (affinityLevel < 3) return null;
+            // 好感度が5以上の場合のみ贈り物チャンス
+            if (affinityLevel < 5) return null;
             
             // 贈り物確率
             let giftChance = 0;
-            if (affinityLevel >= 3) giftChance = 0.01; // 1%
-            if (affinityLevel >= 4) giftChance = 0.05; // 5%
-            if (affinityLevel >= 5) giftChance = 0.10; // 10%
-            if (affinityLevel >= 6) giftChance = 0.15; // 15%
-            if (affinityLevel >= 7) giftChance = 0.20; // 20%
-            if (affinityLevel >= 8) giftChance = 0.25; // 25%
-            if (affinityLevel >= 9) giftChance = 0.30; // 30%
-            if (affinityLevel >= 10) giftChance = 0.35; // 35%
+            if (affinityLevel >= 5) giftChance = 0.30; // 30%
+            if (affinityLevel >= 6) giftChance = 0.35; // 35%
+            if (affinityLevel >= 7) giftChance = 0.45; // 45%
+            if (affinityLevel >= 8) giftChance = 0.55; // 55%
+            if (affinityLevel >= 9) giftChance = 0.65; // 65%
+            if (affinityLevel >= 10) giftChance = 0.75; // 75%
             
             console.log(`🎲 ${birdName}(好感度${affinityLevel}) 贈り物チャンス: ${(giftChance * 100).toFixed(0)}%`);
             
