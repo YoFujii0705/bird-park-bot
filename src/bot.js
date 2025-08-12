@@ -178,7 +178,7 @@ async function handleComponentInteraction(interaction) {
         else if (customId.startsWith('nest_select_')) {
             await handleNestSelection(interaction);
         }
-        // 🆕 ネストガチャボタン処理を追加
+        // 🆕 ネストガチャボタン処理
         else if (customId.startsWith('nest_gacha_')) {
             await handleNestGachaSelection(interaction);
         }
@@ -186,34 +186,34 @@ async function handleComponentInteraction(interaction) {
         else if (customId.startsWith('nest_change_')) {
             await handleNestChangeSelection(interaction);
         }
+        // 🆕 ネスト変更セレクトメニュー
+        else if (customId === 'nest_change_select') {
+            await handleNestChangeSelectMenu(interaction);
+        }
         // 🆕 餌やり鳥選択セレクトメニュー
         else if (customId === 'bird_feed_select') {
             await handleBirdFeedSelection(interaction);
         }
-        // 🎁 贈り物関連のセレクトメニュー（新規追加）
+        // 🎁 贈り物関連のセレクトメニュー
         else if (customId === 'gift_bird_select') {
-            // gift.jsで処理済みなので何もしない
             console.log('贈り物鳥選択は既に処理済み');
         }
         else if (customId === 'gift_item_select') {
-            // gift.jsで処理済みなので何もしない
             console.log('贈り物アイテム選択は既に処理済み');
         }
-        // 見学招待関連はガチャコマンド内で処理されるので何もしない
+        // 見学招待関連
         else if (customId.startsWith('visit_') || customId === 'select_visitor_bird') {
             console.log(`見学関連の操作: ${customId} - ガチャコマンド内で処理済み`);
-            // ガチャコマンドで既に処理されているため、ここでは何もしない
         }
         // 贈り物関連（既存）
         else if (customId === 'select_gift') {
             console.log('贈り物選択は既に処理済み');
-            // gift.jsで処理済みなので何もしない
         }
         // 鳥詳細選択メニュー
         else if (customId === 'bird_detail_select') {
             await handleBirdDetailSelect(interaction);
         }
-            // 🆕 餌選択セレクトメニュー  
+        // 🆕 餌選択セレクトメニュー  
         else if (customId === 'food_select') {
             await handleFoodSelection(interaction);
         }
@@ -224,7 +224,6 @@ async function handleComponentInteraction(interaction) {
     } catch (error) {
         console.error('❌ インタラクション処理エラー:', error);
         
-        // インタラクションがまだ応答していない場合のみ応答
         if (!interaction.replied && !interaction.deferred) {
             try {
                 await interaction.reply({ 
@@ -532,6 +531,149 @@ async function handleBirdDetailSelect(interaction) {
             content: '詳細情報の取得中にエラーが発生しました。',
             ephemeral: true
         });
+    }
+}
+
+// 🆕 ネスト変更セレクトメニュー処理関数
+async function handleNestChangeSelectMenu(interaction) {
+    try {
+        if (!interaction.values || interaction.values.length === 0) {
+            await interaction.update({
+                content: '❌ ネストが選択されていません。',
+                components: []
+            });
+            return;
+        }
+
+        const selectedValue = interaction.values[0]; // 例: "406748284942548992_アホウドリ_蓮池の巣"
+        const parts = selectedValue.split('_');
+        const userId = parts[0];
+        const birdName = parts[1];
+        const newNestType = parts.slice(2).join('_'); // ネスト名に_が含まれる場合に対応
+        
+        console.log(`🔄 ネスト変更セレクト:`, { 
+            userId, 
+            birdName, 
+            newNestType,
+            interactionUserId: interaction.user.id,
+            userIdMatch: userId === interaction.user.id
+        });
+        
+        // 🔧 修正：権限チェックのデバッグ情報を詳細化
+        if (userId !== interaction.user.id) {
+            console.error(`❌ 権限チェック失敗: selectedUserId="${userId}" !== interactionUserId="${interaction.user.id}"`);
+            await interaction.update({
+                content: `❌ この操作はあなた専用ではありません。\n(Debug: ${userId} !== ${interaction.user.id})`,
+                components: []
+            });
+            return;
+        }
+        
+        console.log(`✅ 権限チェック通過: ${interaction.user.username} (${interaction.user.id})`);
+        
+        // 現在のネスト情報を取得
+        const sheetsManager = require('../config/sheets');
+        const existingNest = await sheetsManager.getBirdNest(userId, birdName, interaction.guild.id);
+        
+        if (!existingNest) {
+            await interaction.update({
+                content: `❌ ${birdName}のネストが見つかりません。`,
+                components: []
+            });
+            return;
+        }
+        
+        // ネスト変更処理
+        const result = await processNestChange(
+            userId, 
+            interaction.user.username, 
+            birdName, 
+            existingNest.ネストタイプ,
+            newNestType, 
+            interaction.guild.id
+        );
+        
+        if (result.success) {
+            const embed = {
+                title: '🔄 ネスト変更完了！',
+                description: `${birdName}のネストを変更しました`,
+                color: 0x00FF00,
+                fields: [
+                    {
+                        name: '🏠 変更前',
+                        value: result.oldType,
+                        inline: true
+                    },
+                    {
+                        name: '🏠 変更後',
+                        value: result.newType,
+                        inline: true
+                    },
+                    {
+                        name: '🐦 対象の鳥',
+                        value: birdName,
+                        inline: true
+                    }
+                ],
+                footer: {
+                    text: `変更者: ${interaction.user.username} | ${new Date().toLocaleString('ja-JP')}`
+                }
+            };
+            
+            await interaction.update({
+                embeds: [embed],
+                components: []
+            });
+            
+        } else {
+            await interaction.update({
+                content: `❌ ネスト変更に失敗しました: ${result.message}`,
+                components: []
+            });
+        }
+        
+    } catch (error) {
+        console.error('ネスト変更セレクトメニューエラー:', error);
+        
+        try {
+            await interaction.update({
+                content: '❌ ネスト変更中にエラーが発生しました。',
+                components: []
+            });
+        } catch (updateError) {
+            console.error('ネスト変更エラー応答失敗:', updateError);
+        }
+    }
+}
+
+// 🆕 ネスト変更処理関数
+async function processNestChange(userId, userName, birdName, oldNestType, newNestType, serverId) {
+    try {
+        console.log(`🔄 ネスト変更処理: ${birdName} (${oldNestType} → ${newNestType})`);
+
+        const sheetsManager = require('../config/sheets');
+        
+        // データベース更新
+        await sheetsManager.updateNestType(userId, birdName, newNestType, serverId);
+        
+        // 変更ログを記録
+        await sheetsManager.logNestChange(userId, userName, birdName, oldNestType, newNestType, serverId);
+
+        console.log(`✅ ネスト変更完了: ${birdName} -> ${newNestType}`);
+
+        return {
+            success: true,
+            oldType: oldNestType,
+            newType: newNestType,
+            message: `${birdName}のネストを${newNestType}に変更しました！`
+        };
+
+    } catch (error) {
+        console.error('ネスト変更処理エラー:', error);
+        return {
+            success: false,
+            message: 'データベースの更新に失敗しました'
+        };
     }
 }
 
