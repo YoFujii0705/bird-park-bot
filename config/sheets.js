@@ -809,7 +809,242 @@ async getUserBondLevel(userId, birdName, serverId) {
         return null;
     }
 }
-    
+
+    // 絆レベルを記録
+    async logBondLevel(userId, userName, birdName, bondLevel, serverId) {
+        try {
+            const data = [
+                new Date().toISOString(),
+                userId,
+                userName,
+                birdName,
+                bondLevel,
+                new Date().toISOString(), // 達成日時
+                serverId
+            ];
+
+            await this.appendToSheet('bondLevels', data);
+            console.log(`📊 絆レベル記録: ${userName} -> ${birdName} (レベル${bondLevel})`);
+
+        } catch (error) {
+            console.error('絆レベル記録エラー:', error);
+            throw error;
+        }
+    }
+
+    // ネスト取得を記録
+    async logNestAcquisition(userId, userName, birdName, nestType, bondLevel, acquisitionMethod, updatedNestList, serverId) {
+        try {
+            const data = [
+                new Date().toISOString(),
+                userId,
+                userName,
+                birdName,
+                nestType,
+                bondLevel,
+                acquisitionMethod, // 'bond_level_gacha', 'holiday_distribution', etc.
+                JSON.stringify(updatedNestList), // 現在の所持ネストリスト
+                serverId
+            ];
+
+            await this.appendToSheet('nestAcquisitions', data);
+            console.log(`🏠 ネスト取得記録: ${userName} -> ${nestType} (${acquisitionMethod})`);
+
+        } catch (error) {
+            console.error('ネスト取得記録エラー:', error);
+            throw error;
+        }
+    }
+
+    // ユーザーの絆レベルを取得
+    async getUserBondLevel(userId, birdName, serverId) {
+        try {
+            const sheet = await this.getSheet('bondLevels');
+            const rows = await sheet.getRows();
+            
+            // 該当するユーザーと鳥の最新の絆レベルを取得
+            const userBondRecords = rows.filter(row => 
+                row.get('ユーザーID') === userId && 
+                row.get('鳥名') === birdName &&
+                row.get('サーバーID') === serverId
+            );
+
+            if (userBondRecords.length === 0) {
+                return 0; // 絆レベル記録なし
+            }
+
+            // 最新の絆レベルを返す
+            const latestRecord = userBondRecords[userBondRecords.length - 1];
+            return parseInt(latestRecord.get('絆レベル')) || 0;
+
+        } catch (error) {
+            console.error('絆レベル取得エラー:', error);
+            return 0;
+        }
+    }
+
+    // ユーザーの所持ネストリストを取得
+    async getUserOwnedNestTypes(userId, serverId) {
+        try {
+            const sheet = await this.getSheet('nestAcquisitions');
+            const rows = await sheet.getRows();
+            
+            // 該当ユーザーのネスト取得記録を取得
+            const userNestRecords = rows.filter(row => 
+                row.get('ユーザーID') === userId &&
+                row.get('サーバーID') === serverId
+            );
+
+            if (userNestRecords.length === 0) {
+                return []; // 所持ネストなし
+            }
+
+            // 最新の所持ネストリストを返す
+            const latestRecord = userNestRecords[userNestRecords.length - 1];
+            const nestListStr = latestRecord.get('所持ネストリスト') || '[]';
+            
+            try {
+                return JSON.parse(nestListStr);
+            } catch (parseError) {
+                console.error('ネストリスト解析エラー:', parseError);
+                return [];
+            }
+
+        } catch (error) {
+            console.error('所持ネスト取得エラー:', error);
+            return [];
+        }
+    }
+
+    // 絆レベル1以上のユーザーを取得（記念日配布用）
+    async getUsersWithBondLevel(minBondLevel, serverId) {
+        try {
+            const sheet = await this.getSheet('bondLevels');
+            const rows = await sheet.getRows();
+            
+            // サーバー内の全ユーザーの最新絆レベルを取得
+            const userBondMap = new Map();
+            
+            rows.forEach(row => {
+                if (row.get('サーバーID') !== serverId) return;
+                
+                const userId = row.get('ユーザーID');
+                const birdName = row.get('鳥名');
+                const bondLevel = parseInt(row.get('絆レベル')) || 0;
+                
+                const key = `${userId}_${birdName}`;
+                if (!userBondMap.has(key) || userBondMap.get(key).bondLevel < bondLevel) {
+                    userBondMap.set(key, {
+                        userId,
+                        userName: row.get('ユーザー名'),
+                        birdName,
+                        bondLevel
+                    });
+                }
+            });
+
+            // 指定絆レベル以上のユーザーのみフィルタ
+            return Array.from(userBondMap.values())
+                .filter(record => record.bondLevel >= minBondLevel);
+
+        } catch (error) {
+            console.error('絆レベルユーザー取得エラー:', error);
+            return [];
+        }
+    }
+
+    // ネスト変更を記録
+    async logNestChange(userId, userName, birdName, oldNestType, newNestType, serverId) {
+        try {
+            const data = [
+                new Date().toISOString(),
+                userId,
+                userName,
+                birdName,
+                oldNestType,
+                newNestType,
+                'manual_change', // 変更方法
+                serverId
+            ];
+
+            await this.appendToSheet('nestChanges', data);
+            console.log(`🔄 ネスト変更記録: ${userName} -> ${birdName} (${oldNestType} → ${newNestType})`);
+
+        } catch (error) {
+            console.error('ネスト変更記録エラー:', error);
+            throw error;
+        }
+    }
+
+    // シートに行を追加（汎用）
+    async appendToSheet(sheetName, data) {
+        try {
+            const sheet = await this.getSheet(sheetName);
+            await sheet.addRow(this.arrayToRowData(data, sheetName));
+        } catch (error) {
+            console.error(`シート追加エラー (${sheetName}):`, error);
+            throw error;
+        }
+    }
+
+    // 配列をシート行データに変換
+    arrayToRowData(dataArray, sheetName) {
+        const columnMappings = {
+            bondLevels: ['日時', 'ユーザーID', 'ユーザー名', '鳥名', '絆レベル', '達成日時', 'サーバーID'],
+            nestAcquisitions: ['日時', 'ユーザーID', 'ユーザー名', '鳥名', 'ネストタイプ', '絆レベル', '取得方法', '所持ネストリスト', 'サーバーID'],
+            nestChanges: ['日時', 'ユーザーID', 'ユーザー名', '鳥名', '旧ネストタイプ', '新ネストタイプ', '変更方法', 'サーバーID'],
+            holidayNests: ['日時', 'ユーザーID', 'ユーザー名', '記念日名', 'ネストタイプ', '配布日時', 'サーバーID']
+        };
+
+        const columns = columnMappings[sheetName];
+        if (!columns) {
+            throw new Error(`未知のシート名: ${sheetName}`);
+        }
+
+        const rowData = {};
+        columns.forEach((column, index) => {
+            rowData[column] = dataArray[index] || '';
+        });
+
+        return rowData;
+    }
+
+    // シートを取得または作成
+    async getSheet(sheetName) {
+        try {
+            // まずシートの存在をチェック
+            const sheetInfo = await this.doc.sheetsById;
+            
+            // シートが存在しない場合は作成
+            let sheet = Object.values(sheetInfo).find(s => s.title === sheetName);
+            
+            if (!sheet) {
+                console.log(`📋 新しいシート作成: ${sheetName}`);
+                sheet = await this.doc.addSheet({
+                    title: sheetName,
+                    headerValues: this.getSheetHeaders(sheetName)
+                });
+            }
+
+            return sheet;
+
+        } catch (error) {
+            console.error(`シート取得エラー (${sheetName}):`, error);
+            throw error;
+        }
+    }
+
+    // シートのヘッダーを取得
+    getSheetHeaders(sheetName) {
+        const headers = {
+            bondLevels: ['日時', 'ユーザーID', 'ユーザー名', '鳥名', '絆レベル', '達成日時', 'サーバーID'],
+            nestAcquisitions: ['日時', 'ユーザーID', 'ユーザー名', '鳥名', 'ネストタイプ', '絆レベル', '取得方法', '所持ネストリスト', 'サーバーID'],
+            nestChanges: ['日時', 'ユーザーID', 'ユーザー名', '鳥名', '旧ネストタイプ', '新ネストタイプ', '変更方法', 'サーバーID'],
+            holidayNests: ['日時', 'ユーザーID', 'ユーザー名', '記念日名', 'ネストタイプ', '配布日時', 'サーバーID']
+        };
+
+        return headers[sheetName] || ['日時', 'データ'];
+    }
 }
 
 module.exports = new SheetsManager();
