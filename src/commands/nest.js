@@ -3,6 +3,7 @@ const bondLevelManager = require('../utils/bondLevelManager');
 const sheets = require('../../config/sheets');
 
 // 1. 最初にSlashCommandBuilderを定義
+// 🆕 所持ネスト表示サブコマンドを追加
 const data = new SlashCommandBuilder()
     .setName('nest')
     .setDescription('ネスト関連のコマンド')
@@ -32,15 +33,15 @@ const data = new SlashCommandBuilder()
             )
     )
     .addSubcommand(subcommand =>
-    subcommand
-        .setName('gacha')
-        .setDescription('絆レベルアップ報酬でネストガチャを引きます')
-        .addStringOption(option =>
-            option.setName('bird')
-                .setDescription('ガチャを引く鳥の名前')
-                .setRequired(true)
-        )
-)
+        subcommand
+            .setName('gacha')
+            .setDescription('絆レベルアップ報酬でネストガチャを引きます')
+            .addStringOption(option =>
+                option.setName('bird')
+                    .setDescription('ガチャを引く鳥の名前')
+                    .setRequired(true)
+            )
+    )
     .addSubcommand(subcommand =>
         subcommand
             .setName('change')
@@ -50,12 +51,12 @@ const data = new SlashCommandBuilder()
                     .setDescription('ネストを変更する鳥の名前')
                     .setRequired(true)
             )
-            .addStringOption(option =>
-                option.setName('type')
-                    .setDescription('新しいネストタイプ')
-                    .setRequired(true)
-            )
-    );
+    )
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('collection')
+            .setDescription('所持しているネストタイプを表示します')
+    ); // 🆕 新しいサブコマンド追加
 
 // 2. execute関数を定義
 async function execute(interaction) {
@@ -77,6 +78,9 @@ async function execute(interaction) {
                 break;
             case 'gacha':
                 await handleNestGacha(interaction);
+                break;
+            case 'collection': // 🆕 新しいケース
+                await handleNestCollection(interaction);
                 break;
             default:
                 await interaction.reply('不明なサブコマンドです。');
@@ -323,6 +327,185 @@ async function markNestGachaAsUsed(userId, birdName, bondLevel, serverId) {
         return false;
     }
 }
+
+// 🆕 所持ネストコレクション表示ハンドラー
+async function handleNestCollection(interaction) {
+    try {
+        const userId = interaction.user.id;
+        const userName = interaction.user.displayName || interaction.user.username;
+        const serverId = interaction.guild.id;
+        
+        await interaction.deferReply();
+        
+        const sheets = require('../../config/sheets');
+        
+        // 所持ネストタイプを取得
+        const ownedNestTypes = await sheets.getUserOwnedNestTypes(userId, serverId);
+        
+        if (ownedNestTypes.length === 0) {
+            await interaction.editReply({
+                content: '🏠 まだネストを取得していません。\n絆レベルを上げてネストガチャを引いてみましょう！'
+            });
+            return;
+        }
+        
+        // エリア別に分類
+        const nestsByArea = categorizeNestsByArea(ownedNestTypes);
+        
+        const embed = {
+            title: `🏠 ${userName}さんのネストコレクション`,
+            description: `所持ネスト数: **${ownedNestTypes.length}種類**`,
+            color: 0x8BC34A,
+            fields: [],
+            footer: {
+                text: `取得方法: 絆レベルアップ報酬ガチャ | /nest gacha で新しいネストを取得`
+            }
+        };
+        
+        // エリア別に表示
+        for (const [area, nests] of Object.entries(nestsByArea)) {
+            if (nests.length > 0) {
+                embed.fields.push({
+                    name: `${getAreaEmoji(area)} ${area}エリア (${nests.length}種類)`,
+                    value: nests.map(nestType => `• ${nestType}`).join('\n'),
+                    inline: false
+                });
+            }
+        }
+        
+        // 利用可能なアクション
+        embed.fields.push({
+            name: '🔧 できること',
+            value: '• `/nest create bird:鳥名` - ネスト建設\n• `/nest change bird:鳥名` - ネスト変更\n• `/nest gacha bird:鳥名` - 新しいネスト取得',
+            inline: false
+        });
+        
+        await interaction.editReply({ embeds: [embed] });
+        
+    } catch (error) {
+        console.error('ネストコレクション表示エラー:', error);
+        await interaction.editReply({
+            content: 'ネストコレクション情報の取得中にエラーが発生しました。'
+        });
+    }
+}
+
+// 🆕 ネストをエリア別に分類する関数
+function categorizeNestsByArea(nestTypes) {
+    const areaMap = {
+        // 森林エリア
+        '苔むした庭': '森林',
+        '古木の大穴': '森林',
+        '木漏れ日の巣': '森林',
+        '妖精の隠れ家': '森林',
+        '樹海の宮殿': '森林',
+        'きのこの家': '森林',
+        '蔦の回廊': '森林',
+        '森の神殿': '森林',
+        
+        // 草原エリア
+        '花畑の巣': '草原',
+        '軒先の鳥かご': '草原',
+        '風車小屋': '草原',
+        '蝶の舞台': '草原',
+        '虹の丘': '草原',
+        '星見台': '草原',
+        '花冠の宮殿': '草原',
+        'そよ風の家': '草原',
+        
+        // 水辺エリア
+        '蓮池の巣': '水辺',
+        '滝のしぶきの巣': '水辺',
+        '真珠の洞窟': '水辺',
+        '虹の水辺': '水辺',
+        '水晶の泉': '水辺',
+        '貝殻の宮殿': '水辺',
+        '流木の隠れ家': '水辺',
+        '月光の池': '水辺'
+    };
+    
+    const result = {
+        '森林': [],
+        '草原': [],
+        '水辺': []
+    };
+    
+    nestTypes.forEach(nestType => {
+        const area = areaMap[nestType] || '森林';
+        result[area].push(nestType);
+    });
+    
+    return result;
+}
+
+// 🆕 エリア絵文字を取得
+function getAreaEmoji(area) {
+    const emojis = {
+        '森林': '🌲',
+        '草原': '🌾',
+        '水辺': '🌊'
+    };
+    return emojis[area] || '🏠';
+}
+
+// 🔧 handleNestChange関数の修正版（セレクトメニュー対応）
+async function handleNestChange(interaction) {
+    try {
+        const birdName = interaction.options.getString('bird');
+        const userId = interaction.user.id;
+        const userName = interaction.user.displayName || interaction.user.username;
+        const serverId = interaction.guild.id;
+        
+        await interaction.deferReply();
+
+        // 現在のネスト情報を取得
+        const existingNest = await sheets.getBirdNest(userId, birdName, serverId);
+        if (!existingNest) {
+            await interaction.editReply({
+                content: `❌ ${birdName}のネストが見つかりません。まず \`/nest create\` でネストを建設してください。`
+            });
+            return;
+        }
+
+        // 所持ネストタイプを取得
+        const ownedNestTypes = await sheets.getUserOwnedNestTypes(userId, serverId);
+        
+        if (ownedNestTypes.length === 0) {
+            await interaction.editReply({
+                content: `❌ 所持しているネストタイプがありません。絆レベルを上げてネストを取得してください。`
+            });
+            return;
+        }
+
+        // 現在のネストタイプ以外を表示
+        const availableNests = ownedNestTypes.filter(nest => nest !== existingNest.ネストタイプ);
+        
+        if (availableNests.length === 0) {
+            await interaction.editReply({
+                content: `❌ ${birdName}は現在「${existingNest.ネストタイプ}」にいます。\n他に変更できるネストがありません。絆レベルを上げて新しいネストを取得してください。`
+            });
+            return;
+        }
+
+        // 🆕 セレクトメニューまたはボタンで選択肢を表示
+        await displayNestChangeOptions(interaction, birdName, availableNests, existingNest.ネストタイプ);
+        
+    } catch (error) {
+        console.error('ネスト変更エラー:', error);
+        
+        if (interaction.deferred) {
+            await interaction.editReply({
+                content: '❌ エラーが発生しました。時間をおいて再度お試しください。'
+            });
+        } else {
+            await interaction.reply({
+                content: '❌ エラーが発生しました。時間をおいて再度お試しください。',
+                ephemeral: true
+            });
+        }
+    }
+}
+
 
 async function handleNestVisit(interaction) {
     try {
@@ -1046,58 +1229,64 @@ async function handleNestChange(interaction) {
 }
 
 // ネスト変更選択肢を表示
-async function displayNestChangeOptions(interaction, birdName, ownedNestTypes, currentNestType) {
+async function displayNestChangeOptions(interaction, birdName, availableNests, currentNestType) {
     try {
-        // 現在のネストタイプ以外を表示
-        const availableNests = ownedNestTypes.filter(nest => nest !== currentNestType);
-        
-        if (availableNests.length === 0) {
-            await interaction.editReply({
-                content: `❌ ${birdName}は現在「${currentNestType}」にいます。\n他に変更できるネストがありません。絆レベルを上げて新しいネストを取得してください。`
-            });
-            return;
-        }
-
-        // 最大25個まで（Discordの制限）
-        const displayNests = availableNests.slice(0, 25);
+        const { StringSelectMenuBuilder, ActionRowBuilder } = require('discord.js');
         
         const embed = {
             title: `🔄 ${birdName}のネスト変更`,
             description: `現在: **${currentNestType}**\n\n変更先を選択してください：`,
             color: 0x4CAF50,
-            fields: displayNests.map((nestType, index) => ({
-                name: `${index + 1}. ${nestType}`,
-                value: getNestDescription(nestType),
-                inline: true
-            })),
             footer: {
-                text: `所持ネスト数: ${ownedNestTypes.length}個`
+                text: `所持ネスト数: ${availableNests.length}個`
             }
         };
 
-        // 選択ボタンを作成（最大5個ずつ表示）
-        const components = [];
-        const maxButtonsPerRow = 5;
-        
-        for (let i = 0; i < displayNests.length; i += maxButtonsPerRow) {
-            const rowNests = displayNests.slice(i, i + maxButtonsPerRow);
-            const buttons = rowNests.map((nestType, rowIndex) => ({
-                type: 2,
-                style: 1,
-                label: `${i + rowIndex + 1}. ${nestType.length > 20 ? nestType.substring(0, 17) + '...' : nestType}`,
-                custom_id: `nest_change_${interaction.user.id}_${birdName}_${nestType}`
-            }));
+        // 🆕 セレクトメニューを使用（最大25個まで対応）
+        if (availableNests.length <= 25) {
+            const selectMenu = new StringSelectMenuBuilder()
+                .setCustomId('nest_change_select')
+                .setPlaceholder('変更先のネストを選択してください...')
+                .addOptions(
+                    availableNests.map((nestType, index) => ({
+                        label: nestType,
+                        description: getNestDescription(nestType),
+                        value: `${interaction.user.id}_${birdName}_${nestType}`, // ユーザーID_鳥名_ネストタイプ
+                        emoji: getAreaEmoji(getNestArea(nestType))
+                    }))
+                );
+
+            const row = new ActionRowBuilder().addComponents(selectMenu);
+
+            await interaction.editReply({
+                embeds: [embed],
+                components: [row]
+            });
+        } else {
+            // 25個を超える場合はボタン方式（現在の実装を維持）
+            const components = [];
+            const maxButtonsPerRow = 5;
             
-            components.push({
-                type: 1,
-                components: buttons
+            for (let i = 0; i < availableNests.length; i += maxButtonsPerRow) {
+                const rowNests = availableNests.slice(i, i + maxButtonsPerRow);
+                const buttons = rowNests.map((nestType, rowIndex) => ({
+                    type: 2,
+                    style: 1,
+                    label: `${nestType.length > 20 ? nestType.substring(0, 17) + '...' : nestType}`,
+                    custom_id: `nest_change_${interaction.user.id}_${birdName}_${nestType}`
+                }));
+                
+                components.push({
+                    type: 1,
+                    components: buttons
+                });
+            }
+
+            await interaction.editReply({
+                embeds: [embed],
+                components: components
             });
         }
-
-        await interaction.editReply({
-            embeds: [embed],
-            components: components
-        });
 
     } catch (error) {
         console.error('ネスト変更選択肢表示エラー:', error);
@@ -1105,6 +1294,25 @@ async function displayNestChangeOptions(interaction, birdName, ownedNestTypes, c
             content: '❌ 選択肢の表示中にエラーが発生しました。'
         });
     }
+}
+
+// 🆕 ネストのエリアを取得する関数
+function getNestArea(nestType) {
+    const areaMap = {
+        // 森林エリア
+        '苔むした庭': '森林', '古木の大穴': '森林', '木漏れ日の巣': '森林', '妖精の隠れ家': '森林',
+        '樹海の宮殿': '森林', 'きのこの家': '森林', '蔦の回廊': '森林', '森の神殿': '森林',
+        
+        // 草原エリア
+        '花畑の巣': '草原', '軒先の鳥かご': '草原', '風車小屋': '草原', '蝶の舞台': '草原',
+        '虹の丘': '草原', '星見台': '草原', '花冠の宮殿': '草原', 'そよ風の家': '草原',
+        
+        // 水辺エリア
+        '蓮池の巣': '水辺', '滝のしぶきの巣': '水辺', '真珠の洞窟': '水辺', '虹の水辺': '水辺',
+        '水晶の泉': '水辺', '貝殻の宮殿': '水辺', '流木の隠れ家': '水辺', '月光の池': '水辺'
+    };
+    
+    return areaMap[nestType] || '森林';
 }
 
 // ネストタイプを変更
