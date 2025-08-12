@@ -808,6 +808,21 @@ async function processNestGachaSelection(userId, userName, birdName, nestType, b
     try {
         const sheetsManager = require('../config/sheets');
         
+        // 🔧 修正：まず先にガチャチケットを使用済みにマーク
+        console.log(`🎰 ガチャチケット使用済み処理開始: ${userId} -> ${birdName} (絆レベル${bondLevel})`);
+        
+        const ticketMarked = await sheetsManager.markNestGachaAsUsed(userId, birdName, bondLevel, serverId);
+        
+        if (!ticketMarked) {
+            console.error(`❌ ガチャチケット使用済み処理失敗`);
+            return {
+                success: false,
+                message: 'ガチャチケットの処理に失敗しました'
+            };
+        }
+        
+        console.log(`✅ ガチャチケット使用済み処理完了`);
+        
         // 1. 現在の所持ネストリストを取得
         const currentNests = await sheetsManager.getUserOwnedNestTypes(userId, serverId);
         
@@ -842,7 +857,6 @@ async function processNestGachaSelection(userId, userName, birdName, nestType, b
         };
     }
 }
-
 // 鳥類園ボタン処理
 // ボタン処理部分を修正
 async function handleZooButtons(interaction) {
