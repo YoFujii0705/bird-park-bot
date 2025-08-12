@@ -170,7 +170,6 @@ client.on('interactionCreate', async interaction => {
 async function handleComponentInteraction(interaction) {
     const { customId } = interaction;
     
-    // 🔧 デバッグ：すべてのインタラクション情報を出力
     console.log(`🔧 インタラクション受信:`, {
         customId: customId,
         type: interaction.type,
@@ -195,15 +194,15 @@ async function handleComponentInteraction(interaction) {
             console.log(`🔧 nest_gacha_ボタン処理`);
             await handleNestGachaSelection(interaction);
         }
-        // 🆕 ネスト変更ボタン
-        else if (customId.startsWith('nest_change_')) {
-            console.log(`🔧 nest_change_ボタン処理（旧形式）`);
-            await handleNestChangeSelection(interaction);
-        }
-        // 🆕 ネスト変更セレクトメニュー
+        // 🔧 修正：完全一致を先にチェック
         else if (customId === 'nest_change_select') {
             console.log(`🔧 nest_change_select セレクトメニュー処理開始`);
             await handleNestChangeSelectMenu(interaction);
+        }
+        // 🆕 ネスト変更ボタン（startsWith は後に）
+        else if (customId.startsWith('nest_change_')) {
+            console.log(`🔧 nest_change_ボタン処理（旧形式）`);
+            await handleNestChangeSelection(interaction);
         }
         // 🆕 餌やり鳥選択セレクトメニュー
         else if (customId === 'bird_feed_select') {
@@ -238,16 +237,9 @@ async function handleComponentInteraction(interaction) {
         // その他
         else {
             console.log(`🔧 未処理のコンポーネント: ${customId}`);
-            console.log(`🔧 完全なinteraction情報:`, {
-                customId,
-                user: interaction.user.id,
-                values: interaction.values,
-                type: interaction.type
-            });
         }
     } catch (error) {
         console.error('❌ インタラクション処理エラー:', error);
-        console.error('❌ エラースタック:', error.stack);
         
         if (!interaction.replied && !interaction.deferred) {
             try {
@@ -261,6 +253,7 @@ async function handleComponentInteraction(interaction) {
         }
     }
 }
+
 // 🆕 餌やり鳥選択処理関数（修正版）
 async function handleBirdFeedSelection(interaction) {
     try {
