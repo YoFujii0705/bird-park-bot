@@ -472,47 +472,47 @@ async updateNestChannelId(userId, birdName, channelId, serverId) {
 
     // 🆕 ネストガチャを使用済みにマーク
     async markNestGachaAsUsed(userId, birdName, bondLevel, serverId) {
-        try {
-            await this.ensureInitialized();
-            
-            if (!this.sheets.nestGachaTickets) {
-                console.error('nest_gacha_tickets シートが見つかりません');
-                return false;
-            }
-            
-            const sheet = this.sheets.nestGachaTickets;
-            const rows = await sheet.getRows();
-            
-            // 該当するガチャチケットを見つけて使用済みに更新
-            let updated = false;
-            for (const row of rows) {
-                if (row.get('ユーザーID') === userId && 
-                    row.get('鳥名') === birdName && 
-                    row.get('サーバーID') === serverId &&
-                    parseInt(row.get('絆レベル')) === bondLevel &&
-                    row.get('使用状況') === 'available') {
-                    
-                    row.set('使用状況', 'used');
-                    row.set('日時', new Date().toLocaleString('ja-JP'));
-                    await row.save();
-                    
-                    updated = true;
-                    console.log(`🎰 ガチャチケット使用済み: ${birdName} (絆レベル${bondLevel})`);
-                    break;
-                }
-            }
-            
-            if (!updated) {
-                console.error(`❌ 該当するガチャチケットが見つかりません: ${userId} - ${birdName} - 絆レベル${bondLevel}`);
-            }
-            
-            return updated;
-            
-        } catch (error) {
-            console.error('ネストガチャ使用済みマークエラー:', error);
+    try {
+        await this.ensureInitialized();
+        
+        if (!this.sheets.nestGachaTickets) {
+            console.error('nest_gacha_tickets シートが見つかりません');
             return false;
         }
+        
+        const sheet = this.sheets.nestGachaTickets;
+        const rows = await sheet.getRows();
+        
+        // 該当するガチャチケットを見つけて使用済みに更新
+        let updated = false;
+        for (const row of rows) {
+            if (row.get('ユーザーID') === userId && 
+                row.get('鳥名') === birdName && 
+                row.get('サーバーID') === serverId &&
+                parseInt(row.get('絆レベル')) === bondLevel &&
+                row.get('使用状況') === 'available') {
+                
+                row.set('使用状況', 'used');
+                row.set('日時', new Date().toLocaleString('ja-JP')); // 使用日時を更新
+                await row.save();
+                
+                updated = true;
+                console.log(`🎰 ガチャチケット使用済み: ${birdName} (絆レベル${bondLevel})`);
+                break;
+            }
+        }
+        
+        if (!updated) {
+            console.error(`❌ 該当するガチャチケットが見つかりません: ${userId} - ${birdName} - 絆レベル${bondLevel}`);
+        }
+        
+        return updated;
+        
+    } catch (error) {
+        console.error('ネストガチャ使用済みマークエラー:', error);
+        return false;
     }
+}
 
     async logBirdGift(birdName, giftName, giverId, giverName, caption, serverId) {
     try {
@@ -1020,85 +1020,85 @@ async updateBondFeedCount(userId, birdName, newBondFeedCount, serverId) {
     
     // 🆕 ネスト取得を記録（改良版）
     async logNestAcquisition(userId, userName, birdName, nestType, bondLevel, acquisitionMethod, updatedNestList, serverId) {
-        try {
-            console.log(`🏠 ネスト取得記録: ${userName} -> ${nestType} (${acquisitionMethod})`);
-            
-            // ネスト取得履歴用シートを初期化
-            if (!this.sheets.nestAcquisitions) {
-                this.sheets.nestAcquisitions = await this.getOrCreateSheet('nest_acquisitions', [
-                    '日時', 'ユーザーID', 'ユーザー名', '鳥名', 'ネストタイプ', 
-                    '絆レベル', '取得方法', '所持ネストリスト', 'サーバーID'
-                ]);
-            }
-            
-            const logData = {
-                ユーザーID: userId,
-                ユーザー名: userName,
-                鳥名: birdName,
-                ネストタイプ: nestType,
-                絆レベル: bondLevel,
-                取得方法: acquisitionMethod, // 'bond_level_gacha', 'holiday_distribution', etc.
-                所持ネストリスト: JSON.stringify(updatedNestList),
-                サーバーID: serverId
-            };
-            
-            const result = await this.addLog('nestAcquisitions', logData);
-            console.log(`🏠 ネスト取得記録完了:`, result);
-            
-            return result;
-            
-        } catch (error) {
-            console.error('ネスト取得記録エラー:', error);
-            return false;
+    try {
+        console.log(`🏠 ネスト取得記録: ${userName} -> ${nestType} (${acquisitionMethod})`);
+        
+        // ネスト取得履歴用シートを初期化
+        if (!this.sheets.nestAcquisitions) {
+            this.sheets.nestAcquisitions = await this.getOrCreateSheet('nest_acquisitions', [
+                '日時', 'ユーザーID', 'ユーザー名', '鳥名', 'ネストタイプ', 
+                '絆レベル', '取得方法', '所持ネストリスト', 'サーバーID'
+            ]);
         }
+        
+        const logData = {
+            ユーザーID: userId,
+            ユーザー名: userName,
+            鳥名: birdName,
+            ネストタイプ: nestType,
+            絆レベル: bondLevel,
+            取得方法: acquisitionMethod, // 'bond_level_gacha', 'holiday_distribution', etc.
+            所持ネストリスト: JSON.stringify(updatedNestList),
+            サーバーID: serverId
+        };
+        
+        const result = await this.addLog('nestAcquisitions', logData);
+        console.log(`🏠 ネスト取得記録完了:`, result);
+        
+        return result;
+        
+    } catch (error) {
+        console.error('ネスト取得記録エラー:', error);
+        return false;
     }
+}
+
 
    // 🆕 ユーザーの所持ネストタイプを取得（改良版）
     async getUserOwnedNestTypes(userId, serverId) {
+    try {
+        await this.ensureInitialized();
+        
+        // まずnest_acquisitionsシートから取得を試行
+        if (!this.sheets.nestAcquisitions) {
+            this.sheets.nestAcquisitions = await this.getOrCreateSheet('nest_acquisitions', [
+                '日時', 'ユーザーID', 'ユーザー名', '鳥名', 'ネストタイプ', 
+                '絆レベル', '取得方法', '所持ネストリスト', 'サーバーID'
+            ]);
+        }
+        
+        const sheet = this.sheets.nestAcquisitions;
+        const rows = await sheet.getRows();
+        
+        // 該当ユーザーのネスト取得記録を取得
+        const userNestRecords = rows.filter(row => 
+            row.get('ユーザーID') === userId &&
+            row.get('サーバーID') === serverId
+        );
+
+        if (userNestRecords.length === 0) {
+            console.log(`📊 ${userId}の所持ネスト記録が見つかりません`);
+            return []; // 所持ネストなし
+        }
+
+        // 最新の所持ネストリストを返す
+        const latestRecord = userNestRecords[userNestRecords.length - 1];
+        const nestListStr = latestRecord.get('所持ネストリスト') || '[]';
+        
         try {
-            await this.ensureInitialized();
-            
-            // まずnest_acquisitionsシートから取得を試行
-            if (!this.sheets.nestAcquisitions) {
-                this.sheets.nestAcquisitions = await this.getOrCreateSheet('nest_acquisitions', [
-                    '日時', 'ユーザーID', 'ユーザー名', '鳥名', 'ネストタイプ', 
-                    '絆レベル', '取得方法', '所持ネストリスト', 'サーバーID'
-                ]);
-            }
-            
-            const sheet = this.sheets.nestAcquisitions;
-            const rows = await sheet.getRows();
-            
-            // 該当ユーザーのネスト取得記録を取得
-            const userNestRecords = rows.filter(row => 
-                row.get('ユーザーID') === userId &&
-                row.get('サーバーID') === serverId
-            );
-
-            if (userNestRecords.length === 0) {
-                console.log(`📊 ${userId}の所持ネスト記録が見つかりません`);
-                return []; // 所持ネストなし
-            }
-
-            // 最新の所持ネストリストを返す
-            const latestRecord = userNestRecords[userNestRecords.length - 1];
-            const nestListStr = latestRecord.get('所持ネストリスト') || '[]';
-            
-            try {
-                const ownedNests = JSON.parse(nestListStr);
-                console.log(`📊 ${userId}の所持ネスト:`, ownedNests);
-                return ownedNests;
-            } catch (parseError) {
-                console.error('ネストリスト解析エラー:', parseError);
-                return [];
-            }
-
-        } catch (error) {
-            console.error('所持ネスト取得エラー:', error);
+            const ownedNests = JSON.parse(nestListStr);
+            console.log(`📊 ${userId}の所持ネスト:`, ownedNests);
+            return ownedNests;
+        } catch (parseError) {
+            console.error('ネストリスト解析エラー:', parseError);
             return [];
         }
-    }
 
+    } catch (error) {
+        console.error('所持ネスト取得エラー:', error);
+        return [];
+    }
+}
     // 絆レベル1以上のユーザーを取得（記念日配布用）
     async getUsersWithBondLevel(minBondLevel, serverId) {
         try {
