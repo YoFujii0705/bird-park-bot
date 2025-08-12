@@ -177,67 +177,66 @@ module.exports = {
         }
     },
 
-    // 🎯 非同期処理を整理したメソッド
-    startAsyncProcesses(interaction, birdInfo, feedResult, affinityResult, guildId) {
-        // 🏆 称号チェック（1.5秒後）
-        setTimeout(async () => {
-            try {
-                const newAchievements = await achievementHelper.checkAndNotifyAchievements(
-                    interaction,
-                    interaction.user.id,
-                    interaction.user.username,
-                    guildId
-                );
-                
-                if (newAchievements.length > 0) {
-                    console.log(`🏆 ${interaction.user.username}が${newAchievements.length}個の称号を獲得しました`);
-                }
-            } catch (error) {
-                console.error('称号チェックエラー:', error);
+    // 🎯 非同期処理を整理したメソッド（修正版）
+startAsyncProcesses(interaction, birdInfo, feedResult, affinityResult, guildId) {
+    // 🏆 称号チェック（1.5秒後）
+    setTimeout(async () => {
+        try {
+            const newAchievements = await achievementHelper.checkAndNotifyAchievements(
+                interaction,
+                interaction.user.id,
+                interaction.user.username,
+                guildId
+            );
+            
+            if (newAchievements.length > 0) {
+                console.log(`🏆 ${interaction.user.username}が${newAchievements.length}個の称号を獲得しました`);
             }
-        }, 1500);
-
-        // 🎁 好感度MAX通知（2秒後）
-        if (affinityResult.levelUp && affinityResult.newLevel >= 5) {
-            setTimeout(async () => {
-                try {
-                    await this.sendAffinityMaxNotification(interaction, birdInfo.bird.originalName || birdInfo.bird.name, birdInfo.area);
-                } catch (error) {
-                    console.error('好感度MAX通知エラー:', error);
-                }
-            }, 2000);
+        } catch (error) {
+            console.error('称号チェックエラー:', error);
         }
+    }, 1500);
 
-        // 🎁 鳥からの贈り物チェック（3.5秒後）
+    // 🎁 贈り物機能解放通知（2秒後）- レベル3以上でレベルアップ時
+    if (affinityResult.levelUp && affinityResult.newLevel >= 3) {
         setTimeout(async () => {
             try {
-                await this.handleBirdGiftProcess(interaction, birdInfo, affinityResult, guildId);
+                await this.sendGiftUnlockNotification(interaction, birdInfo.bird.originalName || birdInfo.bird.name, birdInfo.area, affinityResult.newLevel);
             } catch (error) {
-                console.error('鳥からの贈り物チェックエラー:', error);
+                console.error('贈り物解放通知エラー:', error);
             }
-        }, 3500);
+        }, 2000);
+    }
 
-        // 💭 餌やり思い出生成（7秒後）
-        setTimeout(async () => {
-            try {
-                await this.handleFeedingMemory(interaction, birdInfo, feedResult, affinityResult, guildId);
-            } catch (error) {
-                console.error('餌やり思い出生成エラー:', error);
-            }
-        }, 7000);
-
-        // 💖 好感度アップ思い出生成（8秒後）
-        if (affinityResult.levelUp) {
-            setTimeout(async () => {
-                try {
-                    await this.handleAffinityMemory(interaction, birdInfo, affinityResult, guildId);
-                } catch (error) {
-                    console.error('好感度思い出生成エラー:', error);
-                }
-            }, 8000);
+    // 🎁 鳥からの贈り物チェック（3.5秒後）
+    setTimeout(async () => {
+        try {
+            await this.handleBirdGiftProcess(interaction, birdInfo, affinityResult, guildId);
+        } catch (error) {
+            console.error('鳥からの贈り物チェックエラー:', error);
         }
-    },
+    }, 3500);
 
+    // 💭 餌やり思い出生成（7秒後）
+    setTimeout(async () => {
+        try {
+            await this.handleFeedingMemory(interaction, birdInfo, feedResult, affinityResult, guildId);
+        } catch (error) {
+            console.error('餌やり思い出生成エラー:', error);
+        }
+    }, 7000);
+
+    // 💖 好感度アップ思い出生成（8秒後）
+    if (affinityResult.levelUp) {
+        setTimeout(async () => {
+            try {
+                await this.handleAffinityMemory(interaction, birdInfo, affinityResult, guildId);
+            } catch (error) {
+                console.error('好感度思い出生成エラー:', error);
+            }
+        }, 8000);
+    }
+},
     // 🎁 鳥からの贈り物処理
     async handleBirdGiftProcess(interaction, birdInfo, affinityResult, guildId) {
         if (affinityResult && affinityResult.newLevel >= 3) {
@@ -475,8 +474,7 @@ module.exports = {
         return activityList[Math.floor(Math.random() * activityList.length)];
     },
 
-    // 📊 餌やり結果Embed作成
-    // 🔧 createFeedingResultEmbed メソッドの修正版
+    // 📊 餌やり結果Embed作成（修正版）
 createFeedingResultEmbed(birdInfo, food, result, affinityResult) {
     const { bird, area } = birdInfo;
     
@@ -530,7 +528,7 @@ createFeedingResultEmbed(birdInfo, food, result, affinityResult) {
             affinityText += '\n🌟 好物ボーナス！(×1.5)';
         }
         
-        // 🆕 絆レベル表示（修正版）
+        // 絆レベル表示
         if (affinityResult.newLevel >= 10 && affinityResult.bondResult) {
             const bondResult = affinityResult.bondResult;
             
@@ -544,8 +542,6 @@ createFeedingResultEmbed(birdInfo, food, result, affinityResult) {
                 
                 if (bondResult.bondLevelUp) {
                     affinityText += '\n✨ 絆レベルアップ！';
-                    
-                    // 🆕 ネストガチャ利用可能通知（修正版）
                     affinityText += '\n🎰 **ネストガチャ利用可能！**';
                     affinityText += `\n\`/nest gacha bird:${bird.originalName || bird.name}\` でガチャを引こう！`;
                 }
@@ -581,7 +577,7 @@ createFeedingResultEmbed(birdInfo, food, result, affinityResult) {
             }
         }
         
-        // 贈り物解放通知
+        // 贈り物解放通知（修正版：レベル3から）
         if (affinityResult.newLevel >= 3) {
             affinityText += '\n🎁 贈り物可能！';
         } else if (affinityResult.newLevel >= 2) {
@@ -597,7 +593,7 @@ createFeedingResultEmbed(birdInfo, food, result, affinityResult) {
         });
     }
 
-    // 📊 統計情報（修正版）
+    // 📊 統計情報
     const feedCount = bird.feedCount || 1;
     embed.addFields({
         name: '📊 餌やり統計',
@@ -881,40 +877,61 @@ createFeedingResultEmbed(birdInfo, food, result, affinityResult) {
         return photoNames[bondLevel] || `絆レベル${bondLevel}の記念写真`;
     },
 
-    // 💖 好感度MAX通知
-    async sendAffinityMaxNotification(interaction, birdName, area) {
-        try {
-            // 人間→鳥用の贈り物カテゴリから選択
-            const areaGifts = HUMAN_TO_BIRD_GIFTS[area] || [];
-            const commonGifts = HUMAN_TO_BIRD_GIFTS.共通;
-            const allGifts = [...areaGifts, ...commonGifts];
-            
-            const randomGift = allGifts[Math.floor(Math.random() * allGifts.length)];
-            
-            const embed = new EmbedBuilder()
-                .setTitle('💖 深い絆が生まれました！')
-                .setDescription(`**${birdName}**があなたを真の友達として認めました！\n\n🎁 **${birdName}**のことを考えながら歩いていると**${randomGift}**を贈ってあげようと思い立ちました！\n\nさっそく${birdName}に贈り物をしましょう。\n\`/gift bird:${birdName}\` で贈り物をしてみましょう！`)
-                .setColor(0xFF69B4)
-                .setTimestamp();
-
-            // gifts_inventoryに記録（人間→鳥用アイテム）
-            await sheetsManager.logGiftInventory(
-                interaction.user.id,
-                interaction.user.username,
-                randomGift,
-                1,
-                `${birdName}との深い絆で獲得(好感度5)`,
-                interaction.guild.id
-            );
-
-            setTimeout(() => {
-                interaction.followUp({ embeds: [embed] });
-            }, 2000);
-
-        } catch (error) {
-            console.error('好感度MAX通知エラー:', error);
+    // 🎁 贈り物機能解放通知（新メソッド名に変更）
+async sendGiftUnlockNotification(interaction, birdName, area, currentLevel) {
+    try {
+        // 人間→鳥用の贈り物カテゴリから選択
+        const areaGifts = HUMAN_TO_BIRD_GIFTS[area] || [];
+        const commonGifts = HUMAN_TO_BIRD_GIFTS.共通;
+        const allGifts = [...areaGifts, ...commonGifts];
+        
+        const randomGift = allGifts[Math.floor(Math.random() * allGifts.length)];
+        
+        // レベルに応じてメッセージを変更
+        let title, description, reason;
+        
+        if (currentLevel === 3) {
+            title = '🎁 贈り物機能解放！';
+            description = `**${birdName}**との絆が深まりました！\n\n🎁 **${birdName}**のことを考えながら歩いていると**${randomGift}**を贈ってあげようと思い立ちました！\n\nさっそく${birdName}に贈り物をしましょう。\n\`/gift bird:${birdName}\` で贈り物をしてみましょう！`;
+            reason = `${birdName}との絆で獲得(好感度3)`;
+        } else if (currentLevel === 5) {
+            title = '💖 深い絆が生まれました！';
+            description = `**${birdName}**があなたを真の友達として認めました！\n\n🎁 **${birdName}**のことを考えながら歩いていると**${randomGift}**を贈ってあげようと思い立ちました！\n\nさっそく${birdName}に贈り物をしましょう。\n\`/gift bird:${birdName}\` で贈り物をしてみましょう！`;
+            reason = `${birdName}との深い絆で獲得(好感度5)`;
+        } else if (currentLevel >= 7) {
+            title = '✨ 特別な絆の証！';
+            description = `**${birdName}**との絆がさらに深まりました！\n\n🎁 特別な想いを込めて**${randomGift}**を贈ってあげようと思い立ちました！\n\nさっそく${birdName}に贈り物をしましょう。\n\`/gift bird:${birdName}\` で贈り物をしてみましょう！`;
+            reason = `${birdName}との特別な絆で獲得(好感度${currentLevel})`;
+        } else {
+            title = '💝 さらなる絆！';
+            description = `**${birdName}**との絆がさらに深まりました！\n\n🎁 **${birdName}**のことを考えながら歩いていると**${randomGift}**を贈ってあげようと思い立ちました！\n\nさっそく${birdName}に贈り物をしましょう。\n\`/gift bird:${birdName}\` で贈り物をしてみましょう！`;
+            reason = `${birdName}との絆で獲得(好感度${currentLevel})`;
         }
-    },
+        
+        const embed = new EmbedBuilder()
+            .setTitle(title)
+            .setDescription(description)
+            .setColor(0xFF69B4)
+            .setTimestamp();
+
+        // gifts_inventoryに記録（人間→鳥用アイテム）
+        await sheetsManager.logGiftInventory(
+            interaction.user.id,
+            interaction.user.username,
+            randomGift,
+            1,
+            reason,
+            interaction.guild.id
+        );
+
+        setTimeout(() => {
+            interaction.followUp({ embeds: [embed] });
+        }, 2000);
+
+    } catch (error) {
+        console.error('贈り物解放通知エラー:', error);
+    }
+},
 
     // 🔍 改良版鳥検索メソッド（ネストデータ構造対応版）
     async findBirdInZoo(birdName, guildId, interaction = null) {
