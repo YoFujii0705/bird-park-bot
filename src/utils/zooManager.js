@@ -96,6 +96,13 @@ class ZooManager {
         }
     }
 
+    // 🆕 JST時刻取得の共通関数
+getJSTTime() {
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    return new Date(utc + (9 * 60 * 60 * 1000)); // JST = UTC+9
+}
+
     // 🆕 月齢ライブラリの安全な読み込み
     safeRequireLunarPhase() {
         try {
@@ -370,34 +377,35 @@ class ZooManager {
     // 🆕 Phase 1: 基本機能 - 時間・月齢・季節取得
     // ===========================================
 
-    /**
-     * 現在の時間帯を取得（JST基準）
-     */
-    getCurrentTimeSlot() {
-        const now = new Date();
-        const jstTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Tokyo"}));
-        const hour = jstTime.getHours();
-        
-        console.log(`🕐 現在時刻(JST): ${jstTime.getHours()}:${jstTime.getMinutes().toString().padStart(2, '0')}`);
-        
-        for (const [key, slot] of Object.entries(this.timeSlots)) {
-            if (key === 'sleep') {
-                if (hour >= slot.start || hour < slot.end) {
-                    console.log(`⏰ 判定結果: ${slot.name} (${slot.start}:00-${slot.end}:00)`);
-                    return { key, ...slot };
-                }
-            } else {
-                if (hour >= slot.start && hour < slot.end) {
-                    console.log(`⏰ 判定結果: ${slot.name} (${slot.start}:00-${slot.end}:00)`);
-                    return { key, ...slot };
-                }
+   /**
+ * 現在の時間帯を取得（JST基準）
+ */
+getCurrentTimeSlot() {
+    // 🔧 修正: より確実なJST時刻取得
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const jstTime = new Date(utc + (9 * 60 * 60 * 1000)); // JST = UTC+9
+    const hour = jstTime.getHours();
+    
+    console.log(`🕐 現在時刻(JST): ${jstTime.getHours()}:${jstTime.getMinutes().toString().padStart(2, '0')}`);
+    
+    for (const [key, slot] of Object.entries(this.timeSlots)) {
+        if (key === 'sleep') {
+            if (hour >= slot.start || hour < slot.end) {
+                console.log(`⏰ 判定結果: ${slot.name} (${slot.start}:00-${slot.end}:00)`);
+                return { key, ...slot };
+            }
+        } else {
+            if (hour >= slot.start && hour < slot.end) {
+                console.log(`⏰ 判定結果: ${slot.name} (${slot.start}:00-${slot.end}:00)`);
+                return { key, ...slot };
             }
         }
-        
-        console.log(`⚠️ 時間帯判定失敗: ${hour}時`);
-        return { key: 'unknown', start: 0, end: 24, name: '不明', emoji: '❓' };
     }
-
+    
+    console.log(`⚠️ 時間帯判定失敗: ${hour}時`);
+    return { key: 'unknown', start: 0, end: 24, name: '不明', emoji: '❓' };
+}
     /**
      * 現在の月齢を取得
      */
@@ -4108,57 +4116,73 @@ async createOutingInteractionEvent(guildId) {
 }
 
     // 新しい鳥をエリアに追加
-    async addNewBirdToArea(guildId, area) {
+async addNewBirdToArea(guildId, area) {
     const zooState = this.getZooState(guildId);
     
     // 優先キューをチェック
     if (zooState.priorityQueue && zooState.priorityQueue.length > 0) {
-        const priorityBird = zooState.priorityQueue.shift();
-        
-        const birdDataManager = require('./birdData');
-        const birdDataAll = birdDataManager.getAllBirds();
-        const targetBird = birdDataAll.find(b => b.名前 === priorityBird.birdName);
-        
-        if (targetBird) {
-            // 🆕 ネスト鳥かチェック
-            const isNestBird = await this.isNestBird(targetBird.名前, guildId);
+        // 🔧 修正: 適正生息地をチェックしてから配置
+        for (let i = 0; i < zooState.priorityQueue.length; i++) {
+            const priorityBird = zooState.priorityQueue[i];
             
-            if (isNestBird) {
-                // ネスト鳥の場合、お出かけ処理
-                console.log(`🏠 ネスト鳥 ${targetBird.名前} のお出かけ処理`);
-                const success = await this.sendBirdOnOuting(targetBird.名前, area, guildId, '優先入園（ガチャ選択）');
+            const birdDataManager = require('./birdData');
+            const birdDataAll = birdDataManager.getAllBirds();
+            const targetBird = birdDataAll.find(b => b.名前 === priorityBird.birdName);
+            
+            if (targetBird) {
+                // 🆕 適正生息地チェック
+                const suitableBirds = birdData.getBirdsForZooArea(area);
+                const isSuitableForArea = suitableBirds.some(bird => bird.名前 === targetBird.名前);
                 
-                if (success) {
-                    await this.addEvent(
-                        guildId,
-                        'ネスト鳥お出かけ',
-                        `🏠✨ ネストで暮らす${targetBird.名前}が優先的に${area}エリアにお出かけしました！`,
-                        targetBird.名前
-                    );
+                if (isSuitableForArea) {
+                    // 適正エリアなので配置
+                    zooState.priorityQueue.splice(i, 1); // キューから削除
+                    
+                    // 🆕 ネスト鳥かチェック
+                    const isNestBird = await this.isNestBird(targetBird.名前, guildId);
+                    
+                    if (isNestBird) {
+                        // ネスト鳥の場合、お出かけ処理
+                        console.log(`🏠 ネスト鳥 ${targetBird.名前} のお出かけ処理`);
+                        const success = await this.sendBirdOnOuting(targetBird.名前, area, guildId, '優先入園（適正エリア）');
+                        
+                        if (success) {
+                            await this.addEvent(
+                                guildId,
+                                'ネスト鳥お出かけ',
+                                `🏠✨ ネストで暮らす${targetBird.名前}が優先的に${area}エリアにお出かけしました！`,
+                                targetBird.名前
+                            );
+                        }
+                        return;
+                    } else {
+                        // 通常の優先入園処理
+                        await this.removeVisitorIfExists(guildId, targetBird.名前);
+                        
+                        const birdInstance = this.createBirdInstance(targetBird, area);
+                        zooState[area].push(birdInstance);
+                        
+                        await logger.logZoo('優先入園', area, targetBird.名前, '', '', guildId);
+                        
+                        await this.addEvent(
+                            guildId,
+                            '優先入園',
+                            `${targetBird.名前}が見学の思い出を胸に、優先的に${area}エリアに入園しました！🌟`,
+                            targetBird.名前
+                        );
+                        
+                        return;
+                    }
                 }
-                return;
-            } else {
-                // 通常の優先入園処理
-                await this.removeVisitorIfExists(guildId, targetBird.名前);
-                
-                const birdInstance = this.createBirdInstance(targetBird, area);
-                zooState[area].push(birdInstance);
-                
-                await logger.logZoo('優先入園', area, targetBird.名前, '', '', guildId);
-                
-                await this.addEvent(
-                    guildId,
-                    '優先入園',
-                    `${targetBird.名前}が見学の思い出を胸に、優先的に${area}エリアに入園しました！🌟`,
-                    targetBird.名前
-                );
-                
-                return;
+                // 適正でない場合は次の優先鳥をチェック
             }
         }
+        
+        // 適正な優先鳥がいない場合は通常処理に進む
+        console.log(`🔍 ${area}エリアに適した優先鳥がいないため、通常の新鳥追加処理を実行`);
     }
     
-    // 通常の新鳥追加処理
+    // 通常の新鳥追加処理（既存のコードそのまま）
     const newBirds = await this.populateArea(area, 1, guildId);
     
     if (newBirds.length > 0) {
@@ -4600,12 +4624,14 @@ createNightWatchEvent(allBirds) {
 }
 
     // 夜間判定
-    isSleepTime() {
-        const now = new Date();
-        const jstTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Tokyo"}));
-        const hour = jstTime.getHours();
-        return hour >= 22 || hour < 7;
-    }
+isSleepTime() {
+    // 🔧 修正: 同じJST取得方法を使用
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const jstTime = new Date(utc + (9 * 60 * 60 * 1000)); // JST = UTC+9
+    const hour = jstTime.getHours();
+    return hour >= 22 || hour < 7;
+}
 
     // イベント追加
     async addEvent(guildId, type, content, relatedBird = '') {
