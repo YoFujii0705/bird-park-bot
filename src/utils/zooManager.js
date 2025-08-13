@@ -793,83 +793,153 @@ getCurrentTimeSlot() {
      * 時間帯イベント生成
      */
     async createTimeBasedEvent(allBirds) {
-        const timeSlot = this.getCurrentTimeSlot();
-        const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
-        
-        const timeEvents = {
-            dawn: [
-                `${timeSlot.emoji} 夜明けと共に、${bird.name}が美しい朝の歌を奏でています`,
-                `${timeSlot.emoji} 朝日に照らされて、${bird.name}の羽が金色に輝いています`,
-                `${timeSlot.emoji} 早朝の清々しい空気を、${bird.name}が深く吸い込んでいます`,
-                `${timeSlot.emoji} 夜明けの静寂の中、${bird.name}が優雅に羽ばたいています`,
-                `${timeSlot.emoji} 朝霧の中から${bird.name}が現れて、新しい一日を迎えています`,
-                `${timeSlot.emoji} 東の空が赤く染まる中、${bird.name}が一番鳥として美しく鳴いています`,
+    const timeSlot = this.getCurrentTimeSlot();
+    const bird = allBirds[Math.floor(Math.random() * allBirds.length)];
+    
+    console.log(`🕐 createTimeBasedEvent実行: ${timeSlot.name} (${timeSlot.key})`);
+    
+    const timeEvents = {
+        dawn: [
+            `${timeSlot.emoji} 夜明けと共に、${bird.name}が美しい朝の歌を奏でています`,
+            `${timeSlot.emoji} 朝日に照らされて、${bird.name}の羽が金色に輝いています`,
+            `${timeSlot.emoji} 早朝の清々しい空気を、${bird.name}が深く吸い込んでいます`,
+            `${timeSlot.emoji} 夜明けの静寂の中、${bird.name}が優雅に羽ばたいています`,
+            `${timeSlot.emoji} 朝霧の中から${bird.name}が現れて、新しい一日を迎えています`,
+            `${timeSlot.emoji} 東の空が赤く染まる中、${bird.name}が一番鳥として美しく鳴いています`,
             `${timeSlot.emoji} 夜露に濡れた羽を${bird.name}が朝日で乾かしています`,
             `${timeSlot.emoji} 静寂を破って、${bird.name}が力強い鳴き声で朝の到来を告げています`,
             `${timeSlot.emoji} 薄明かりの中、${bird.name}が神々しい姿で佇んでいます`,
             `${timeSlot.emoji} 朝一番の冷たい空気を、${bird.name}が胸いっぱいに吸い込んでいます`
-            ],
-            morning: [
-                `${timeSlot.emoji} 爽やかな朝、${bird.name}が活発に動き回っています`,
-                `${timeSlot.emoji} 朝の光を浴びて、${bird.name}が元気よく鳴いています`,
-                `${timeSlot.emoji} 朝食を求めて、${bird.name}が餌を探し始めました`,
-                `${timeSlot.emoji} 朝のさえずりで、${bird.name}が仲間とコミュニケーションを取っています`,
-                `${timeSlot.emoji} 朝露に濡れた草を、${bird.name}が歩いています`,
-                `${timeSlot.emoji} 朝の新鮮な空気の中、${bird.name}が翼を大きく広げてストレッチしています`,
+        ],
+        morning: [
+            `${timeSlot.emoji} 爽やかな朝、${bird.name}が活発に動き回っています`,
+            `${timeSlot.emoji} 朝の光を浴びて、${bird.name}が元気よく鳴いています`,
+            `${timeSlot.emoji} 朝食を求めて、${bird.name}が餌を探し始めました`,
+            `${timeSlot.emoji} 朝のさえずりで、${bird.name}が仲間とコミュニケーションを取っています`,
+            `${timeSlot.emoji} 朝露に濡れた草を、${bird.name}が歩いています`,
+            `${timeSlot.emoji} 朝の新鮮な空気の中、${bird.name}が翼を大きく広げてストレッチしています`,
             `${timeSlot.emoji} 暖かな朝日を背中で受けて、${bird.name}が気持ちよさそうにしています`,
             `${timeSlot.emoji} 朝の涼しい風に乗って、${bird.name}が軽やかに舞っています`,
             `${timeSlot.emoji} 一日の計画を立てるように、${bird.name}が辺りを見回しています`,
             `${timeSlot.emoji} 朝の活気に満ちて、${bird.name}が仲間たちと楽しそうに過ごしています`
-            ],
-            noon: [
-                `${timeSlot.emoji} 昼下がり、${bird.name}がのんびりと過ごしています`,
-                `${timeSlot.emoji} 暖かい昼間の陽だまりで、${bird.name}が気持ちよさそうにしています`,
-                `${timeSlot.emoji} お昼時、${bird.name}が木陰で休憩しています`,
-                `${timeSlot.emoji} 昼間の賑やかな時間を、${bird.name}が楽しんでいます`,
-                `${timeSlot.emoji} 午後の暖かい日差しの中、${bird.name}が羽繕いをしています`,
-                `${timeSlot.emoji} 太陽が真上から照らす中、${bird.name}が日光浴を満喫しています`,
+        ],
+        noon: [
+            `${timeSlot.emoji} 昼下がり、${bird.name}がのんびりと過ごしています`,
+            `${timeSlot.emoji} 暖かい昼間の陽だまりで、${bird.name}が気持ちよさそうにしています`,
+            `${timeSlot.emoji} お昼時、${bird.name}が木陰で休憩しています`,
+            `${timeSlot.emoji} 昼間の賑やかな時間を、${bird.name}が楽しんでいます`,
+            `${timeSlot.emoji} 午後の暖かい日差しの中、${bird.name}が羽繕いをしています`,
+            `${timeSlot.emoji} 太陽が真上から照らす中、${bird.name}が日光浴を満喫しています`,
             `${timeSlot.emoji} お昼の暖かい時間に、${bird.name}が仲間とのんびりおしゃべりしています`,
             `${timeSlot.emoji} 昼間の明るい光の中で、${bird.name}の美しい羽色が際立っています`,
             `${timeSlot.emoji} ランチタイムを楽しむように、${bird.name}が美味しそうに食事をしています`,
-            `${timeSlot.emoji} 昼下がりの暖かさに、${bird.name}が心地よい居眠りをしています`
-            ],
-            evening: [
-                `${timeSlot.emoji} 夕暮れ時、${bird.name}が美しい夕日を眺めています`,
-                `${timeSlot.emoji} 夕焼け空を背景に、${bird.name}が幻想的に舞っています`,
-                `${timeSlot.emoji} 一日の終わりに、${bird.name}が仲間と夕べの歌を歌っています`,
-                `${timeSlot.emoji} 夕方の涼しい風を、${bird.name}が羽で感じています`,
-                `${timeSlot.emoji} 夕暮れの静けさの中、${bird.name}が穏やかに過ごしています`,
-                `${timeSlot.emoji} オレンジ色の空の下で、${bird.name}が一日を振り返っているようです`,
+            `${timeSlot.emoji} 昼下がりの暖かさに、${bird.name}が心地よいお昼寝をしています`
+        ],
+        evening: [
+            `${timeSlot.emoji} 夕暮れ時、${bird.name}が美しい夕日を眺めています`,
+            `${timeSlot.emoji} 夕焼け空を背景に、${bird.name}が幻想的に舞っています`,
+            `${timeSlot.emoji} 一日の終わりに、${bird.name}が仲間と夕べの歌を歌っています`,
+            `${timeSlot.emoji} 夕方の涼しい風を、${bird.name}が羽で感じています`,
+            `${timeSlot.emoji} 夕暮れの静けさの中、${bird.name}が穏やかに過ごしています`,
+            `${timeSlot.emoji} オレンジ色の空の下で、${bird.name}が一日を振り返っているようです`,
             `${timeSlot.emoji} 夕陽に照らされた${bird.name}のシルエットが美しく映えています`,
             `${timeSlot.emoji} 夕暮れの優しい光の中で、${bird.name}が安らかに佇んでいます`,
             `${timeSlot.emoji} 黄昏時の神秘的な雰囲気を、${bird.name}が楽しんでいるようです`,
             `${timeSlot.emoji} 夕方の特別な時間に、${bird.name}が感慨深げに空を見上げています`
-            ],
-            night: [
-                `${timeSlot.emoji} 夜の始まり、${bird.name}がねぐらの準備をしています`,
-                `${timeSlot.emoji} 夜風に羽を揺らしながら、${bird.name}が静かに佇んでいます`,
-                `${timeSlot.emoji} 星空の下で、${bird.name}が美しい夜の歌を奏でています`,
-                `${timeSlot.emoji} 夜の静寂を楽しみながら、${bird.name}が月を見上げています`,
-                `${timeSlot.emoji} 夜の帳が降りる中、${bird.name}が安らかに過ごしています`,
-                `${timeSlot.emoji} 街の明かりが灯る中、${bird.name}が夜の美しさに見とれています`,
+        ],
+        night: [
+            `${timeSlot.emoji} 夜の始まり、${bird.name}がねぐらの準備をしています`,
+            `${timeSlot.emoji} 夜風に羽を揺らしながら、${bird.name}が静かに佇んでいます`,
+            `${timeSlot.emoji} 星空の下で、${bird.name}が美しい夜の歌を奏でています`,
+            `${timeSlot.emoji} 夜の静寂を楽しみながら、${bird.name}が月を見上げています`,
+            `${timeSlot.emoji} 夜の帳が降りる中、${bird.name}が安らかに過ごしています`,
+            `${timeSlot.emoji} 街の明かりが灯る中、${bird.name}が夜の美しさに見とれています`,
             `${timeSlot.emoji} 夜のひんやりとした空気を、${bird.name}が心地よく感じています`,
             `${timeSlot.emoji} 星々の輝きの下で、${bird.name}が宇宙の神秘を感じているようです`,
             `${timeSlot.emoji} 夜の静けさに包まれて、${bird.name}が深い瞑想にふけっています`,
             `${timeSlot.emoji} 月明かりに照らされた${bird.name}が、天使のように美しく佇んでいます`
-            ]
-        };
+        ],
+        // 🔧 修正: sleepキー用のイベントを追加
+        sleep: [
+            `${timeSlot.emoji} 就寝時間、${bird.name}が羽の中に頭を埋めて安らかに眠っています`,
+            `${timeSlot.emoji} 深夜の静寂の中、${bird.name}が平和に休んでいます`,
+            `${timeSlot.emoji} 夜更けに、${bird.name}が静かに夢の世界にいます`,
+            `${timeSlot.emoji} 真夜中の闇の中、${bird.name}が穏やかに眠っています`,
+            `${timeSlot.emoji} 就寝時間の${bird.name}が、仲間と寄り添って眠っています`,
+            `${timeSlot.emoji} 深い眠りについた${bird.name}が、小さく寝息を立てています`,
+            `${timeSlot.emoji} 夜中に${bird.name}が、枝の上でバランスを取りながら眠っています`,
+            `${timeSlot.emoji} 暗闇の中で、${bird.name}が安全な場所で休んでいます`,
+            `${timeSlot.emoji} 静かな夜に、${bird.name}が幸せそうな夢を見ているようです`,
+            `${timeSlot.emoji} 就寝時間を迎えた${bird.name}が、明日への力を蓄えています`
+        ]
+    };
 
-        const events = timeEvents[timeSlot.key] || timeEvents.noon;
-        const eventContent = events[Math.floor(Math.random() * events.length)];
-
+    // 🔧 修正: より安全な配列選択
+    const events = timeEvents[timeSlot.key];
+    
+    if (!events) {
+        console.log(`❌ エラー: 時間帯キー '${timeSlot.key}' に対応するイベントが見つかりません`);
+        
+        // 現在時刻に基づいた安全なフォールバック
+        const now = new Date();
+        const hour = now.getHours();
+        
+        if (hour >= 22 || hour < 5) {
+            // 就寝時間（22:00-翌5:00）
+            console.log('🔧 フォールバック: sleep イベントを使用');
+            return {
+                type: `時間帯イベント(就寝時間)`,
+                content: `🌙 深夜の静寂の中、${bird.name}が平和に休んでいます`,
+                relatedBird: bird.name,
+                timeSlot: { key: 'sleep', name: '就寝時間', emoji: '🌙' }
+            };
+        } else {
+            // 昼間時間帯
+            console.log('🔧 フォールバック: noon イベントを使用');
+            return {
+                type: `時間帯イベント(昼間)`,
+                content: `🏞️ 明るい時間帯に、${bird.name}が元気に過ごしています`,
+                relatedBird: bird.name,
+                timeSlot: { key: 'noon', name: '昼間', emoji: '🏞️' }
+            };
+        }
+    }
+    
+    const eventContent = events[Math.floor(Math.random() * events.length)];
+    
+    // 🔧 最終安全チェック：昼間に夜間コンテンツが混入していないか
+    const hour = new Date().getHours();
+    const isDayTime = hour >= 6 && hour < 22;
+    const nightKeywords = ['夜', '星', '月', '静寂', '暗', '夜空', '夜風', '瞑想', '深夜', '真夜中', '就寝', '眠'];
+    const hasNightContent = nightKeywords.some(keyword => eventContent.includes(keyword));
+    
+    if (isDayTime && hasNightContent && timeSlot.key !== 'sleep') {
+        console.log(`❌ 警告: 昼間(${hour}時)に夜間的コンテンツが生成されました:`);
+        console.log(`   内容: ${eventContent}`);
+        console.log(`   時間帯キー: ${timeSlot.key}`);
+        console.log(`   時間帯名: ${timeSlot.name}`);
+        
+        // 緊急フォールバック：安全な昼間イベントに置き換え
+        const safeContent = `${timeSlot.emoji} 明るい${timeSlot.name}の時間帯に、${bird.name}が元気に活動しています`;
+        console.log(`🔧 緊急修正: ${safeContent}`);
+        
         return {
             type: `時間帯イベント(${timeSlot.name})`,
-            content: eventContent,
+            content: safeContent,
             relatedBird: bird.name,
             timeSlot: timeSlot
         };
     }
 
+    console.log(`✅ 時間帯イベント生成成功: ${timeSlot.name} (${timeSlot.key})`);
+
+    return {
+        type: `時間帯イベント(${timeSlot.name})`,
+        content: eventContent,
+        relatedBird: bird.name,
+        timeSlot: timeSlot
+    };
+}
     /**
      * 夜行性専用イベント生成
      */
