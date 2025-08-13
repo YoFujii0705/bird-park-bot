@@ -380,32 +380,38 @@ getJSTTime() {
    /**
  * 現在の時間帯を取得（JST基準）
  */
+// 🔧 修正版: getCurrentTimeSlot メソッド
 getCurrentTimeSlot() {
-    // 🔧 修正: より確実なJST時刻取得
+    // より確実なJST時刻取得
     const now = new Date();
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     const jstTime = new Date(utc + (9 * 60 * 60 * 1000)); // JST = UTC+9
     const hour = jstTime.getHours();
     
-    console.log(`🕐 現在時刻(JST): ${jstTime.getHours()}:${jstTime.getMinutes().toString().padStart(2, '0')}`);
+    console.log(`🕐 現在時刻(JST): ${jstTime.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`);
+    console.log(`🕐 時間: ${hour}時`);
     
+    // 時間帯判定の修正
     for (const [key, slot] of Object.entries(this.timeSlots)) {
         if (key === 'sleep') {
-            if (hour >= slot.start || hour < slot.end) {
-                console.log(`⏰ 判定結果: ${slot.name} (${slot.start}:00-${slot.end}:00)`);
+            // 就寝時間: 22:00-翌7:00
+            if (hour >= 22 || hour < 7) {
+                console.log(`⏰ 判定結果: ${slot.name} (${slot.start}:00-${slot.end}:00) - 夜間`);
                 return { key, ...slot };
             }
         } else {
+            // 通常の時間帯
             if (hour >= slot.start && hour < slot.end) {
-                console.log(`⏰ 判定結果: ${slot.name} (${slot.start}:00-${slot.end}:00)`);
+                console.log(`⏰ 判定結果: ${slot.name} (${slot.start}:00-${slot.end}:00) - 昼間`);
                 return { key, ...slot };
             }
         }
     }
     
-    console.log(`⚠️ 時間帯判定失敗: ${hour}時`);
-    return { key: 'unknown', start: 0, end: 24, name: '不明', emoji: '❓' };
+    console.log(`⚠️ 時間帯判定失敗: ${hour}時 - デフォルトで昼間として処理`);
+    return { key: 'noon', start: 11, end: 15, name: '昼', emoji: '🏞️' };
 }
+    
     /**
      * 現在の月齢を取得
      */
@@ -4624,13 +4630,17 @@ createNightWatchEvent(allBirds) {
 }
 
     // 夜間判定
+// 🔧 修正版: isSleepTime メソッド
 isSleepTime() {
-    // 🔧 修正: 同じJST取得方法を使用
     const now = new Date();
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     const jstTime = new Date(utc + (9 * 60 * 60 * 1000)); // JST = UTC+9
     const hour = jstTime.getHours();
-    return hour >= 22 || hour < 7;
+    
+    const isSleep = hour >= 22 || hour < 7;
+    console.log(`🌙 就寝時間チェック: ${hour}時 → ${isSleep ? '就寝時間' : '活動時間'}`);
+    
+    return isSleep;
 }
 
     // イベント追加
@@ -4750,13 +4760,20 @@ async generateRandomEvent(guildId) {
         const allBirds = this.getAllBirds(guildId);
         if (allBirds.length === 0) return;
 
+        // 🔧 修正: より確実な夜間判定
         const timeSlot = this.getCurrentTimeSlot();
+        const isNightTime = this.isSleepTime(); // 追加の夜間チェック
+        
         let event = null;
 
-        console.log(`🎪 サーバー ${guildId} でランダムイベント生成開始 (${timeSlot.name})`);
+        console.log(`🎪 サーバー ${guildId} でランダムイベント生成開始`);
+        console.log(`🕐 時間帯: ${timeSlot.name} (${timeSlot.key})`);
+        console.log(`🌙 夜間判定: ${isNightTime}`);
 
-        // 夜間の場合
-        if (timeSlot.key === 'sleep') {
+        // 🔧 修正: 夜間判定を二重チェック
+        if (timeSlot.key === 'sleep' || isNightTime) {
+            console.log(`🌙 夜間イベント処理開始`);
+            
             const nightEventTypes = ['sleep', 'dream', 'night_watch'];
             
             const hasNocturnalBirds = await this.hasNocturnalBirds(allBirds);
@@ -4885,6 +4902,54 @@ async generateRandomEvent(guildId) {
     } catch (error) {
         console.error(`❌ サーバー ${guildId} のランダムイベント生成エラー:`, error);
     }
+}
+
+    // 🔧 デバッグ用: 時間帯テスト関数
+async testTimeSlotDetection() {
+    console.log('🧪 時間帯判定テスト開始...');
+    
+    const now = new Date();
+    console.log(`📅 システム時刻: ${now.toISOString()}`);
+    console.log(`📅 JST時刻: ${now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`);
+    
+    const timeSlot = this.getCurrentTimeSlot();
+    const isSleep = this.isSleepTime();
+    
+    console.log(`⏰ 検出された時間帯: ${timeSlot.name} (${timeSlot.key})`);
+    console.log(`🌙 就寝時間判定: ${isSleep}`);
+    
+    // 各時間の判定テスト
+    for (let hour = 0; hour < 24; hour++) {
+        const testTime = new Date();
+        testTime.setHours(hour, 0, 0, 0);
+        
+        const testHour = testTime.getHours();
+        const testIsSleep = testHour >= 22 || testHour < 7;
+        
+        let testSlot = 'unknown';
+        for (const [key, slot] of Object.entries(this.timeSlots)) {
+            if (key === 'sleep') {
+                if (testHour >= 22 || testHour < 7) {
+                    testSlot = slot.name;
+                    break;
+                }
+            } else {
+                if (testHour >= slot.start && testHour < slot.end) {
+                    testSlot = slot.name;
+                    break;
+                }
+            }
+        }
+        
+        console.log(`${hour.toString().padStart(2, '0')}:00 → ${testSlot} (夜間: ${testIsSleep})`);
+    }
+    
+    return {
+        currentTimeSlot: timeSlot,
+        isSleepTime: isSleep,
+        systemTime: now.toISOString(),
+        jstTime: now.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
+    };
 }
 }
 
